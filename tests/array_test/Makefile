@@ -1,8 +1,7 @@
 
+SHELL=/bin/bash
 objectfiles=arr_bench.o 
 libs=-lmm -lrt -lksnap
-
-
 
 all : arr_bench
 
@@ -13,7 +12,9 @@ arr_bench : bmharness.cpp $(objectfiles)
 	g++ -c -o $@ $< $(libs)
 
 test : clean arr_bench
-	sudo install_snap_module.sh y; \
+	pushd ../../source/module; \
+	sudo ./install.sh y; \
+	popd; \
 	sudo rm *.mem; \
 	sudo rm *.sem; \
 	sudo rm snapshot_stm.*; \
