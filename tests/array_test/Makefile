@@ -1,4 +1,6 @@
 
+.PHONY: tests
+
 SHELL=/bin/bash
 objectfiles=arr_bench.o 
 libs=-lmm -lrt -lksnap
@@ -11,7 +13,7 @@ arr_bench : bmharness.cpp $(objectfiles)
 %.o : %.cpp
 	g++ -c -o $@ $< $(libs)
 
-test : clean arr_bench
+tests :
 	pushd ../../source/module; \
 	sudo ./install.sh y; \
 	popd; \
