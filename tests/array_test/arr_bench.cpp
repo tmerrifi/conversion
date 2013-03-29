@@ -136,10 +136,17 @@ void __attribute__((optimize("O0"))) bench_test(uintptr_t id, uint32_t* seed, co
     //add 1 to avoid 0, where we store the total if we are running unit tests
     loc = (rand() % (CFG.elements -1)) + 1;
     #ifdef CV_UNIT_TESTS
+<<<<<<< HEAD
+    conv_update_mutex(cv_seg, matrix_sem[loc % sem_count]);
+    matrix[loc]++;
+    matrix[0]=compute_total();
+    conv_commit_mutex(cv_seg, matrix_sem[loc % sem_count]);
+=======
     conv_update_mutex(cv_seg, global_sem);
     matrix[loc]++;
     matrix[0]=compute_total();
     conv_commit_mutex(cv_seg, global_sem);
+>>>>>>> 5146d6a919c3939e472e4a1304d0378002ed0972
     #else
     conv_update_mutex(cv_seg, matrix_sem[loc % sem_count]);
     matrix[loc]++;
