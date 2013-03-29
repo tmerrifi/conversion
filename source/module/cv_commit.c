@@ -233,7 +233,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     atomic64_set(&cv_seg->committed_version_atomic, cv_seg->committed_version_num);
     BUG_ON(cv_seg->committed_version_num < our_version_number);
     //export the new version to user space
-    //ksnap_meta_set_shared_version(vma, cv_seg->committed_version_num);
+    ksnap_meta_set_shared_version(vma, cv_seg->committed_version_num);
   }
   spin_unlock(&cv_seg->lock);
 

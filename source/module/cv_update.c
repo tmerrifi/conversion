@@ -56,7 +56,7 @@ void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags){
 
   cv_stats_start(mapping_to_ksnap(mapping), 0, update_latency);
   if (vma==NULL || vma->vm_mm == NULL || vma->vm_file==NULL || vma->vm_file->f_mapping==NULL){
-    //printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: vma not setup right\n");
+    printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: vma not setup right\n");
   }
 
   //printk(KSNAP_LOG_LEVEL "IN UPDATE %d flags: merge %d merge_only %d update_only %d\n", current->pid, merge, merge_only, update_only);
@@ -66,7 +66,6 @@ void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags){
   cv_seg=ksnap_vma_to_ksnap(vma);
   //get the user segment data structure
   cv_user=ksnap_vma_to_userdata(vma);
-
   //if we aren't merging then revert everything in our dirty page list
   if (!merge){
     ksnap_revert_dirty_list(vma, mapping);
