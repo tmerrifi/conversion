@@ -1,6 +1,8 @@
 
 SHELL=/bin/bash
 
+.PHONY: tests
+
 all : conversionlib conversionmodule
 
 conversionlib :
