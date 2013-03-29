@@ -13,3 +13,8 @@ conversionmodule :
 	pushd source/module; \
 	sudo ./install.sh y; \
 	popd;
+
+tests :
+	pushd tests; \
+	make; \
+	popd; 
