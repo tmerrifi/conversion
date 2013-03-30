@@ -1,5 +1,5 @@
 make clean;
-sudo ./configure --prefix=/usr --with-shm=MMFILE
-sudo make;
-sudo make test;
-sudo make install;
+./configure --prefix=/usr --with-shm=MMFILE
+make;
+make test;
+make install;
