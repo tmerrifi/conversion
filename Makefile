@@ -5,8 +5,13 @@ SHELL=/bin/bash
 
 all : conversionlib conversionmodule
 
-conversionlib :
-	pushd source/lib; \
+libmm : 
+	pushd source/lib/mm; \
+	./compileAndInstall.sh; \
+	popd;
+
+conversionlib : libmm
+	pushd source/lib/conversion; \
 	make; \
 	make install; \
 	popd;
