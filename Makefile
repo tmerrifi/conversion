@@ -16,7 +16,7 @@ conversionmodule :
 	sudo ./install.sh y; \
 	popd;
 
-tests :
+tests : conversionlib conversionmodule
 	pushd tests; \
 	make; \
 	popd; 
