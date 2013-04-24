@@ -125,7 +125,8 @@ void __ksnap_open_meta_data_segments(int size_of_segment, char * segment_name, c
   __get_meta_local_page(snap)->dirty_list_size = __compute_dirty_list_length(meta_data_pages);
 }
 
-//open up a snapshot, only to be called once on a snapshot
+
+
 conv_seg * conv_open(int size_of_segment, char * segment_name, void * desired_address){
   int meta_data_pages;
   int created;
@@ -147,6 +148,10 @@ conv_seg * conv_open(int size_of_segment, char * segment_name, void * desired_ad
 
   return snap;
 }
+
+//conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags){
+//  
+//}
 
 //what if we want to work with a segment that is already opened in our address space? This is useful for when we are using the
 //malloc library and we don't have control (or full control) of the mmap() call and where it maps to. So, we have to go find the address
