@@ -149,9 +149,9 @@ conv_seg * conv_open(int size_of_segment, char * segment_name, void * desired_ad
   return snap;
 }
 
-//conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags){
-//  
-//}
+conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags){
+  
+}
 
 //what if we want to work with a segment that is already opened in our address space? This is useful for when we are using the
 //malloc library and we don't have control (or full control) of the mmap() call and where it maps to. So, we have to go find the address
