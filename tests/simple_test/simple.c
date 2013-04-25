@@ -13,7 +13,7 @@ void run(){
 
 int main(){
   
-  //conv_checkout_create((1<<12) * NUM_OF_PAGES, "simple_test", NULL, 0);
+  conv_checkout_create((1<<12) * NUM_OF_PAGES, "simple_test", NULL, 0);
   
   int i=0;
   int pid=0;

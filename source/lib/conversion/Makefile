@@ -1,6 +1,7 @@
 CFLAGS = -g -std=gnu99 -fPIC
 #SOURCES = sync.o ftrace.o shmUtility.o ksnap_test_sub.o ksnap_test_owner.o memcpy_shm.o ksnap.o time_util.o bitmap.o
 SOURCES = sync.o ksnap.o time_util.o bitmap.o
+LIBS = -pthread
 
 INSTALLDIR = /usr/lib
 INSTALLLIB = /usr/local/include
@@ -8,10 +9,10 @@ INSTALLLIB = /usr/local/include
 all: dynlib
 
 dynlib: $(SOURCES) #force_run
-	gcc -shared $(CFLAGS) $(CV_LIB_ARCH) -o libksnap.so $(SOURCES);
+	gcc -shared $(CFLAGS) $(CV_LIB_ARCH) -o libksnap.so $(SOURCES) $(LIBS);
 
 %.o: %.c
-	gcc $(CFLAGS) $(CV_LIB_ARCH) -o $@ -c $< 
+	gcc $(CFLAGS) $(CV_LIB_ARCH) -o $@ -c $< $(LIBS);
 
 install:
 	sudo cp libksnap.so $(INSTALLDIR);\
