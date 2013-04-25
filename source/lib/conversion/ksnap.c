@@ -168,7 +168,7 @@ conv_seg * __create_conv_seg(int size_of_segment, char * segment_name){
 }
 
 //open up the segment, if create is set then we ONLY create...else we ONLY open (not create)
-conv_seg * __conv_open(int size_of_segment, char * segment_name, void * desired_address, int create){
+conv_seg * __conv_open(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags, int create){
   int meta_data_pages;
   int created;
 
