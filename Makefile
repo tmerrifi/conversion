@@ -25,3 +25,8 @@ tests : conversionlib conversionmodule
 	pushd tests; \
 	make; \
 	popd; 
+
+clean : 
+	pushd source/lib/conversion; \
+	make clean; \
+	popd;	
