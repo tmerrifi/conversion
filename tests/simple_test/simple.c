@@ -33,7 +33,6 @@ void run(conv_seg * array_seg, int id){
     for (;j<NUM_OF_ITERATIONS;++j){
       int index = id + (rand()%(ARRAY_SIZE_BYTES/NUM_OF_THREADS)) + start_index;
       array[index]++;
-      printf("%d : %d\n", id, index);
     }
     conv_commit(array_seg);
     sleep(1);
@@ -41,7 +40,9 @@ void run(conv_seg * array_seg, int id){
 
     //a poor man's barrier
     sum = sum_up(array_seg);
-    printf("sum is %d\n", sum);
+    if (sum != ((i+1)*NUM_OF_ITERATIONS)){
+      printf("FAILED!!!!!!\n");
+    }
     sleep(1);
     j=0;
   }
