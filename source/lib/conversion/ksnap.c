@@ -8,6 +8,7 @@
 #include <string.h>
 #include <semaphore.h>
 
+
 #include "ksnap.h"
 #include "shmUtility.h"
 #include "ftrace.h"
@@ -52,10 +53,11 @@ void * __open_shared_memory_segment(int size_of_segment, char * file_name, void 
   if (fd==NULL){
     fd = &tmp_fd;
   }
-  sprintf(file_path,"%s",file_name);
+  sprintf(file_path,"%sXXXXXX",file_name);
   //create the segment, if it already exists we must fail
   if (create){
-    *fd = open(file_path, O_CREAT | O_RDWR | O_EXCL, 0644);
+    //*fd = open(file_path, O_CREAT | O_RDWR | O_EXCL, 0644);
+    *fd = mkstemp(file_path);
     if (*fd==-1){
       //we've failed! return null
       goto error;
