@@ -34,8 +34,9 @@ void run(conv_seg * array_seg, int id){
       array[index]++;
     }
 
-    sleep(1);
     conv_commit(array_seg);
+    sleep(1);
+    conv_update(array_seg);
 
     //a poor man's barrier
     sum = sum_up(array_seg);
