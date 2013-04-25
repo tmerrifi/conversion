@@ -8,8 +8,8 @@
 #define NUM_OF_THREADS 4
 #define ARRAY_SIZE_BYTES (NUM_OF_PAGES * (1<<12))
 
-#define NUM_OF_RUNS 10
-#define NUM_OF_ITERATIONS 10
+#define NUM_OF_RUNS 2
+#define NUM_OF_ITERATIONS 5
 
 int sum_up(conv_seg * array_seg){
   int i,j, sum;
@@ -32,7 +32,9 @@ void run(conv_seg * array_seg, int id){
 
   for (;i<NUM_OF_RUNS;++i){
     for (;j<NUM_OF_ITERATIONS;++j){
-      array[id + rand()%(ARRAY_SIZE_BYTES/NUM_OF_THREADS)]++;
+      int index = id + (rand()%(ARRAY_SIZE_BYTES/NUM_OF_THREADS));
+      array[index]++;
+      printf("%d : %d\n", id, index);
     }
     conv_commit(array_seg);
     sleep(1);
