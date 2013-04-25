@@ -31,7 +31,7 @@ void run(conv_seg * array_seg, int id){
 
   for (;i<NUM_OF_RUNS;++i){
     for (;j<NUM_OF_ITERATIONS;++j){
-      int index = id + (rand()%(ARRAY_SIZE_BYTES/NUM_OF_THREADS));
+      int index = id + (rand()%(ARRAY_SIZE_BYTES/NUM_OF_THREADS)) + start_index;
       array[index]++;
       printf("%d : %d\n", id, index);
     }
