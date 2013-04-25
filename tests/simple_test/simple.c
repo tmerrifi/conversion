@@ -4,12 +4,12 @@
 
 #include "ksnap.h"
 
-#define NUM_OF_PAGES 1
+#define NUM_OF_PAGES 10
 #define NUM_OF_THREADS 4
 #define ARRAY_SIZE_BYTES (NUM_OF_PAGES * (1<<12))
 
-#define NUM_OF_RUNS 2
-#define NUM_OF_ITERATIONS 10
+#define NUM_OF_RUNS 3
+#define NUM_OF_ITERATIONS 20
 
 int sum_up(conv_seg * array_seg){
   int i,j, sum;
@@ -74,5 +74,6 @@ int main(){
   for(;i<NUM_OF_THREADS;++i){
     waitpid(pids[i], status, 0);
   }
+  printf("\n\nDONE WITH TEST\n\n");
   return 0;
 }
