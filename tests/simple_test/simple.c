@@ -11,7 +11,7 @@
 #define NUM_OF_RUNS 10
 #define NUM_OF_ITERATIONS 10
 
-void sum_up(conv_seg * array_seg){
+int sum_up(conv_seg * array_seg){
   int i,j, sum;
   sum=0;
   char * array = array_seg->segment;
