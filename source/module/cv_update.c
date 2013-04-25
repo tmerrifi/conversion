@@ -32,7 +32,7 @@
 #include "cv_lock_list.h"
 #include "cv_update.h"
 
-void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags){
+void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint64_t target_version_input){
   //struct vm_area_struct * master_vma;
   /*for iterating through the list*/
   struct list_head * pos, * pos_outer, * pos_outer_tmp, * ls, * new_list;
@@ -71,8 +71,8 @@ void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags){
     ksnap_revert_dirty_list(vma, mapping);
   }
 
-
-  target_version_number=atomic64_read(&cv_seg->committed_version_atomic);
+  //if the target was passed in....use that!
+  target_version_number=(target_version_input==0) ? atomic64_read(&cv_seg->committed_version_atomic) : target_version_input;
   list_to_stop_at=(struct snapshot_version_list *)atomic64_read(&cv_seg->uncommitted_version_entry_atomic);
 
 
@@ -165,7 +165,20 @@ void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags){
       flush_tlb();
     }
   }
+
+  printk(KSNAP_LOG_LEVEL "UPDATE: pid %d updated to version %lu and merged %d pages and updated %d pages\n", current->pid, target_version_number, merge_count, gotten_pages);
+
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
   cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
   return;
+}
+
+
+void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags){
+  __cv_update_parallel(vma, flags, 0);
+}
+
+//update to a specific version
+void cv_update_parallel_to_version(struct vm_area_struct * vma, unsigned long flags, uint64_t version){
+  __cv_update_parallel(vma, flags, version);
 }
