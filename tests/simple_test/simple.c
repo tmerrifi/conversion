@@ -9,7 +9,7 @@
 #define ARRAY_SIZE_BYTES (NUM_OF_PAGES * (1<<12))
 
 #define NUM_OF_RUNS 3
-#define NUM_OF_ITERATIONS 20
+#define NUM_OF_ITERATIONS 1000
 
 int sum_up(conv_seg * array_seg){
   int i,j, sum;
