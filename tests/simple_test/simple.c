@@ -54,7 +54,7 @@ int main(){
   for (;i<NUM_OF_THREADS;++i){
     pid = fork();
     if (pid==0){
-      run();
+      run(array_segment, i);
       exit(1);
     }
     else{
