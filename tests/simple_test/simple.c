@@ -39,6 +39,7 @@ void run(conv_seg * array_seg, int id){
     sum = sum_up(array_seg);
     printf("sum is %d\n", sum);
     sleep(1);
+    j=0;
   }
 }
 
