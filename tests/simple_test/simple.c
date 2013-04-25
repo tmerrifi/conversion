@@ -24,7 +24,6 @@ int sum_up(conv_seg * array_seg){
 
 void run(conv_seg * array_seg, int id){
   char * array = array_seg->segment;
-  srand(time(NULL));
   int i,j, sum;
   i=j=0;
   int start_index = (ARRAY_SIZE_BYTES/NUM_OF_THREADS)*id;
@@ -49,6 +48,7 @@ void run(conv_seg * array_seg, int id){
 }
 
 int main(){
+  srand(time(NULL));
   conv_seg * array_segment = conv_checkout_create((1<<12) * NUM_OF_PAGES, "simple_test", NULL, 0);
 
   int i=0;
