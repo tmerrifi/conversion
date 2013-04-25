@@ -74,5 +74,5 @@ int main(){
   for(;i<NUM_OF_THREADS;++i){
     waitpid(pids[i], status, 0);
   }
-
+  return 0;
 }
