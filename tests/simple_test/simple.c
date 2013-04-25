@@ -36,7 +36,7 @@ void run(conv_seg * array_seg, int id){
 
     conv_commit(array_seg);
     printf("%d committed....\n", id);
-    sleep(2);
+    sleep(1);
     printf("\n");
     conv_update(array_seg);
 
@@ -46,7 +46,7 @@ void run(conv_seg * array_seg, int id){
       printf("UNIT TEST ERROR!!! sum %d expected %d\n", sum, ((i+1)*NUM_OF_ITERATIONS*NUM_OF_THREADS) );
     }
     j=0;
-    sleep(2);
+    sleep(1);
   }
 }
 
