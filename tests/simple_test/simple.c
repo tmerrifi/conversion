@@ -47,7 +47,6 @@ void run(conv_seg * array_seg, int id){
 }
 
 int main(){
-  
   conv_seg * array_segment = conv_checkout_create((1<<12) * NUM_OF_PAGES, "simple_test", NULL, 0);
 
   int i=0;
