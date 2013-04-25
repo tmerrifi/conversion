@@ -79,6 +79,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   if (target_version_number<=cv_user->version_num){
     return;
   }
+
   //grab the head of the version list
   version_list=(struct snapshot_version_list *)mapping_to_ksnap(mapping)->snapshot_pte_list;
   //we're going to update, so increment the stats
@@ -166,7 +167,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     }
   }
 
-  printk(KSNAP_LOG_LEVEL "UPDATE: pid %d updated to version %lu and merged %d pages and updated %d pages\n", current->pid, target_version_number, merge_count, gotten_pages);
+  printk(KSNAP_LOG_LEVEL "UPDATE: pid %d updated to version %llu and merged %d pages and updated %d pages\n", current->pid, target_version_number, merge_count, gotten_pages);
 
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
   cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
@@ -178,7 +179,8 @@ void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags){
   __cv_update_parallel(vma, flags, 0);
 }
 
-//update to a specific version
-void cv_update_parallel_to_version(struct vm_area_struct * vma, unsigned long flags, uint64_t version){
-  __cv_update_parallel(vma, flags, version);
+//update to a specific version...called by commit and merging is already done
+void cv_update_parallel_to_version_no_merge(struct vm_area_struct * vma, uint64_t version){
+  //TODO: the flags here are dumb and don't really make a lot of sense in this context. They need to be fixed
+  __cv_update_parallel(vma,  (MS_KSNAP_GET | MS_KSNAP_DETERM_LAZY), version);
 }
