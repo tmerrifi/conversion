@@ -7,6 +7,7 @@
 #define KSNAP_H
 
 #include <semaphore.h>
+#include <stdint.h>
 
 #include "shmUtility.h"
 #include "bitmap.h"
