@@ -1,4 +1,8 @@
 
+.PHONY: tests
+
+SHELL=/bin/bash
+
 all: simple
 
 simple: 
