@@ -28,6 +28,7 @@
 #include "cv_commit.h"
 #include "cv_per_page_version.h"
 #include "cv_merge.h"
+#include "cv_update.h"
 
 //remove the old page from the page cache, handle its LRU stuff, etc...
 void __remove_old_page(struct address_space * mapping, struct vm_area_struct * vma, 
