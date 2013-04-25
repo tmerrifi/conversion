@@ -1,4 +1,7 @@
 
+#include <stdlib.h>
+#include <stdio.h>
+
 #include "ksnap.h"
 
 #define NUM_OF_PAGES 1
