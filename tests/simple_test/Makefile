@@ -6,7 +6,7 @@ SHELL=/bin/bash
 all: simple
 
 simple: 
-	gcc -o simple simple.c -lrt -lksnap
+	gcc -fno-stack-protector -o simple simple.c -lrt -lksnap
 
 tests : simple
 	pushd ../../source/module; \
