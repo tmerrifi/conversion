@@ -41,7 +41,7 @@ void run(conv_seg * array_seg, int id){
     //a poor man's barrier
     sum = sum_up(array_seg);
     if (sum != ((i+1)*NUM_OF_ITERATIONS*NUM_OF_THREADS)){
-      printf("UNIT TEST ERROR!!!\n");
+      printf("UNIT TEST ERROR!!! sum %d expected %d\n", sum, ((i+1)*NUM_OF_ITERATIONS*NUM_OF_THREADS) );
     }
     sleep(1);
     j=0;
