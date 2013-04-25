@@ -55,10 +55,8 @@ struct ksnap_dirty_list_entry{
 #define __get_meta_local_page(snap) ((struct ksnap_meta_data_local *)((unsigned char *)snap->segment - KSNAP_PAGE_SIZE*(META_LOCAL_OFFSET_FROM_SEGMENT)))
 #define __get_meta_shared_page(snap) ((struct ksnap_meta_data_shared *)((unsigned char *)snap->segment - KSNAP_PAGE_SIZE*(META_SHARED_OFFSET_FROM_SEGMENT)))
    
-   
    conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags);
-   conv_seg * conv_open(int size_of_segment, char * segment_name, void * desired_address);
-   
+   //conv_seg * conv_open(int size_of_segment, char * segment_name, void * desired_address);
    conv_seg * conv_open_exisiting(char * segment_name);
    
    void conv_update(conv_seg * seg);
