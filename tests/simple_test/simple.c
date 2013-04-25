@@ -4,7 +4,7 @@
 
 #include "ksnap.h"
 
-#define NUM_OF_PAGES 1000
+#define NUM_OF_PAGES 100
 #define NUM_OF_THREADS 4
 #define ARRAY_SIZE_BYTES (NUM_OF_PAGES * (1<<12))
 
