@@ -71,6 +71,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     ksnap_revert_dirty_list(vma, mapping);
   }
 
+  if (cv_seg==NULL){
+    printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: segment is null for some reason\n");
+  }
+
   //if the target was passed in....use that!
   target_version_number=(target_version_input==0) ? atomic64_read(&cv_seg->committed_version_atomic) : target_version_input;
   list_to_stop_at=(struct snapshot_version_list *)atomic64_read(&cv_seg->uncommitted_version_entry_atomic);
