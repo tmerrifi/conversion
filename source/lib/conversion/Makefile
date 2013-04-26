@@ -3,7 +3,7 @@ CFLAGS = -g -std=gnu99 -fPIC
 SOURCES = sync.o ksnap.o time_util.o bitmap.o
 LIBS = -pthread
 
-INSTALLDIR = /usr/lib
+#INSTALLDIR = /usr/lib
 INSTALLLIB = /usr/local/include
 
 all: dynlib
@@ -15,7 +15,7 @@ dynlib: $(SOURCES) #force_run
 	gcc $(CFLAGS) $(CV_LIB_ARCH) -o $@ -c $< $(LIBS);
 
 install:
-	sudo cp libksnap.so $(INSTALLDIR);\
+	sudo cp libksnap.so $(CV_INSTALLDIR);\
 	sudo cp *.h $(INSTALLLIB)
 
 clean:

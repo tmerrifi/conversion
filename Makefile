@@ -3,7 +3,7 @@ SHELL=/bin/bash
 
 .PHONY: tests
 
-all : conversionlib conversionmodule
+all : conversionlib conversionlib32 conversionmodule
 
 libmm : 
 	pushd source/lib/mm; \
@@ -13,8 +13,15 @@ libmm :
 conversionlib : libmm
 	pushd source/lib/conversion; \
 	make; \
-	make install; \
+	make install CV_INSTALLDIR='/usr/lib'; \
 	popd;
+
+conversionlib32 : libmm
+	pushd source/lib/conversion; \
+	make clean; \
+	make CV_LIB_ARCH='-m32' CONV_DETERM='-DCONV_DETERM'; \
+        make install CV_INSTALLDIR='/lib32'; \
+        popd;
 
 conversionmodule :
 	pushd source/module; \
