@@ -71,6 +71,8 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   user_data->version_num=0;
   user_data->commits=0;
   user_data->last_commit_time.tv_sec=0;
+  user_data->dirty_pages_list = _snapshot_create_pte_list();
+
   INIT_LIST_HEAD(&user_data->segment_list);
   INIT_RADIX_TREE(&user_data->dirty_list_lookup, GFP_KERNEL);
   list_add(&user_data->segment_list, &ksnap_data->segment_list);
