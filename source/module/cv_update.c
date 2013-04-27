@@ -72,7 +72,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   }
 
   if (cv_seg==NULL){
-    printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: segment is null for some reason, vma is %p\n", vma);
+    printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: segment is null for some reason, vma is %p vm_file %p f_mapping %p\n", vma, vma->vm_file, vma->vm_file->f_mapping);
   }
 
   //if the target was passed in....use that!
