@@ -70,6 +70,7 @@ void cv_close(struct vm_area_struct * vma){
       msleep(1);
     }
     kfree(cv);
+    printk(KSNAP_LOG_LEVEL "\n\n**********DOES THIS HAPPEN?\n\n\n\n");
     vma->vm_file->f_mapping->ksnap_data=NULL;
   }
 
