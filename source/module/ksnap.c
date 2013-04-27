@@ -23,8 +23,9 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
   memcpy(new_vma->ksnap_user_data, old_vma->ksnap_user_data, sizeof(struct ksnap_user_data));
   ksnap_vma_to_userdata(new_vma)->dirty_pages_list = _snapshot_create_pte_list();
 
-  printk(KSNAP_LOG_LEVEL "COPYING USER DATA!!!!! pid %d new vma %p user %p list %p old vma %p....vm file %p mapping %p\n", 
-	 current->pid, new_vma, ksnap_vma_to_userdata(new_vma), ksnap_vma_to_userdata(new_vma)->dirty_pages_list, old_vma, new_vma->vm_file, new_vma->vm_file->f_mapping);
+  printk(KSNAP_LOG_LEVEL "COPYING USER DATA!!!!! pid %d new vma %p user %p list %p old vma %p....vm file %p mapping %p seg %p\n", 
+	 current->pid, new_vma, ksnap_vma_to_userdata(new_vma), 
+	 ksnap_vma_to_userdata(new_vma)->dirty_pages_list, old_vma, new_vma->vm_file, new_vma->vm_file->f_mapping, new_vma->vm_file->f_mapping->ksnap_data);
 
   atomic_set(&(ksnap_vma_to_userdata(new_vma)->dirty_page_count), 0);
   //printk("setting vma to null %p %d\n", new_vma, current->pid);
