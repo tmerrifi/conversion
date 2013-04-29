@@ -134,8 +134,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     return;
   }
 
-  printk(KSNAP_LOG_LEVEL "IN COMMIT %d\n", current->pid);
-
   //get conversion for this segment
   cv_seg=mapping_to_ksnap(vma->vm_file->f_mapping);
   //get conversion user data
