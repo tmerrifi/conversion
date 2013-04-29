@@ -251,7 +251,8 @@ void conv_update(conv_seg * seg){
     msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET);
   }
   else{
-    printf("update failed!!! %d\n", getpid());
+    printf("update failed!!! %d, shared %lu local %lu\n", 
+	   getpid(), __get_meta_shared_page(seg)->snapshot_version_num, __get_meta_local_page(seg)->snapshot_version_num);
   }
 }
 
