@@ -140,7 +140,7 @@ extern struct cv_perthread_debug per_thread_debug;
 #define cv_per_thread_debug_inc(spot)				\
   per_thread_debug.location[(current->pid % CV_DEBUG_AVAIL_THREAD_SLOTS)*CV_DEBUG_NUM_SLOTS + spot]++;
 
-#define ksnap_vma_to_ksnap(v) (struct ksnap *)(((struct address_space *)v->vm_file->f_mapping)->ksnap_data)
+#define ksnap_vma_to_ksnap(v) ((struct ksnap *)(((struct address_space *)v->vm_file->f_mapping)->ksnap_data))
 
 #define mapping_to_ksnap(m) ((struct ksnap *)m->ksnap_data)
 
