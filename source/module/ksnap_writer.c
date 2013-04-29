@@ -116,6 +116,10 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   pte_list_entry->wait_revision = 0;
   /*now we need to add the pte to the list */
   list_add_tail(&pte_list_entry->list, &dirty_pages_list->list);
+  #ifdef CONV_LOGGING_ON
+  printk(KSNAP_LOG_LEVEL " %d added index %lu pfn %lu", current->pid, pte_list_entry->page_index, pte_list_entry->pfn);
+  #endif
+
   /*add it to the meta data for tracking*/
   if (cv_user_data->use_tracking){
     ksnap_meta_add_dirty_page(vma, pte_list_entry->page_index);
