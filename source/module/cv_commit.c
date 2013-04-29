@@ -116,7 +116,7 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   }
   
   if (version_list_entry->page_index==65){
-    printk(KSNAP_LOG_LEVEL "commited page 65, pfn is %lu\n", version_list_entry->pfn);
+    printk(KSNAP_LOG_LEVEL "pid: %d commited page 65, pfn is %lu\n", current->pid, version_list_entry->pfn);
   }
 
 }
@@ -194,7 +194,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //Now we need to traverse our dirty list, and commit
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
-    printk(KSNAP_LOG_LEVEL "1 committing %lu, pfn %lu\n", pte_entry->page_index, pte_entry->pfn);
+    printk(KSNAP_LOG_LEVEL "1 pid %d committing %lu, pfn %lu\n", current->pid, pte_entry->page_index, pte_entry->pfn);
     cv_commit_page(pte_entry, vma, our_version_number, 0);
     //removing from the dirty list
     list_del(pos);
