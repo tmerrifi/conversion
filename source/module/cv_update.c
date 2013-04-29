@@ -59,7 +59,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: vma not setup right\n");
   }
 
-  //printk(KSNAP_LOG_LEVEL "IN UPDATE %d flags: merge %d merge_only %d update_only %d\n", current->pid, merge, merge_only, update_only);
+  printk(KSNAP_LOG_LEVEL "IN UPDATE %d\n", current->pid);
 
   mapping=vma->vm_file->f_mapping;
   //get the conversion segment data structure

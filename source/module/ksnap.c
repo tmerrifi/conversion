@@ -21,20 +21,20 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
 
   new_vma->ksnap_user_data=kmalloc(sizeof(struct ksnap_user_data), GFP_KERNEL);
   memcpy(new_vma->ksnap_user_data, old_vma->ksnap_user_data, sizeof(struct ksnap_user_data));
+  
+  ksnap_vma_to_userdata(new_vma)->dirty_pages_list_count=0;
+  ksnap_vma_to_userdata(new_vma)->commits=0;
+  ksnap_vma_to_userdata(new_vma)->last_commit_time.tv_sec=0;
   ksnap_vma_to_userdata(new_vma)->dirty_pages_list = _snapshot_create_pte_list();
+  INIT_LIST_HEAD(&ksnap_vma_to_userdata(new_vma)->segment_list);
+  INIT_RADIX_TREE(&ksnap_vma_to_userdata(new_vma)->dirty_list_lookup, GFP_KERNEL);
+  list_add(&ksnap_vma_to_userdata(new_vma)->segment_list, &ksnap_vma_to_ksnap(old_vma)->segment_list);
+  atomic_set(&(ksnap_vma_to_userdata(new_vma)->dirty_page_count), 0);
 
   printk(KSNAP_LOG_LEVEL "COPYING USER DATA!!!!! pid %d new vma %p user %p list %p old vma %p....vm file %p mapping %p seg %p\n", 
 	 current->pid, new_vma, ksnap_vma_to_userdata(new_vma), 
 	 ksnap_vma_to_userdata(new_vma)->dirty_pages_list, old_vma, new_vma->vm_file, new_vma->vm_file->f_mapping, new_vma->vm_file->f_mapping->ksnap_data);
 
-  atomic_set(&(ksnap_vma_to_userdata(new_vma)->dirty_page_count), 0);
-  //printk("setting vma to null %p %d\n", new_vma, current->pid);
-  //new_vma->snapshot_pte_list=NULL;
-  //printk("copy...don't copy %d\n", (old_vma->vm_flags | VM_DONTCOPY));
-  INIT_RADIX_TREE(&ksnap_vma_to_userdata(new_vma)->dirty_list_lookup, GFP_KERNEL);
-  //getrawmonotonic(&tv2);
-  //printk("userdata copy: %lu\n", tv2.tv_nsec - tv1.tv_nsec);
-  //printk("the vma im copying....new %p old %p\n", new_vma, old_vma);
 }
 
 void cv_close(struct vm_area_struct * vma){
