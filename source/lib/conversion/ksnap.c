@@ -60,7 +60,6 @@ void * __open_shared_memory_segment(int size_of_segment, char * file_name, void 
     *fd = mkstemp(file_path);
     if (*fd==-1){
       //we've failed! return null
-      printf("mkstemp failed!!!!\n\n");
       goto error;
     }
   }
@@ -68,7 +67,6 @@ void * __open_shared_memory_segment(int size_of_segment, char * file_name, void 
   else{
     *fd = open(file_path, O_RDWR, 0644);
     if (*fd==-1){
-      printf("open failed!!!!\n\n");
       goto error;
     }
   }
@@ -242,7 +240,7 @@ conv_seg * conv_open_exisiting(char * segment_name){
   madvise(seg->segment, seg->size_of_segment, MADV_KSNAP_ALWAYS);
   madvise(seg->segment, seg->size_of_segment, MADV_KSNAP_TRACK);
 
-  __ksnap_open_meta_data_segments( seg->size_of_segment, segment_name, seg, __CONV_NO_CREATE);
+  __ksnap_open_meta_data_segments( seg->size_of_segment, segment_name, seg, __CONV_CREATE);
   return seg;
 }
 
