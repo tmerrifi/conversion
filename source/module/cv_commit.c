@@ -193,6 +193,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //Now we need to traverse our dirty list, and commit
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
+    printk(KSNAP_LOG_LEVEL "1 committing %lu, pfn %lu\n", pte_entry->page_index, pte_entry->pfn);
     cv_commit_page(pte_entry, vma, our_version_number, 0);
     //removing from the dirty list
     list_del(pos);
@@ -203,7 +204,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //now we need to commit the stuff in the 
   while(!list_empty(&wait_list->list)){
     if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv))){
-
+      printk(KSNAP_LOG_LEVEL "2 committing %lu, pfn %lu\n", pte_entry->page_index, pte_entry->pfn);
       //grab the currently committed entry
       cv_commit_page(pte_entry, vma, our_version_number, 1);
       //remove from the waitlist
