@@ -146,7 +146,8 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	}
 	else if (!merge_only){
 	  if (tmp_pte_list->page_index == 65){
-	    printk(KSNAP_LOG_LEVEL "updating 65 pfn %lu\n", tmp_pte_list->pfn);
+	    printk(KSNAP_LOG_LEVEL "updating 65 pfn %lu, version %lu, target %lu\n", 
+		   tmp_pte_list->pfn, latest_version_entry->version_num, target_version_number);
 	  }
 	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, !flush_entire_tlb);
 	  ++gotten_pages;
