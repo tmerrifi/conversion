@@ -84,6 +84,7 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   mapping = vma->vm_file->f_mapping;
   //the pfn in our current page table doesn't equal the one we are trying to commit. Perhaps a fork() occured since our last commit?
   if (pte_pfn(*(version_list_entry->pte)) != version_list_entry->pfn){
+    printk(KSNAP_LOG_LEVEL "uhoh, pfn in our page table... %lu pfn %lu\n", version_list_entry->page_index, version_list_entry->pfn);
     return;
   }
   //lets get that page struct that is pointed to by this pte...
