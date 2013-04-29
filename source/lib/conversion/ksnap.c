@@ -60,6 +60,7 @@ void * __open_shared_memory_segment(int size_of_segment, char * file_name, void 
     *fd = mkstemp(file_path);
     if (*fd==-1){
       //we've failed! return null
+      printf("mkstemp failed!!!!\n\n");
       goto error;
     }
   }
@@ -67,6 +68,7 @@ void * __open_shared_memory_segment(int size_of_segment, char * file_name, void 
   else{
     *fd = open(file_path, O_RDWR, 0644);
     if (*fd==-1){
+      printf("open failed!!!!\n\n");
       goto error;
     }
   }
