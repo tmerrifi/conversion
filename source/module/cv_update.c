@@ -145,6 +145,9 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	  merge_count++;
 	}
 	else if (!merge_only){
+	  if (tmp_pte_list->obsolete_version){
+	    printk(KSNAP_LOG_LEVEL "obsolete %lu current %lu index %lu\n", tmp_pte_list->obsolete_version, target_version_number, tmp_pte_list->page_index);
+	  }
 	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, !flush_entire_tlb);
 	  ++gotten_pages;
 	}

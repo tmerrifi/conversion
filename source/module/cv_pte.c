@@ -71,7 +71,8 @@ int pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 	//is this page mapped into our address space?
 	if (!page_count(page)){
 	  printk("page was freed out from under us\n");
-	  printk(KSNAP_LOG_LEVEL "%lu  %lu index: %lu, intended index %lu pfn %lu\n", page->snap_page_debug[10], page->snap_page_debug[11], page->index, index, pfn);
+	  printk(KSNAP_LOG_LEVEL "%lu  %lu index: %lu, intended index %lu pfn %lu\n", 
+		 page->snap_page_debug[10], page->snap_page_debug[11], page->index, index, pfn);
 	  BUG();
 	}
 	//increment the ref count for this page
