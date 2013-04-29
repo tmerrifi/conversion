@@ -113,6 +113,11 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   if (version_list_entry->ref_page){
     put_page(version_list_entry->ref_page);
   }
+  
+  if (version_list_entry->page_index==65){
+    printk(KSNAP_LOG_LEVEL "commited page 65, pfn is %lu\n", version_list_entry->pfn);
+  }
+
 }
 
 
