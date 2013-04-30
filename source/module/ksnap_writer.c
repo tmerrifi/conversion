@@ -65,16 +65,16 @@ void __add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte
   }
 }
 
-struct snapshot_pte_list * __search_lookup(struct vm_area_struct * vma, unsigned long index){
-  return radix_tree_lookup(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index);
-  }
+struct snapshot_pte_list * conv_dirty_search_lookup(struct ksnap_user_data * cv_user_data, unsigned long index){
+  return radix_tree_lookup(&cv_user_data->dirty_list_lookup, index);
+}
 
 
 struct page * ksnap_get_dirty_ref_page(struct vm_area_struct * vma, unsigned long index){
   struct snapshot_pte_list * pte_entry;
 
   if (ksnap_vma_to_userdata(vma)->dirty_pages_list){
-    pte_entry = __search_lookup(vma, index);
+    pte_entry = conv_dirty_search_lookup(vma, index);
     if (index==65){
       printk(KSNAP_LOG_LEVEL " trying to get ref for pid %d, pte entry %p ref page %p\n", current->pid, pte_entry, (pte_entry) ? pte_entry->ref_page : pte_entry);
     }
@@ -84,10 +84,7 @@ struct page * ksnap_get_dirty_ref_page(struct vm_area_struct * vma, unsigned lon
   return NULL;
   }
 
-//get rid of this
-void ksnap_revert_dirty_list(struct vm_area_struct * vma, struct address_space * mapping){
 
-}
 
 void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * old_page, pte_t * new_pte, unsigned long address){
   struct snapshot_pte_list * pte_list_entry, * dirty_pages_list;

@@ -10,6 +10,8 @@
 
 struct page * ksnap_get_dirty_ref_page(struct vm_area_struct * vma, unsigned long index);
 
+struct snapshot_pte_list * conv_dirty_search_lookup(struct ksnap_user_data * cv_user_data, unsigned long index);
+
 /*remove the old page from the page cache, handle its LRU stuff, etc...*/
 void ksnap_remove_old_page(struct address_space * mapping, struct vm_area_struct * vma, 
 			   unsigned long index, unsigned long * debug_time, struct page * ref_page);
