@@ -75,6 +75,9 @@ struct page * ksnap_get_dirty_ref_page(struct vm_area_struct * vma, unsigned lon
 
   if (ksnap_vma_to_userdata(vma)->dirty_pages_list){
     pte_entry = __search_lookup(vma, index);
+    if (index==65){
+      printk(KSNAP_LOG_LEVEL " trying to get ref for pid %d, pte entry %p ref page %p\n", current->pid, pte_entry, (pte_entry) ? pte_entry->ref_page : pte_entry);
+    }
     if (pte_entry)
       return pte_entry->ref_page;
   }
