@@ -70,6 +70,10 @@ struct snapshot_pte_list * conv_dirty_search_lookup(struct ksnap_user_data * cv_
 }
 
 
+void ksnap_revert_dirty_list(struct vm_area_struct * vma, struct address_space * mapping){
+
+}
+
 struct page * ksnap_get_dirty_ref_page(struct vm_area_struct * vma, unsigned long index){
   struct snapshot_pte_list * pte_entry;
 

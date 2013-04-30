@@ -48,7 +48,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   /*for iterating through the list*/
   struct list_head * pos, * pos_outer, * pos_outer_tmp, * ls, * new_list;
   /*for storing pte values from list*/
-  struct snapshot_pte_list * tmp_pte_list;
+  struct snapshot_pte_list * tmp_pte_list, * dirty_entry;
   struct snapshot_version_list * latest_version_entry;
   struct address_space * mapping;
   int gotten_pages = 0;
@@ -147,11 +147,11 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	if (merge && 
 	    !update_only &&
 	    ksnap_meta_search_dirty_list(vma, tmp_pte_list->page_index) &&
-	    (ref_page=ksnap_get_dirty_ref_page(vma, tmp_pte_list->page_index))){
+	    (dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index)) ){
 	  //we have to merge our changes with the committed stuff
 	  ksnap_merge(pfn_to_page(tmp_pte_list->pfn), 
 		      (unsigned int *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
-		      ref_page, pfn_to_page(tmp_pte_list->pfn));
+		      dirty_entry->ref_page, pfn_to_page(tmp_pte_list->pfn));
 	  //cv_stats_inc_merged_pages(&cv_seg->cv_stats);
 	  merge_count++;
 	}
