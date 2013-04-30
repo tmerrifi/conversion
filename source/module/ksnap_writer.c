@@ -61,7 +61,7 @@ void __add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte
       radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
       printk(KSNAP_LOG_LEVEL "pid %d Inserted index %d\n", current->pid, index);
     }
-
+    printk(KSNAP_LOG_LEVEL "pid %d Inserted index %d\n", current->pid, index);
   }
 }
 
