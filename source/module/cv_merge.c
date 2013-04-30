@@ -40,7 +40,7 @@ void ksnap_merge(struct page * latest_page, unsigned int * local, struct page * 
   unsigned int * latest, * ref;
   int i=0;
 
-  printk(KSNAP_LOG_LEVEL "pid %d MERGING %lu %p %lu\n", current->pid, page_to_pfn(latest_page), local, page_to_pfn(ref_page));
+  printk(KSNAP_LOG_LEVEL "pid %d MERGING %lu %p %lu %p\n", current->pid, page_to_pfn(latest_page), local, page_to_pfn(ref_page), ref_page);
   prefetchw(local);
   if (ref_page!=NULL){
     ref = kmap_atomic(ref_page, KM_USER1);
