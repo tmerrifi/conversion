@@ -84,7 +84,6 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   mapping = vma->vm_file->f_mapping;
   //the pfn in our current page table doesn't equal the one we are trying to commit. Perhaps a fork() occured since our last commit?
   if (pte_pfn(*(version_list_entry->pte)) != version_list_entry->pfn){
-    printk(KSNAP_LOG_LEVEL "uhoh, pfn in our page table... %lu pfn %lu\n", version_list_entry->page_index, version_list_entry->pfn);
     return;
   }
   //lets get that page struct that is pointed to by this pte...
@@ -115,10 +114,6 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
     put_page(version_list_entry->ref_page);
   }
   
-  if (version_list_entry->page_index==65){
-    printk(KSNAP_LOG_LEVEL "pid: %d commited page 65, pfn is %lu\n", current->pid, version_list_entry->pfn);
-  }
-
 }
 
 
@@ -194,7 +189,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //Now we need to traverse our dirty list, and commit
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
-    printk(KSNAP_LOG_LEVEL "1 pid %d committing %lu, pfn %lu\n", current->pid, pte_entry->page_index, pte_entry->pfn);
     cv_commit_page(pte_entry, vma, our_version_number, 0);
     //removing from the dirty list
     list_del(pos);
@@ -205,7 +199,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //now we need to commit the stuff in the 
   while(!list_empty(&wait_list->list)){
     if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv))){
-      printk(KSNAP_LOG_LEVEL "2 committing %lu, pfn %lu\n", pte_entry->page_index, pte_entry->pfn);
       //grab the currently committed entry
       cv_commit_page(pte_entry, vma, our_version_number, 1);
       //remove from the waitlist

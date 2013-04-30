@@ -59,9 +59,7 @@ void __add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte
     if (insert_error == -EEXIST){
       radix_tree_delete(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index);
       radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
-      printk(KSNAP_LOG_LEVEL "pid %d Inserted index %d\n", current->pid, index);
     }
-    printk(KSNAP_LOG_LEVEL "pid %d Inserted index %d\n", current->pid, index);
   }
 }
 
@@ -79,9 +77,6 @@ struct page * ksnap_get_dirty_ref_page(struct vm_area_struct * vma, unsigned lon
 
   if (ksnap_vma_to_userdata(vma)->dirty_pages_list){
     pte_entry = conv_dirty_search_lookup(vma, index);
-    if (index==65){
-      printk(KSNAP_LOG_LEVEL " trying to get ref for pid %d, pte entry %p ref page %p\n", current->pid, pte_entry, (pte_entry) ? pte_entry->ref_page : pte_entry);
-    }
     if (pte_entry)
       return pte_entry->ref_page;
   }

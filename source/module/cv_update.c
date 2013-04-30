@@ -130,14 +130,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       //OK, lets now walk the actual committed ptes
       list_for_each(pos, &latest_version_entry->pte_list->list){
 	//get the pte entry
-	if (pos==LIST_POISON1 || pos==NULL){
-	  printk(KSNAP_LOG_LEVEL "ummmmmm..... version %llu\n", v);
-	}
-
 	tmp_pte_list = list_entry(pos, struct snapshot_pte_list, list);
-	if(pos->next == LIST_POISON1 || pos->next == NULL){
-	  printk(KSNAP_LOG_LEVEL "uh oh! version: %llu pfn %lx, version %llu\n", latest_version_entry->version_num, tmp_pte_list->pfn, v);
-	}
 	//is the pte outdated? If so, then no use wasting time updating our page table
 	if (tmp_pte_list->obsolete_version <= target_version_number){
 	  //printk(KSNAP_LOG_LEVEL "Found an obsolete entry obsolete %lu target %lu\n", tmp_pte_list->obsolete_version, target_version_number);
@@ -156,11 +149,11 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	  merge_count++;
 	}
 	else if (!merge_only){
-	  if (tmp_pte_list->page_index == 65){
+	  /*if (tmp_pte_list->page_index == 65){
 	    printk(KSNAP_LOG_LEVEL "pid %d updating 65 pfn %lu, version %lu, target %lu, merge %d, dirty %p\n", current->pid,
 		   tmp_pte_list->pfn, latest_version_entry->version_num, target_version_number, merge, ksnap_get_dirty_ref_page(vma, tmp_pte_list->page_index));
 	    __debug_print_dirty_list(cv_user);
-	  }
+	    }*/
 	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, !flush_entire_tlb);
 	  ++gotten_pages;
 	}
