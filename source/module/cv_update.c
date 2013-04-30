@@ -32,6 +32,17 @@
 #include "cv_lock_list.h"
 #include "cv_update.h"
 
+void __debug_print_dirty_list(struct ksnap_user_data * cv_user){
+  struct snapshot_pte_list * pte_entry;
+  struct list_head * pos, * tmp_pos; //pointers for iterating
+  printk(KSNAP_LOG_LEVEL "DIRTY LIST FOR %d\n", current->pid);
+  list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
+    pte_entry = list_entry(pos, struct snapshot_pte_list, list);
+    printk(KSNAP_LOG_LEVEL "      dirty..... index %lu pfn %lu\n", pte_entry->page_index, pte_entry->pfn);
+  }
+
+}
+
 void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint64_t target_version_input){
   //struct vm_area_struct * master_vma;
   /*for iterating through the list*/
@@ -148,6 +159,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	  if (tmp_pte_list->page_index == 65){
 	    printk(KSNAP_LOG_LEVEL "pid %d updating 65 pfn %lu, version %lu, target %lu, merge %d, dirty %p\n", current->pid,
 		   tmp_pte_list->pfn, latest_version_entry->version_num, target_version_number, merge, ksnap_get_dirty_ref_page(vma, tmp_pte_list->page_index));
+	    __debug_print_dirty_list(cv_user);
 	  }
 	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, !flush_entire_tlb);
 	  ++gotten_pages;
