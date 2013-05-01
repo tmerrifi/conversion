@@ -175,6 +175,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
 			   cv_seg->ppv, our_version_number);
   spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
+  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
 
   atomic64_set(&cv_seg->uncommitted_version_entry_atomic, (uint64_t)cv_seg->uncommitted_version_entry);
 
@@ -250,10 +251,12 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //now we perform an update so that we are fully up to date....the merging has already been done here in commit
   //if our version is not visible...we must wait.
   while(cv_seg->committed_version_num < our_version_number){}
+
+
   //ok, its safe to update now
   cv_update_parallel_to_version_no_merge(vma, our_version_number);
 
-  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
+
 
 
 #ifdef CONV_LOGGING_ON
