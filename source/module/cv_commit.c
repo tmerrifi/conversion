@@ -197,7 +197,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
     ++committed_pages;
   }
-  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
+
   
 
   //now we need to commit the stuff in the 
@@ -212,6 +212,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
       ++committed_pages;
     }
   }
+  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
+
 
   //cv_stats_end(cv_seg, cv_user, 6, commit_waitlist_latency);      
   cv_stats_add_counter(cv_seg, cv_user, committed_pages, commit_pages);
