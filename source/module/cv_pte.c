@@ -77,6 +77,9 @@ int pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 		 page->snap_page_debug[10], page->snap_page_debug[11], page->index, index, pfn);
 	  BUG();
 	}
+
+	cv_stats_end(ksnap_vma_to_ksnap(vma), ksnap_vma_to_userdata(vma), 0, lock_latency_1);
+
 	//increment the ref count for this page
 	get_page(page);	
 	//add the page to the rmap
@@ -95,7 +98,7 @@ int pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 	//set_pte(pte, tmp_master_pte);
 	pte_unmap(dest_pte);
 
-	cv_stats_end(ksnap_vma_to_ksnap(vma), ksnap_vma_to_userdata(vma), 0, lock_latency_1);
+
 
 	/*if (index % 80==0){
 	  printk(KSNAP_LOG_LEVEL "UPDATE PID: %d index %lu page %p\n", current->pid, index, page);
