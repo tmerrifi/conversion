@@ -53,7 +53,9 @@ int pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 	unsigned long readonly_addr;
 	pte_t * dest_pte;
 	pte_t tmp_ro_pte;
-	
+	cv_stats_function_init();
+
+	cv_stats_start(ksnap_vma_to_ksnap(vma), 0, lock_latency_1);
 	//calling anon_vma_prepare in the case that we don't have an anon_vma, bug if it returns non-zero;
 	BUG_ON(anon_vma_prepare(vma));
 	readonly_addr = (index << PAGE_SHIFT) + vma->vm_start;	//get the new address
@@ -92,6 +94,8 @@ int pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 	set_pte(dest_pte, tmp_ro_pte);
 	//set_pte(pte, tmp_master_pte);
 	pte_unmap(dest_pte);
+
+	cv_stats_end(ksnap_vma_to_ksnap(vma), ksnap_vma_to_userdata(vma), 0, lock_latency_1);
 
 	/*if (index % 80==0){
 	  printk(KSNAP_LOG_LEVEL "UPDATE PID: %d index %lu page %p\n", current->pid, index, page);
