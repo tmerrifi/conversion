@@ -252,7 +252,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     cv_seg->last_committed_pages_gc_start = cv_seg->committed_pages;
     schedule_work(&cv_seg->garbage_work.work);
   }
-  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
+
 
   BUG_ON(!list_empty(&(cv_user->dirty_pages_list->list)) && !list_empty(&wait_list->list));
 
@@ -260,7 +260,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //if our version is not visible...we must wait.
   while(cv_seg->committed_version_num < our_version_number){}
 
-
+  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
   //ok, its safe to update now
   cv_update_parallel_to_version_no_merge(vma, our_version_number);
 
