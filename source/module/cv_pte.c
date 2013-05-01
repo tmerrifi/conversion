@@ -59,10 +59,12 @@ int pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 
 	//calling anon_vma_prepare in the case that we don't have an anon_vma, bug if it returns non-zero;
 	BUG_ON(anon_vma_prepare(vma));
+	cv_stats_end(ksnap_vma_to_ksnap(vma), ksnap_vma_to_userdata(vma), 0, lock_latency_1);
+
 	readonly_addr = (index << PAGE_SHIFT) + vma->vm_start;	//get the new address
 	dest_pte = pte_get_entry_from_address( vma->vm_mm, readonly_addr);
 	old_page = pte_page(*dest_pte);	//getting the page struct for the pte we just grabbed
-	cv_stats_end(ksnap_vma_to_ksnap(vma), ksnap_vma_to_userdata(vma), 0, lock_latency_1);
+
 
 	if (dest_pte && dest_pte->pte!=0 && old_page){
 	  BUG_ON(PageBuddy(old_page));
