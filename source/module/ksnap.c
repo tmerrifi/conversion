@@ -31,9 +31,14 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
   list_add(&ksnap_vma_to_userdata(new_vma)->segment_list, &ksnap_vma_to_ksnap(old_vma)->segment_list);
   atomic_set(&(ksnap_vma_to_userdata(new_vma)->dirty_page_count), 0);
 
+  //calling anon_vma_prepare in the case that we don't have an anon_vma, bug if it returns non-zero;
+  BUG_ON(anon_vma_prepare(new_vma));
+
+  #ifdef CONV_LOGGING_ON
   printk(KSNAP_LOG_LEVEL "COPYING USER DATA!!!!! pid %d new vma %p user %p list %p old vma %p....vm file %p mapping %p seg %p\n", 
 	 current->pid, new_vma, ksnap_vma_to_userdata(new_vma), 
 	 ksnap_vma_to_userdata(new_vma)->dirty_pages_list, old_vma, new_vma->vm_file, new_vma->vm_file->f_mapping, new_vma->vm_file->f_mapping->ksnap_data);
+  #endif
 
 }
 

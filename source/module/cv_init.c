@@ -83,6 +83,9 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
     vma->vm_file->f_ra.ra_pages=0;
   }
 
+  //calling anon_vma_prepare in the case that we don't have an anon_vma, bug if it returns non-zero;
+  BUG_ON(anon_vma_prepare(vma));
+
   return 0;
 }
 
