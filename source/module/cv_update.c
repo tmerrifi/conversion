@@ -155,7 +155,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 		   tmp_pte_list->pfn, latest_version_entry->version_num, target_version_number, merge, ksnap_get_dirty_ref_page(vma, tmp_pte_list->page_index));
 	    __debug_print_dirty_list(cv_user);
 	    }*/
+	  cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
 	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, !flush_entire_tlb);
+	  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
+
 	  ++gotten_pages;
 	}
       }
@@ -182,12 +185,12 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     }
   }
 
-  #ifdef CONV_LOGGING_ON
-  if (gotten_pages > 20 && ((gotten_pages % 5) == 0)){
+  //#ifdef CONV_LOGGING_ON
+  if (gotten_pages > 50 && ((gotten_pages % 5) == 0)){
     printk(KSNAP_LOG_LEVEL "UPDATE: pid %d updated to version %llu and merged %d pages and updated %d pages target_input %lu\n", 
 	   current->pid, target_version_number, merge_count, gotten_pages, target_version_input);
   }
-  #endif
+  //#endif
 
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
 
