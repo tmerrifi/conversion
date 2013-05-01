@@ -183,8 +183,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   }
 
   #ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL "UPDATE: pid %d updated to version %llu and merged %d pages and updated %d pages target_input %lu\n", 
-  	 current->pid, target_version_number, merge_count, gotten_pages, target_version_input);
+  if (gotten_pages > 20 && ((gotten_pages % 5) == 0)){
+    printk(KSNAP_LOG_LEVEL "UPDATE: pid %d updated to version %llu and merged %d pages and updated %d pages target_input %lu\n", 
+	   current->pid, target_version_number, merge_count, gotten_pages, target_version_input);
+  }
   #endif
 
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
