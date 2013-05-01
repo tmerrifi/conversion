@@ -260,7 +260,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //if our version is not visible...we must wait.
   while(cv_seg->committed_version_num < our_version_number){}
 
-  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
+
   //ok, its safe to update now
   cv_update_parallel_to_version_no_merge(vma, our_version_number);
 
@@ -273,6 +273,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
 	   current->pid, committed_pages, our_version_number, cv_seg->committed_version_num);
   }
   //#endif
+  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
 
 }
 
