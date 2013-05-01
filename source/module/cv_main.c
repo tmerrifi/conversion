@@ -45,7 +45,7 @@ int is_snapshot (struct vm_area_struct * vma, struct mm_struct * mm, struct file
 /*This function's purpose is to be an entry point into our conversion code from the
   msync system call. If we are making a version, then we call commit. otherwise, we perform an update*/
 void cv_msync(struct vm_area_struct * vma, unsigned long flags){
-  struct timespec ts1, ts1;
+  struct timespec ts1, ts2;
 
   getrawmonotonic(&ts1);
   if (flags & MS_KSNAP_MAKE){
