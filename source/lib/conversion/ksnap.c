@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <semaphore.h>
+#include <time.h>
 
 
 #include "ksnap.h"
