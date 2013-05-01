@@ -243,7 +243,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     ksnap_meta_set_shared_version(vma, cv_seg->committed_version_num);
   }
   spin_unlock(&cv_seg->lock);
-  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
+
 
 
   if (cv_seg->committed_pages > 10000 &&  
@@ -252,6 +252,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     cv_seg->last_committed_pages_gc_start = cv_seg->committed_pages;
     schedule_work(&cv_seg->garbage_work.work);
   }
+  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
 
   BUG_ON(!list_empty(&(cv_user->dirty_pages_list->list)) && !list_empty(&wait_list->list));
 
