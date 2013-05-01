@@ -8,7 +8,7 @@
 #include <string.h>
 #include <semaphore.h>
 #include <time.h>
-
+#include <sys/syscall.h>
 
 #include "ksnap.h"
 #include "shmUtility.h"
@@ -16,6 +16,17 @@
 
 #define __CONV_CREATE 1
 #define __CONV_NO_CREATE 0
+
+#if __x86_64__
+/* 64-bit */
+#define __CONV_SYS_CALL 303
+
+#else
+
+#define __CONV_SYS_CALL 341
+
+#endif
+
 
 //what should the size of the metadata segment be?
 int __compute_meta_data_pages(int size_in_bytes){
@@ -249,7 +260,8 @@ conv_seg * conv_open_exisiting(char * segment_name){
 //lets update and get a new view of the snapshot
 void conv_update(conv_seg * seg){
 
-  msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET);
+  syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_GET);
+  //msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET);
 
 
   /*if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
@@ -269,32 +281,37 @@ void conv_update_mutex(conv_seg * seg, sem_t * sem){
 //lets update and get a new view of the snapshot
 void conv_merge(conv_seg * seg){
   if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE);
+    syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MERGE);
+    //msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE);
   }
 }
 
 void conv_update_only_barrier_determ(conv_seg * seg){
   if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET | KSNAP_SYNC_BARRIER_DETERM);
+    syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_GET | KSNAP_SYNC_BARRIER_DETERM);
+    //msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET | KSNAP_SYNC_BARRIER_DETERM);
   }
 }
 
 void conv_merge_barrier_determ(conv_seg * seg){
   if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE | KSNAP_SYNC_BARRIER_DETERM);
+    syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MERGE | KSNAP_SYNC_BARRIER_DETERM);
+    //msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE | KSNAP_SYNC_BARRIER_DETERM);
   }
 }
 
 void conv_commit_barrier_determ(conv_seg * seg){
   if (__get_meta_local_page(seg)->dirty_page_count > 0){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE | KSNAP_SYNC_BARRIER_DETERM);
+    syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MAKE | KSNAP_SYNC_BARRIER_DETERM);
+    //msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE | KSNAP_SYNC_BARRIER_DETERM);
   }
 }
 
 void conv_commit(conv_seg * seg){
   struct timespec t1,t2;
   clock_gettime(CLOCK_REALTIME,&t1);
-  msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE);
+  syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MAKE);
+  //msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE);
   clock_gettime(CLOCK_REALTIME,&t2);
   if (t1.tv_nsec % 100 == 0){
     fprintf(stderr, "conv_checkout pid %d commit total time %lu\n",
