@@ -106,7 +106,7 @@ int init_module(void)
   mmap_snapshot_instance.snap_sequence_number=random32()%10000;
   //register_die_notifier(&nmi_snap_nb);
   ksnap_merge_init();
-  printk(KSNAP_LOG_LEVEL "function : %p\n", cv_garbage_collection);
+  printk(KSNAP_LOG_LEVEL "vfork!! %d\n", __NR_vfork);
   return 0;
 }
 
