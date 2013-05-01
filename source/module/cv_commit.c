@@ -175,7 +175,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
 			   cv_seg->ppv, our_version_number);
   spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
-  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
+
 
   atomic64_set(&cv_seg->uncommitted_version_entry_atomic, (uint64_t)cv_seg->uncommitted_version_entry);
 
@@ -197,6 +197,9 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
     ++committed_pages;
   }
+  cv_stats_end(cv_seg, cv_user, 0, commit_latency);
+  
+
   //now we need to commit the stuff in the 
   while(!list_empty(&wait_list->list)){
     if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv))){
