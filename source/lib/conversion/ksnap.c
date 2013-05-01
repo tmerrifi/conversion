@@ -291,7 +291,14 @@ void conv_commit_barrier_determ(conv_seg * seg){
 }
 
 void conv_commit(conv_seg * seg){
+  struct timespec t1,t2;
+  clock_gettime(CLOCK_REALTIME,&t1);
   msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE);
+  clock_gettime(CLOCK_REALTIME,&t2);
+  if (t1.tv_nsec % 100 == 0){
+    printf("pid %d commit total time %lu",
+	   getpid(), (t2.tv_sec-t1.tv_sec)*1000000000+(t2.tv_nsec-t1.tv_nsec));
+  }
 }
 
 void conv_commit_mutex(conv_seg * seg, sem_t * sem){
