@@ -267,10 +267,12 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
 
 
 
-#ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL "IN COMMIT %d, committed pages %d....our version num %lu committed %lu\n", 
-	 current->pid, committed_pages, our_version_number, cv_seg->committed_version_num);
-#endif
+  //#ifdef CONV_LOGGING_ON
+  if (committed_pages > 50){
+    printk(KSNAP_LOG_LEVEL "IN COMMIT %d, committed pages %d....our version num %lu committed %lu\n", 
+	   current->pid, committed_pages, our_version_number, cv_seg->committed_version_num);
+  }
+  //#endif
 
 }
 
