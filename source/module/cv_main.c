@@ -12,6 +12,7 @@
 #include <linux/poison.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#include <asm/unistd.h>
 #include <linux/kdebug.h>
 #include <linux/notifier.h>
 #include <linux/random.h>
