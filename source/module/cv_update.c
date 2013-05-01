@@ -96,6 +96,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     return;
   }
 
+  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
   //grab the head of the version list
   version_list=(struct snapshot_version_list *)mapping_to_ksnap(mapping)->snapshot_pte_list;
   //we're going to update, so increment the stats
@@ -187,7 +188,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   #endif
 
 
-  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
+
   cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
   return;
 }
