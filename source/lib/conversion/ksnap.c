@@ -309,6 +309,8 @@ void conv_commit_barrier_determ(conv_seg * seg){
 
 void conv_commit(conv_seg * seg){
   struct timespec t1,t2;
+  fprintf(stderr, "here .. %d\n", __CONV_SYS_CALL);
+
   clock_gettime(CLOCK_REALTIME,&t1);
   syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MAKE);
   //msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE);
