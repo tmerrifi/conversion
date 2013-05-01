@@ -109,7 +109,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     //we set the subscribers version list ptr to new_list at the end, so lets start it at NULL
     new_list=NULL;
     //TODO: make the TLB stuff work with our new setup
-    flush_entire_tlb=0;
+    flush_entire_tlb=1;
     //start walking through the list....stop when you get to any list with a version number greater than what we're updating to
     for (pos_outer = ls, pos_outer_tmp = pos_outer->prev;
 	 prefetch(pos_outer->prev), pos_outer != &list_to_stop_at->list;
@@ -182,10 +182,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     }
   }
 
-  //#ifdef CONV_LOGGING_ON
+  #ifdef CONV_LOGGING_ON
   printk(KSNAP_LOG_LEVEL "UPDATE: pid %d updated to version %llu and merged %d pages and updated %d pages target_input %lu\n", 
   	 current->pid, target_version_number, merge_count, gotten_pages, target_version_input);
-  //#endif
+  #endif
 
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
 
