@@ -8,7 +8,7 @@
 #include <asm/page_types.h>
 #include <asm/uaccess.h>
 
-#include "ksnap.h"
+#include "conversion.h"
 #include "cv_meta_data.h"
 #include "cv_pte.h"
 

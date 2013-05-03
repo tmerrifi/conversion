@@ -2,7 +2,7 @@
 #ifndef CV_GARBAGE_H
 #define CV_GARBAGE_H
 
-#include "ksnap.h"
+#include "conversion.h"
 
 struct cv_garbage_work{
   struct work_struct work;

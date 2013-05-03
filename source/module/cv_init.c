@@ -9,7 +9,7 @@
 #include <asm/tlbflush.h>
 #include <asm-generic/mman-common.h>
 
-#include "ksnap.h"
+#include "conversion.h"
 #include "cv_init.h"
 #include "ksnap_version_list.h"
 #include "cv_stats.h"

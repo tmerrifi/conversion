@@ -19,7 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/mman.h>
 
-#include "ksnap.h"
+#include "conversion.h"
 #include "cv_merge.h"
 
 unsigned int * cv_merge_empty_page;

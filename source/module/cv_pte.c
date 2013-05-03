@@ -8,7 +8,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
-#include "ksnap.h"
+#include "conversion.h"
 
 int snap_page_counter=0;
 

@@ -1,5 +1,5 @@
 
-#include "ksnap.h"
+#include "conversion.h"
 #include "cv_garbage.h"
 
 void cv_garbage_final(struct ksnap * cv_seg){

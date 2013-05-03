@@ -2,7 +2,7 @@
 #ifndef CV_PER_PAGE_VERSION_H
 #define CV_PER_PAGE_VERSION_H
 
-#include "ksnap.h"
+#include "conversion.h"
 
 struct cv_per_page_version_entry{
   uint64_t interest_version; //threads register their "interest" in committing this version

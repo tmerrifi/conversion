@@ -15,7 +15,7 @@
 #include <linux/hardirq.h>
 #include <asm/tlbflush.h>
 
-#include "ksnap.h"
+#include "conversion.h"
 #include "ksnap_writer.h"
 #include "ksnap_version_list.h"
 #include "cv_stats.h"

@@ -12,7 +12,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
-#include "ksnap.h"
+#include "conversion.h"
 #include "cv_stats.h"
 #include "ksnap_version_list.h"
 

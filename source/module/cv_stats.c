@@ -3,7 +3,7 @@
 #include <linux/time.h>
 #include <asm/atomic.h>
 
-#include "ksnap.h"
+#include "conversion.h"
 #include "cv_stats.h"
 
 void cv_stats_init(struct cv_statistics * stats){

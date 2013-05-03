@@ -14,7 +14,7 @@
 #include <linux/hardirq.h>
 #include <asm/tlbflush.h>
 
-#include "ksnap.h"
+#include "conversion.h"
 #include "cv_dirty.h"
 
 //we keep a radix tree to make it easier to lookup entries in our dirty list

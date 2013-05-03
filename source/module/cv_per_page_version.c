@@ -22,7 +22,7 @@
 #include <linux/mman.h>
 #include <linux/hardirq.h>
 
-#include "ksnap.h"
+#include "conversion.h"
 #include "cv_per_page_version.h"
 
 
