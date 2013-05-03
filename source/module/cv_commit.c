@@ -212,9 +212,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
       ++committed_pages;
     }
   }
-
-
-
   //cv_stats_end(cv_seg, cv_user, 6, commit_waitlist_latency);      
   cv_stats_add_counter(cv_seg, cv_user, committed_pages, commit_pages);
   //no need to lock this...it doesn't have to be precise
@@ -225,6 +222,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   cv_stats_end(cv_seg, cv_user, 2, commit_wait_lock);
   //make our version visible
   our_version_entry->visible=1;
+  //set the number of pages 
+  our_version_entry->num_of_entries=committed_pages;
   //we only have the right to commit if we are one greater than the current committed version
   if (our_version_number == cv_seg->committed_version_num+1){
     //walk from our version up...find the largest visible entry
@@ -244,8 +243,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   }
   spin_unlock(&cv_seg->lock);
 
-
-
   if (cv_seg->committed_pages > 10000 &&  
       (cv_seg->committed_pages - cv_seg->last_committed_pages_gc_start) > CV_GARBAGE_START_INC && 
       atomic_inc_and_test(&cv_seg->gc_thread_count)){
@@ -263,8 +260,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
 
   //ok, its safe to update now
   cv_update_parallel_to_version_no_merge(vma, our_version_number);
-
-
 
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
   #ifdef CONV_LOGGING_ON
