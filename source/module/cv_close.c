@@ -2,7 +2,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/string.h>
-#include <linux/module.h>	/* Needed by all modules */
+#include <linux/path.h>
 
 #include "conversion.h"
 
