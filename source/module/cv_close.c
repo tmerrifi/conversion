@@ -4,6 +4,7 @@
 #include <linux/string.h>
 #include <linux/path.h>
 #include <linux/highmem.h>
+#include <linux/list.h>
 
 #include "conversion.h"
 
