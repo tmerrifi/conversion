@@ -26,7 +26,6 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
   ksnap_vma_to_userdata(new_vma)->commits=0;
   ksnap_vma_to_userdata(new_vma)->last_commit_time.tv_sec=0;
   memset(ksnap_vma_to_userdata(new_vma)->debug_commit_times, 0, 10*sizeof(int));
-  cv_meta_set_dirty_page_count(new_vma, 0);
 
   ksnap_vma_to_userdata(new_vma)->dirty_pages_list = _snapshot_create_pte_list();
   INIT_LIST_HEAD(&ksnap_vma_to_userdata(new_vma)->segment_list);
