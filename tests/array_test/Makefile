@@ -8,10 +8,10 @@ libs=-lmm -lrt -lksnap
 all : arr_bench
 
 arr_bench : bmharness.cpp $(objectfiles)
-	g++ -DCV_UNIT_TESTS -o arr_bench bmharness.cpp $(objectfiles) $(libs)
+	g++ -o arr_bench bmharness.cpp $(objectfiles) $(libs)
 
 %.o : %.cpp
-	g++ -DCV_UNIT_TESTS -c -o $@ $< $(libs)
+	g++ -c -o $@ $< $(libs)
 
 tests :
 	pushd ../../source/module; \
