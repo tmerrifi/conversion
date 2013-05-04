@@ -30,7 +30,7 @@ void cv_close(struct vm_area_struct * vma){
 
   int i=0;
   for (;i<10;++i){
-    printk(KSNAP_LOG_LEVEL "%d ", ksnap_user_data->debug_commit_times[i]);
+    printk(KSNAP_LOG_LEVEL "%d ", cv_user->debug_commit_times[i]);
   }
 
 
