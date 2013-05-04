@@ -17,10 +17,7 @@
 void cv_close(struct vm_area_struct * vma){
 
   //
-  int i=0;
-  for (;i<10;++i){
-    printk(KSNAP_LOG_LEVEL "%d ", user_data->debug_commit_times[i]);
-  }
+
   
 
   struct address_space * mapping = vma->vm_file->f_mapping;
@@ -30,6 +27,11 @@ void cv_close(struct vm_area_struct * vma){
   
   struct ksnap * cv = (struct ksnap *)mapping->ksnap_data;
   struct ksnap_user_data * cv_user = ksnap_vma_to_userdata(vma);
+
+  int i=0;
+  for (;i<10;++i){
+    printk(KSNAP_LOG_LEVEL "%d ", ksnap_user_data->debug_commit_times[i]);
+  }
 
 
   spin_lock(&cv->lock);
