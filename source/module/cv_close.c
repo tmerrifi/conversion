@@ -1,5 +1,6 @@
 #include <linux/kernel.h>	/* Needed for KERN_INFO */
 #include <linux/mm.h>
+#include <linux/string.h>
 
 #include "conversion.h"
 
