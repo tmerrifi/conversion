@@ -86,7 +86,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   unsigned int merge=(flags & MS_KSNAP_GET_MERGE);
   unsigned int merge_only=(flags & MS_KSNAP_GET_MERGE) && (flags & MS_KSNAP_DETERM_LAZY);
   unsigned int update_only=(flags & MS_KSNAP_GET) && (flags & MS_KSNAP_DETERM_LAZY);
-  int flush_tlb_per_page=0;
+  int flush_tlb_per_page=1;
   struct ksnap * cv_seg;
   struct ksnap_user_data * cv_user;
   uint64_t target_version_number; //what version are we updating to?
@@ -134,7 +134,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     //we set the subscribers version list ptr to new_list at the end, so lets start it at NULL
     new_list=NULL;
     //flush on a per-page basis? Or just flush the entire thing?
-    flush_tlb_per_page=__flush_tlb_per_page(ls, &list_to_stop_at->list, target_version_number);
+    //flush_tlb_per_page=__flush_tlb_per_page(ls, &list_to_stop_at->list, target_version_number);
     //start walking through the list....stop when you get to any list with a version number greater than what we're updating to
     for (pos_outer = ls, pos_outer_tmp = pos_outer->prev;
 	 prefetch(pos_outer->prev), pos_outer != &list_to_stop_at->list;
