@@ -8,10 +8,10 @@ libs=-lmm -lrt -lksnap
 all : arr_bench
 
 arr_bench : bmharness.cpp $(objectfiles)
-	g++ -o arr_bench bmharness.cpp $(objectfiles) $(libs)
+	g++ -DCV_UNIT_TESTS -o arr_bench bmharness.cpp $(objectfiles) $(libs)
 
 %.o : %.cpp
-	g++ -c -o $@ $< $(libs)
+	g++ -DCV_UNIT_TESTS -c -o $@ $< $(libs)
 
 tests :
 	pushd ../../source/module; \
@@ -21,7 +21,7 @@ tests :
 	sudo rm *.sem; \
 	sudo rm snapshot_stm.*; \
 	sudo rm /dev/shm/*.sem; \
-	sudo ./arr_bench -q 1 -m 2000000 -p 4 -Q 4 -R 50 -X 30000 -N 200 -P 1;
+	sudo ./arr_bench -q 1 -m 2000000 -p 4 -Q 4 -R 50 -X 500 -N 200 -P 1;
 
 clean : 
 	rm *.o arr_bench;
