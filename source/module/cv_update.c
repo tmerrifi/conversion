@@ -32,7 +32,7 @@
 #include "cv_lock_list.h"
 #include "cv_update.h"
 
-#define CONV_TLB_FLUSH_ENTRIES 100
+#define CONV_TLB_FLUSH_ENTRIES 5
 
 //a debugging function to print the entries in the dirty list
 void __debug_print_dirty_list(struct ksnap_user_data * cv_user){
