@@ -72,6 +72,7 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   user_data->commits=0;
   user_data->last_commit_time.tv_sec=0;
   user_data->dirty_pages_list = _snapshot_create_pte_list();
+  cv_meta_set_dirty_page_count(vma, 0);
   memset(user_data->debug_commit_times, 0, 10*sizeof(int));
 
   INIT_LIST_HEAD(&user_data->segment_list);
