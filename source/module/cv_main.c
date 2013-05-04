@@ -49,19 +49,19 @@ int __commit_times(uint64_t microsecs){
   if (microsecs < 10){
     output=0;
   }
-  else if (microsecs < 50){
+  else if (microsecs < 20){
     output=1;
   }
-  else if (microsecs < 100){
+  else if (microsecs < 30){
     output=2;
   }
-  else if (microsecs < 200){
+  else if (microsecs < 50){
     output=3;
   }
-  else if (microsecs < 400){
+  else if (microsecs < 200){
     output=4;
   }
-  else if (microsecs < 800){
+  else if (microsecs < 500){
     output=5;
   }
   return output;
