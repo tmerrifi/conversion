@@ -145,6 +145,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   cv_user->commits++;
 
   if (list_empty(&(cv_user->dirty_pages_list->list))){
+    printk(KSNAP_LOG_LEVEL "whoops!\n");
     return;
   }
 
