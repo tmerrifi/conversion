@@ -123,9 +123,9 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   cv_meta_inc_dirty_page_count(vma);
 
   /*add it to the meta data for tracking*/
-  if (cv_user_data->use_tracking){
-    ksnap_meta_add_dirty_page(vma, pte_list_entry->page_index);
-  }
+  //if (cv_user_data->use_tracking){
+  //ksnap_meta_add_dirty_page(vma, pte_list_entry->page_index);
+  //}
   //cv_lock_list_add_entry(cv_user_data->dirty_lock_list, cv_lock_list_index(address, vma));
   atomic_inc(&cv_user_data->dirty_page_count);
   cv_user_data->dirty_pages_list_count++;

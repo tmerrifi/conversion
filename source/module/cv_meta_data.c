@@ -144,6 +144,6 @@ void ksnap_meta_add_dirty_page(struct vm_area_struct * vma, unsigned long cow_pa
     else{
       set_bit(cow_page_index, (unsigned long *)dirty_list);
     }
-  }
+    }
   //printk(KERN_INFO "meta address %p %d %d\n", meta_data, meta_data->meta_data_size, meta_data->dirty_page_count);
 }
