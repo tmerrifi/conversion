@@ -32,6 +32,9 @@
 #include "cv_lock_list.h"
 #include "cv_update.h"
 
+#define CONV_TLB_FLUSH_ENTRIES 100
+
+//a debugging function to print the entries in the dirty list
 void __debug_print_dirty_list(struct ksnap_user_data * cv_user){
   struct snapshot_pte_list * pte_entry;
   struct list_head * pos, * tmp_pos; //pointers for iterating
@@ -41,6 +44,33 @@ void __debug_print_dirty_list(struct ksnap_user_data * cv_user){
     printk(KSNAP_LOG_LEVEL "      dirty..... index %lu pfn %lu\n", pte_entry->page_index, pte_entry->pfn);
   }
 
+}
+
+//we use a simple heuristic to determine in which way to flush the TLB. If 
+//there are are more than 100 entries to update, then we choose to just flush the whole thing.
+//Otherwise, we will do an ivlpg and flush on a per page basis.
+int __flush_tlb_per_page(struct list_head * current_version_list, struct list_head * list_to_stop_at, uint64_t target_version_number){
+  struct list_head * list_tmp;
+  struct snapshot_version_list * version;
+  int total_entries = 0;
+
+  for (list_tmp = current_version_list->prev;
+       prefetch(current_version_list->prev), current_version_list != list_to_stop_at;
+       current_version_list = list_tmp, list_tmp = current_version_list->prev){
+    //get the version entry
+    version = list_entry( current_version_list, struct snapshot_version_list, list);
+    if (!version->visible || version->version_num > target_version_number){
+      break;
+    }
+    entries+=version->num_of_entries;
+    if (total_entries >= CONV_TLB_FLUSH_ENTRIES){
+      //ok, we've met the threshold...lets return false
+      return 0;
+    }
+  }
+  
+  //we will flush per page
+  return 1;
 }
 
 void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint64_t target_version_input){
@@ -57,7 +87,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   unsigned int merge=(flags & MS_KSNAP_GET_MERGE);
   unsigned int merge_only=(flags & MS_KSNAP_GET_MERGE) && (flags & MS_KSNAP_DETERM_LAZY);
   unsigned int update_only=(flags & MS_KSNAP_GET) && (flags & MS_KSNAP_DETERM_LAZY);
-  int flush_entire_tlb=0;
+  int flush_tlb_per_page=0;
   struct ksnap * cv_seg;
   struct ksnap_user_data * cv_user;
   uint64_t target_version_number; //what version are we updating to?
@@ -69,8 +99,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   if (vma==NULL || vma->vm_mm == NULL || vma->vm_file==NULL || vma->vm_file->f_mapping==NULL){
     printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: vma not setup right\n");
   }
-
-  //printk(KSNAP_LOG_LEVEL "IN UPDATE %d\n", current->pid);
 
   mapping=vma->vm_file->f_mapping;
   //get the conversion segment data structure
@@ -91,11 +119,9 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   target_version_number=(target_version_input==0) ? atomic64_read(&cv_seg->committed_version_atomic) : target_version_input;
   list_to_stop_at=(struct snapshot_version_list *)atomic64_read(&cv_seg->uncommitted_version_entry_atomic);
 
-
   if (target_version_number<=cv_user->version_num){
     return;
   }
-
 
   //grab the head of the version list
   version_list=(struct snapshot_version_list *)mapping_to_ksnap(mapping)->snapshot_pte_list;
@@ -108,8 +134,8 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     //printk("up: Starting with %p pid %d\n", ls, current->pid);
     //we set the subscribers version list ptr to new_list at the end, so lets start it at NULL
     new_list=NULL;
-    //TODO: make the TLB stuff work with our new setup
-    flush_entire_tlb=1;
+    //flush on a per-page basis? Or just flush the entire thing?
+    flush_tlb_per_page=__flush_tlb_per_page(ls, &list_to_stop_at->list, target_version_number);
     //start walking through the list....stop when you get to any list with a version number greater than what we're updating to
     for (pos_outer = ls, pos_outer_tmp = pos_outer->prev;
 	 prefetch(pos_outer->prev), pos_outer != &list_to_stop_at->list;
@@ -156,7 +182,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	    __debug_print_dirty_list(cv_user);
 	    }*/
 	  cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
-	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, !flush_entire_tlb);
+	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page);
 	  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
 
 	  ++gotten_pages;
@@ -180,7 +206,8 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       cv_user->version_num=target_version_number;
     }
     
-    if (flush_entire_tlb){
+    //we didn't flush along the way....we need to flush the whole thing
+    if (!flush_tlb_per_page){
       flush_tlb();
     }
   }

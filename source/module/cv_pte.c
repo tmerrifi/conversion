@@ -78,9 +78,6 @@ int pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 		 page->snap_page_debug[10], page->snap_page_debug[11], page->index, index, pfn);
 	  BUG();
 	}
-
-
-
 	//increment the ref count for this page
 	get_page(page);	
 	//add the page to the rmap
