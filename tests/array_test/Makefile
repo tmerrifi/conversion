@@ -21,7 +21,7 @@ tests :
 	sudo rm *.sem; \
 	sudo rm snapshot_stm.*; \
 	sudo rm /dev/shm/*.sem; \
-	sudo ./arr_bench -q 1 -m 2000000 -p 4 -Q 4 -R 50 -X 500 -N 200 -P 1;
+	sudo ./arr_bench -q 1 -m 2000000 -p 4 -Q 4 -R 50 -X 30000 -N 200 -P 1;
 
 clean : 
 	rm *.o arr_bench;
