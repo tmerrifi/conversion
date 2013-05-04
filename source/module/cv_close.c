@@ -28,13 +28,16 @@ void cv_close(struct vm_area_struct * vma){
   struct ksnap * cv = (struct ksnap *)mapping->ksnap_data;
   struct ksnap_user_data * cv_user = ksnap_vma_to_userdata(vma);
 
+  spin_lock(&cv->lock);
+
   int i=0;
   for (;i<10;++i){
-    printk(KSNAP_LOG_LEVEL "%d ", cv_user->debug_commit_times[i]);
+    printk(KSNAP_LOG_LEVEL "%d %d, ", i, cv_user->debug_commit_times[i]);
   }
+  printk("\n\n");
+  
 
 
-  spin_lock(&cv->lock);
   if (vma->vm_file->f_mapping->ksnap_data == NULL){
     goto finished;
   }
