@@ -84,7 +84,7 @@ void cv_msync(struct vm_area_struct * vma, unsigned long flags){
       //&& cv_stats_elapsed_time_ns(&ts1, &ts2) > 20000){
   printk(KSNAP_LOG_LEVEL "elapsed time %lu\n", cv_stats_elapsed_time_ns(&ts1, &ts2));
     //}
-  user_data->debug_commit_times[__commit_times(cv_stats_elapsed_time_ns(&ts1, &ts2)/1000)]++;
+  ksnap_vma_to_userdata(user_data)->debug_commit_times[__commit_times(cv_stats_elapsed_time_ns(&ts1, &ts2)/1000)]++;
 }
 
 /*call in to our page fault handler code to keep track of this new page*/
