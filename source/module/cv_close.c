@@ -1,5 +1,6 @@
 #include <linux/kernel.h>	/* Needed for KERN_INFO */
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/string.h>
 
 #include "conversion.h"
@@ -7,6 +8,7 @@
 
 void cv_close(struct vm_area_struct * vma){
   
+
   struct address_space * mapping = vma->vm_file->f_mapping;
   if (!mapping->ksnap_data){
     return;
