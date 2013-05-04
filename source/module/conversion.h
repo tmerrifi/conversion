@@ -117,6 +117,7 @@ struct ksnap_user_data{
   uint64_t version_num;
   int commits;
   struct timespec last_commit_time;
+  int debug_commit_times[10];
   //uint8_t * dirty_list_locks;  /*what locks to grab when we commit*/
 };
 

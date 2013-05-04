@@ -15,6 +15,12 @@
 
 
 void cv_close(struct vm_area_struct * vma){
+
+  //
+  int i=0;
+  for (;i<10;++i){
+    printk(KSNAP_LOG_LEVEL "%d ", user_data->debug_commit_times[i]);
+  }
   
 
   struct address_space * mapping = vma->vm_file->f_mapping;

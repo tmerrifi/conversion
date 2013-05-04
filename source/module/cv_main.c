@@ -43,6 +43,30 @@ int is_snapshot (struct vm_area_struct * vma, struct mm_struct * mm, struct file
   return (vma && vma->ksnap_user_data);
 }
 
+int __commit_times(uint64_t microsecs){
+  int output=0;
+  
+  if (microsecs < 10){
+    output=0;
+  }
+  else if (microsecs < 50){
+    output=1;
+  }
+  else if (microsecs < 100){
+    output=2;
+  }
+  else if (microsecs < 200){
+    output=3;
+  }
+  else if (microsecs < 400){
+    output=4;
+  }
+  else if (microsecs < 800){
+    output=5;
+  }
+  return output;
+}
+
 /*This function's purpose is to be an entry point into our conversion code from the
   msync system call. If we are making a version, then we call commit. otherwise, we perform an update*/
 void cv_msync(struct vm_area_struct * vma, unsigned long flags){
@@ -58,8 +82,9 @@ void cv_msync(struct vm_area_struct * vma, unsigned long flags){
   getrawmonotonic(&ts2);
   //if (ts1.tv_nsec % 100 == 0){
       //&& cv_stats_elapsed_time_ns(&ts1, &ts2) > 20000){
-    printk(KSNAP_LOG_LEVEL "elapsed time %lu\n", cv_stats_elapsed_time_ns(&ts1, &ts2));
+  printk(KSNAP_LOG_LEVEL "elapsed time %lu\n", cv_stats_elapsed_time_ns(&ts1, &ts2));
     //}
+  user_data->debug_commit_times[__commit_times(cv_stats_elapsed_time_ns(&ts1, &ts2)/1000)]++;
 }
 
 /*call in to our page fault handler code to keep track of this new page*/
