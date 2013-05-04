@@ -8,7 +8,6 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/list.h>
-#include <asm/pgtable.h>
 
 
 
