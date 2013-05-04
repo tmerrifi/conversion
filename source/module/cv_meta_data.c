@@ -12,6 +12,16 @@
 #include "cv_meta_data.h"
 #include "cv_pte.h"
 
+void cv_meta_set_dirty_page_count(struct vm_area_struct * vma, uint32_t count){
+  struct ksnap_meta_data_local * meta_data = ksnap_vma_to_userdata(vma)->meta_data;
+  meta_data->dirty_page_count=count;
+}
+
+void cv_meta_inc_dirty_page_count(struct vm_area_struct * vma){
+  struct ksnap_meta_data_local * meta_data = ksnap_vma_to_userdata(vma)->meta_data;
+  meta_data->dirty_page_count++;
+}
+
 struct ksnap_meta_data_local * __get_meta_local(struct vm_area_struct * vma){
   struct ksnap_meta_data_local * meta_data = ksnap_vma_to_userdata(vma)->meta_data;
   if (meta_data == NULL){

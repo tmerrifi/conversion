@@ -29,6 +29,10 @@ struct ksnap_dirty_list_entry{
 #define META_LOCAL_OFFSET_FROM_SEGMENT 4
 #define META_SHARED_OFFSET_FROM_SEGMENT 2
 
+void cv_meta_set_dirty_page_count(struct vm_area_struct * vma, uint32_t count);
+
+void cv_meta_inc_dirty_page_count(struct vm_area_struct * vma);
+
 unsigned char ksnap_meta_search_dirty_list(struct vm_area_struct * vma, unsigned long page_index);
 
 void ksnap_meta_add_dirty_page(struct vm_area_struct * vma, unsigned long cow_page_index);

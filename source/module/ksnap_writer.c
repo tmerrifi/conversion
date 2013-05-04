@@ -120,6 +120,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   #ifdef CONV_LOGGING_ON
   printk(KSNAP_LOG_LEVEL " %d added index %lu pfn %lu", current->pid, pte_list_entry->page_index, pte_list_entry->pfn);
   #endif
+  cv_meta_inc_dirty_page_count(vma);
 
   /*add it to the meta data for tracking*/
   if (cv_user_data->use_tracking){
