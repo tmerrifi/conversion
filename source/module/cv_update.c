@@ -65,13 +65,10 @@ int __flush_tlb_per_page(struct list_head * current_version_list, struct list_he
     total_entries+=version->num_of_entries;
     if (total_entries >= CONV_TLB_FLUSH_ENTRIES){
       //ok, we've met the threshold...lets return false
-      printk(KSNAP_LOG_LEVEL "FULL FLUSH!\n");
       return 0;
     }
   }
   
-  printk(KSNAP_LOG_LEVEL "total %d wil flush per page? 1\n", total_entries);
-
   //we will flush per page
   return 1;
 }
