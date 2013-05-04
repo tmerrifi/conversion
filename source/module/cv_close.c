@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/path.h>
+#include <linux/highmem.h>
 
 #include "conversion.h"
 
