@@ -62,7 +62,7 @@ int __flush_tlb_per_page(struct list_head * current_version_list, struct list_he
     if (!version->visible || version->version_num > target_version_number){
       break;
     }
-    entries+=version->num_of_entries;
+    total_entries+=version->num_of_entries;
     if (total_entries >= CONV_TLB_FLUSH_ENTRIES){
       //ok, we've met the threshold...lets return false
       return 0;
@@ -82,7 +82,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   struct snapshot_version_list * latest_version_entry;
   struct address_space * mapping;
   int gotten_pages = 0;
-  struct page * ref_page;
   int merge_count=0;
   unsigned int merge=(flags & MS_KSNAP_GET_MERGE);
   unsigned int merge_only=(flags & MS_KSNAP_GET_MERGE) && (flags & MS_KSNAP_DETERM_LAZY);
@@ -153,7 +152,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	new_list = pos_outer;
 	continue;
       }
-      uint64_t register v = latest_version_entry->version_num;
       //OK, lets now walk the actual committed ptes
       list_for_each(pos, &latest_version_entry->pte_list->list){
 	//get the pte entry
