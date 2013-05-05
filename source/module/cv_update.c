@@ -155,7 +155,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	//     current->pid, latest_version_entry, latest_version_entry->version_num, target_version_number, latest_version_entry->visible);
 	break;
       }
-      cv_seg->debug_points[cv_user->id]=0xA5;
       else if (latest_version_entry->committer == vma){
 	//printk(KSNAP_LOG_LEVEL "committer thing....%d\n", current->pid);
 	//no need to update to stuff we committed
