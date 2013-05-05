@@ -265,7 +265,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //if our version is not visible...we must wait.
   if (cv_seg->committed_version_num < our_version_number){
     cv_seg->debug_points[cv_user->id]=0xB9;
-    printk(KSNAP_LOG_LEVEL "committed %lu ours %lu\n", cv_seg->committed_version_num, our_version_number);
+    //printk(KSNAP_LOG_LEVEL "committed %lu ours %lu\n", cv_seg->committed_version_num, our_version_number);
     while(cv_seg->committed_version_num < our_version_number){}
   }
   cv_seg->debug_points[cv_user->id]=0xB10;
