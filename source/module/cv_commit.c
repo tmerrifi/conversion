@@ -258,12 +258,16 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     schedule_work(&cv_seg->garbage_work.work);
   }
 
-  cv_seg->debug_points[cv_user->id]=0xB9;
+
   BUG_ON(!list_empty(&(cv_user->dirty_pages_list->list)) && !list_empty(&wait_list->list));
 
   //now we perform an update so that we are fully up to date....the merging has already been done here in commit
   //if our version is not visible...we must wait.
-  while(cv_seg->committed_version_num < our_version_number){}
+  if (cv_seg->committed_version_num < our_version_number){
+    cv_seg->debug_points[cv_user->id]=0xB9;
+    printk(KSNAP_LOG_LEVEL "committed %lu ours %lu\n", cv_seg->committed_version_num, our_version_number);
+    while(cv_seg->committed_version_num < our_version_number){}
+  }
   cv_seg->debug_points[cv_user->id]=0xB10;
 
   //ok, its safe to update now
