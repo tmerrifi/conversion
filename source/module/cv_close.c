@@ -35,7 +35,7 @@ void cv_close(struct vm_area_struct * vma){
     printk(KSNAP_LOG_LEVEL "%d %d, ", i, cv_user->debug_commit_times[i]);
   }
   printk("\n\n");
-  printk(KSNAP_LOG_LEVEL, "status....0 %d 1 %d 2 %d 3 %d 4 %d 5 %d 6 %d\n", 
+  printk(KSNAP_LOG_LEVEL "status....0 %d 1 %d 2 %d 3 %d 4 %d 5 %d 6 %d\n", 
 	 cv->debug_points[0], cv->debug_points[1], cv->debug_points[2], cv->debug_points[3], cv->debug_points[4], cv->debug_points[5], cv->debug_points[6]);
 
 
