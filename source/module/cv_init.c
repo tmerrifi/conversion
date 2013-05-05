@@ -133,6 +133,6 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   mapping->ksnap_data = ksnap_data;  
   cv_stats_init(&ksnap_data->cv_stats);
   memset(ksnap_data->cv_per_process_stats, 0, sizeof(struct cv_per_process_detailed_statistics) * CV_MAX_PER_PROCESS_STATS);
-  
+  memset(ksnap_data->debug_points, 0, sizeof(int)*32);
   return ksnap_data;
 }

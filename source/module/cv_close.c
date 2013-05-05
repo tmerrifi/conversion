@@ -65,6 +65,10 @@ void cv_close(struct vm_area_struct * vma){
  finished:
   spin_unlock(&cv->lock);
   kfree(vma->ksnap_user_data);
+
+  printk(KSNAP_LOG_LEVEL, "status....0 %d 1 %d 2 %d 3 %d 4 %d 5 %d 6 %d\n", 
+	 cv->debug_points[0], cv->debug_points[1], cv->debug_points[2], cv->debug_points[3], cv->debug_points[4], cv->debug_points[5], cv->debug_points[6]);
+
 #ifdef CONV_LOGGING_ON
   printk(KSNAP_LOG_LEVEL "Closing process %d\n", current->pid);
 #endif

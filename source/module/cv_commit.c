@@ -149,6 +149,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     return;
   }
 
+  cv_seg->debug_points[cv_user->id]=0xB1;
+
   //initializes variables used to track stats
   cv_stats_function_init();
   //increment total commits
@@ -159,6 +161,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   next_version_entry=cv_create_version_list_entry();
   //create the pte list that will store the entries we need to wait on
   wait_list=_snapshot_create_pte_list();
+  cv_seg->debug_points[cv_user->id]=0xB2;
   //GLOBAL LOCK ACQUIRE
   cv_stats_start(cv_seg, 1, commit_wait_lock);
   spin_lock(&cv_seg->lock);
@@ -176,7 +179,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
 			   cv_seg->ppv, our_version_number);
   spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
-
+  cv_seg->debug_points[cv_user->id]=0xB3;
 
   atomic64_set(&cv_seg->uncommitted_version_entry_atomic, (uint64_t)cv_seg->uncommitted_version_entry);
 
@@ -188,6 +191,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   our_version_entry->updated_ptes=cv_user->dirty_pages_list_count;
   //mark it as ours
   our_version_entry->committer=vma;
+  cv_seg->debug_points[cv_user->id]=0xB4;
   //Now we need to traverse our dirty list, and commit
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
@@ -198,7 +202,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
     ++committed_pages;
   }
-
+  cv_seg->debug_points[cv_user->id]=0xB5;
   
 
   //now we need to commit the stuff in the 
@@ -213,12 +217,14 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
       ++committed_pages;
     }
   }
+  cv_seg->debug_points[cv_user->id]=0xB6;
   //cv_stats_end(cv_seg, cv_user, 6, commit_waitlist_latency);      
   cv_stats_add_counter(cv_seg, cv_user, committed_pages, commit_pages);
   //no need to lock this...it doesn't have to be precise
   cv_seg->committed_pages+=our_version_entry->updated_ptes;
   //ok, we can finally commit our stuff
   cv_stats_start(cv_seg, 2, commit_wait_lock);
+  cv_seg->debug_points[cv_user->id]=0xB7;
   spin_lock(&cv_seg->lock);
   cv_stats_end(cv_seg, cv_user, 2, commit_wait_lock);
   //make our version visible
@@ -243,7 +249,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     ksnap_meta_set_shared_version(vma, cv_seg->committed_version_num);
   }
   spin_unlock(&cv_seg->lock);
-
+  cv_seg->debug_points[cv_user->id]=0xB8;
+  
   if (cv_seg->committed_pages > 10000 &&  
       (cv_seg->committed_pages - cv_seg->last_committed_pages_gc_start) > CV_GARBAGE_START_INC && 
       atomic_inc_and_test(&cv_seg->gc_thread_count)){
@@ -251,13 +258,13 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     schedule_work(&cv_seg->garbage_work.work);
   }
 
-
+  cv_seg->debug_points[cv_user->id]=0xB9;
   BUG_ON(!list_empty(&(cv_user->dirty_pages_list->list)) && !list_empty(&wait_list->list));
 
   //now we perform an update so that we are fully up to date....the merging has already been done here in commit
   //if our version is not visible...we must wait.
   while(cv_seg->committed_version_num < our_version_number){}
-
+  cv_seg->debug_points[cv_user->id]=0xB10;
 
   //ok, its safe to update now
   //cv_update_parallel_to_version_no_merge(vma, our_version_number);
@@ -269,7 +276,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
 	   current->pid, committed_pages, our_version_number, cv_seg->committed_version_num);
   }
   #endif
-
+  cv_seg->debug_points[cv_user->id]=0xBF;
 
 }
 

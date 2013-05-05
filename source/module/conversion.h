@@ -95,6 +95,7 @@ struct ksnap{
   atomic64_t committed_version_atomic;
   atomic64_t uncommitted_version_entry_atomic;
   struct timespec last_acq_time;
+  int debug_points[32];
 };
 
 struct ksnap_user_data{
@@ -118,7 +119,7 @@ struct ksnap_user_data{
   int commits;
   struct timespec last_commit_time;
   int debug_commit_times[10];
-  //uint8_t * dirty_list_locks;  /*what locks to grab when we commit*/
+
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/
