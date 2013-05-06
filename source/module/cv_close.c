@@ -37,7 +37,24 @@ void cv_close(struct vm_area_struct * vma){
   printk("\n\n");
   printk(KSNAP_LOG_LEVEL "status....0 %d 1 %d 2 %d 3 %d 4 %d 5 %d 6 %d\n", 
 	 cv->debug_points[0], cv->debug_points[1], cv->debug_points[2], cv->debug_points[3], cv->debug_points[4], cv->debug_points[5], cv->debug_points[6]);
+  printk(KSNAP_LOG_LEVEL "the committed version %lu\n", cv->committed_version_num);
+  
+  struct list_head * pos;
+  //list_for_each(pos, cv->segment_list){
+  //struct ksnap_user_data * user = list_entry(pos, struct ksnap_user_data, segment_list);
+  //}
 
+  //walk the version list
+  printk(KSNAP_LOG_LEVEL "\n\nPRINTING LIST\n");
+  int counter=0;
+  struct snapshot_version_list * vl;
+  list_for_each(pos, &cv->snapshot_pte_list->list){
+    vl=list_entry(pos, struct snapshot_version_list, list);
+    printk(KSNAP_LOG_LEVEL "num %lu visible %d\n", vl->version_num, vl->visible);
+    if (counter>5){
+      break;
+    }
+  }
 
   if (vma->vm_file->f_mapping->ksnap_data == NULL){
     goto finished;
