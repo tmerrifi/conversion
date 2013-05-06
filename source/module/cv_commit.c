@@ -225,6 +225,9 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   our_version_entry->visible=1;
   //set the number of pages 
   our_version_entry->num_of_entries=committed_pages;
+  //reset the number of dirty pages to zero
+  cv_user->dirty_pages_list_count=0;
+
   //we only have the right to commit if we are one greater than the current committed version
   if (our_version_number == cv_seg->committed_version_num+1){
     //walk from our version up...find the largest visible entry
