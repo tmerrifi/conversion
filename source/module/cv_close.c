@@ -41,7 +41,7 @@ void cv_close(struct vm_area_struct * vma){
   
   printk(KSNAP_LOG_LEVEL "\n\nPRINTING USERS\n");
   struct list_head * pos;
-  list_for_each(pos, cv->segment_list){
+  list_for_each(pos, &cv->segment_list){
     struct ksnap_user_data * user = list_entry(pos, struct ksnap_user_data, segment_list);
     printk(KSNAP_LOG_LEVEL "user id %d version num %llu\n", user->id, user->debug_version_num);
   }
