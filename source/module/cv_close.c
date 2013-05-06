@@ -39,10 +39,12 @@ void cv_close(struct vm_area_struct * vma){
 	 cv->debug_points[0], cv->debug_points[1], cv->debug_points[2], cv->debug_points[3], cv->debug_points[4], cv->debug_points[5], cv->debug_points[6]);
   printk(KSNAP_LOG_LEVEL "the committed version %lu\n", cv->committed_version_num);
   
+  printk(KSNAP_LOG_LEVEL "\n\nPRINTING USERS\n");
   struct list_head * pos;
-  //list_for_each(pos, cv->segment_list){
-  //struct ksnap_user_data * user = list_entry(pos, struct ksnap_user_data, segment_list);
-  //}
+  list_for_each(pos, cv->segment_list){
+    struct ksnap_user_data * user = list_entry(pos, struct ksnap_user_data, segment_list);
+    printk(KSNAP_LOG_LEVEL "user id %d version num %llu\n", user->id, user->debug_version_num);
+  }
 
   //walk the version list
   printk(KSNAP_LOG_LEVEL "\n\nPRINTING LIST\n");
