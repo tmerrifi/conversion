@@ -50,7 +50,7 @@ void cv_close(struct vm_area_struct * vma){
   struct snapshot_version_list * vl;
   list_for_each(pos, &cv->snapshot_pte_list->list){
     vl=list_entry(pos, struct snapshot_version_list, list);
-    printk(KSNAP_LOG_LEVEL "num %lu visible %d\n", vl->version_num, vl->visible);
+    printk(KSNAP_LOG_LEVEL "num %llu visible %d\n", vl->version_num, vl->visible);
     if (counter>5){
       break;
     }
