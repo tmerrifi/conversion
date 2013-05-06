@@ -118,8 +118,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	   vma, vma->vm_file, vma->vm_file->f_mapping, vma->vm_file->f_mapping->ksnap_data);
   }
 
-  cv_seg->debug_points[cv_user->id]=0xA1;
-
   //if the target was passed in....use that!
   target_version_number=(target_version_input==0) ? atomic64_read(&cv_seg->committed_version_atomic) : target_version_input;
   list_to_stop_at=(struct snapshot_version_list *)atomic64_read(&cv_seg->uncommitted_version_entry_atomic);
@@ -128,7 +126,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     return;
   }
 
-  cv_seg->debug_points[cv_user->id]=0xA2;
+
   //grab the head of the version list
   version_list=(struct snapshot_version_list *)mapping_to_ksnap(mapping)->snapshot_pte_list;
   //we're going to update, so increment the stats
@@ -140,7 +138,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     //printk("up: Starting with %p pid %d\n", ls, current->pid);
     //we set the subscribers version list ptr to new_list at the end, so lets start it at NULL
     new_list=NULL;
-    cv_seg->debug_points[cv_user->id]=0xA3;
     //flush on a per-page basis? Or just flush the entire thing?
     //flush_tlb_per_page=__flush_tlb_per_page(ls, &list_to_stop_at->list, target_version_number);
     //start walking through the list....stop when you get to any list with a version number greater than what we're updating to
@@ -148,7 +145,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	 prefetch(pos_outer->prev), pos_outer != &list_to_stop_at->list;
 	 pos_outer = pos_outer_tmp, pos_outer_tmp = pos_outer->prev){
       //get the version entry
-      cv_seg->debug_points[cv_user->id]=0xA4;
       latest_version_entry = list_entry( pos_outer, struct snapshot_version_list, list);
       if (!latest_version_entry->visible || latest_version_entry->version_num > target_version_number){
 	//printk(KSNAP_LOG_LEVEL "not visible....%d version %p number %d target %d visible %d\n", 
@@ -161,7 +157,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	new_list = pos_outer;
 	continue;
       }
-      cv_seg->debug_points[cv_user->id]=0xA6;
       //OK, lets now walk the actual committed ptes
       list_for_each(pos, &latest_version_entry->pte_list->list){
 	//get the pte entry
@@ -171,20 +166,17 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	  //printk(KSNAP_LOG_LEVEL "Found an obsolete entry obsolete %lu target %lu\n", tmp_pte_list->obsolete_version, target_version_number);
 	  continue;
 	}
-	cv_seg->debug_points[cv_user->id]=0xA7;
 	//printk(KSNAP_LOG_LEVEL "Updating %lu pid %d\n", tmp_pte_list->page_index, current->pid);
 	if (merge && 
 	    !update_only &&
 	    ksnap_meta_search_dirty_list(vma, tmp_pte_list->page_index) &&
 	    (dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index)) ){
-	  cv_seg->debug_points[cv_user->id]=0xA8;
 	  //we have to merge our changes with the committed stuff
 	  ksnap_merge(pfn_to_page(tmp_pte_list->pfn), 
 		      (unsigned int *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
 		      dirty_entry->ref_page, pfn_to_page(tmp_pte_list->pfn));
 	  //cv_stats_inc_merged_pages(&cv_seg->cv_stats);
 	  merge_count++;
-	  cv_seg->debug_points[cv_user->id]=0xA9;
 	}
 	else if (!merge_only){
 	  /*if (tmp_pte_list->page_index == 65){
@@ -192,11 +184,9 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 		   tmp_pte_list->pfn, latest_version_entry->version_num, target_version_number, merge, ksnap_get_dirty_ref_page(vma, tmp_pte_list->page_index));
 	    __debug_print_dirty_list(cv_user);
 	    }*/
-	  cv_seg->debug_points[cv_user->id]=0xAA;
 	  cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
 	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page);
 	  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
-	  cv_seg->debug_points[cv_user->id]=0xAB;
 	  ++gotten_pages;
 	}
       }
@@ -205,7 +195,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     }
     //done traversing the versions
     //printk(KSNAP_LOG_LEVEL "Merge only %d new list %p pid %d\n", merge_only, new_list, current->pid);
-    cv_seg->debug_points[cv_user->id]=0xAC;
     //we only change the position of our current version if it wasn't a merge_only
     if (!merge_only && new_list){
       latest_version_entry = list_entry( new_list, struct snapshot_version_list, list);
@@ -217,13 +206,11 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       ksnap_meta_set_local_version(vma,target_version_number);
       cv_user->version_num=target_version_number;
     }
-    cv_seg->debug_points[cv_user->id]=0xAD;
     //we didn't flush along the way....we need to flush the whole thing
     if (!flush_tlb_per_page){
       flush_tlb();
     }
   }
-  cv_seg->debug_points[cv_user->id]=0xAE;
   #ifdef CONV_LOGGING_ON
     printk(KSNAP_LOG_LEVEL "UPDATE: pid %d updated to version %llu and merged %d pages and updated %d pages target_input %lu\n", 
 	   current->pid, target_version_number, merge_count, gotten_pages, target_version_input);
@@ -232,7 +219,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
 
   cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
-  cv_seg->debug_points[cv_user->id]=0xAF;
   return;
 }
 
