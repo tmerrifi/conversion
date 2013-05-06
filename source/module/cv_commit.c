@@ -215,6 +215,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //cv_stats_end(cv_seg, cv_user, 6, commit_waitlist_latency);      
   cv_stats_add_counter(cv_seg, cv_user, committed_pages, commit_pages);
   //no need to lock this...it doesn't have to be precise
+  printk(KSNAP_LOG_LEVEL "updated ptes...%d pages %d\n", our_version_entry->updated_ptes, cv_seg->committed_pages);
   cv_seg->committed_pages+=our_version_entry->updated_ptes;
   //ok, we can finally commit our stuff
   cv_stats_start(cv_seg, 2, commit_wait_lock);
