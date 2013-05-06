@@ -315,7 +315,7 @@ void conv_commit(conv_seg * seg){
     //msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE);
   }
   clock_gettime(CLOCK_REALTIME,&t2);
-  if (t1.tv_nsec % 10 == 0 && ((t2.tv_sec-t1.tv_sec)*1000000000+(t2.tv_nsec-t1.tv_nsec)) > 1000 ){
+  if (t1.tv_nsec % 100 == 0 ){ //&& ((t2.tv_sec-t1.tv_sec)*1000000000+(t2.tv_nsec-t1.tv_nsec)) > 1000 ){
     fprintf(stderr, "conv_checkout pid %d commit total time %lu\n",
 	  getpid(), (t2.tv_sec-t1.tv_sec)*1000000000+(t2.tv_nsec-t1.tv_nsec));
   }
