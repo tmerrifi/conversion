@@ -72,6 +72,8 @@ int __commit_times(uint64_t microsecs){
 void cv_msync(struct vm_area_struct * vma, unsigned long flags){
   struct timespec ts1, ts2;
 
+  return;
+
   getrawmonotonic(&ts1);
   if (flags & MS_KSNAP_MAKE){
     cv_commit_version_parallel(vma, flags);
