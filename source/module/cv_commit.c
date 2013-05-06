@@ -245,9 +245,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   if (cv_seg->committed_pages > 10000 &&  
       (cv_seg->committed_pages - cv_seg->last_committed_pages_gc_start) > CV_GARBAGE_START_INC && 
       atomic_inc_and_test(&cv_seg->gc_thread_count)){
+    printk(KSNAP_LOG_LEVEL "HERE??????\n");
     cv_seg->last_committed_pages_gc_start = cv_seg->committed_pages;
     schedule_work(&cv_seg->garbage_work.work);
-    }
+  }
 
 
   BUG_ON(!list_empty(&(cv_user->dirty_pages_list->list)) && !list_empty(&wait_list->list));
