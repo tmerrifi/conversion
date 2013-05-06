@@ -80,10 +80,10 @@ void cv_msync(struct vm_area_struct * vma, unsigned long flags){
     cv_update_parallel(vma, flags);
   }
   getrawmonotonic(&ts2);
-  //if (ts1.tv_nsec % 100 == 0){
-      //&& cv_stats_elapsed_time_ns(&ts1, &ts2) > 20000){
-  //printk(KSNAP_LOG_LEVEL "elapsed time %lu\n", cv_stats_elapsed_time_ns(&ts1, &ts2));
-    //}
+  if (ts1.tv_nsec % 10 == 0 &&
+      && cv_stats_elapsed_time_ns(&ts1, &ts2) > 20000){
+    printk(KSNAP_LOG_LEVEL "elapsed time %lu\n", cv_stats_elapsed_time_ns(&ts1, &ts2));
+  }
   ksnap_vma_to_userdata(vma)->debug_commit_times[__commit_times(cv_stats_elapsed_time_ns(&ts1, &ts2)/1000)]++;
 }
 
