@@ -4,5 +4,5 @@ if [ $done -eq 0 ]
 then
 	./configure --prefix=/usr --with-shm=MMFILE;
 	make;
-	make install;
+	sudo make install;
 fi
