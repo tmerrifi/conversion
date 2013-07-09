@@ -14,6 +14,7 @@ conversionlib : libmm
 	pushd source/lib/conversion; \
 	make; \
 	make install CV_INSTALLDIR='/usr/lib'; \
+	sudo cp source/scripts/find_snapshot_mapping.sh /usr/bin;
 	popd;
 
 conversionlib32 : libmm
@@ -21,6 +22,7 @@ conversionlib32 : libmm
 	make clean; \
 	make CV_LIB_ARCH='-m32' CONV_DETERM='-DCONV_DETERM'; \
         make install CV_INSTALLDIR='/lib32'; \
+	sudo cp source/scripts/find_snapshot_mapping.sh /usr/bin;
         popd;
 
 conversionmodule :
