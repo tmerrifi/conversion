@@ -29,6 +29,7 @@
 #include "cv_per_page_version.h"
 #include "cv_merge.h"
 #include "cv_update.h"
+#include "cv_debugging.h"
 
 //remove the old page from the page cache, handle its LRU stuff, etc...
 void __remove_old_page(struct address_space * mapping, struct vm_area_struct * vma, 
@@ -111,7 +112,8 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   __remove_old_page(mapping, vma, page->index, version_list_entry->ref_page, our_revision);
   __update_page_mapping(mapping, vma, page, version_list_entry, stats);
   if (version_list_entry->ref_page){
-    put_page(version_list_entry->ref_page);
+      cv_page_debugging_inc_flag(version_list_entry->ref_page, CV_PAGE_DEBUG_REFPAGE_PUT_COUNT);
+      put_page(version_list_entry->ref_page);
   }
   
 }
@@ -258,7 +260,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //now we perform an update so that we are fully up to date....the merging has already been done here in commit
   //if our version is not visible...we must wait.
   while(cv_seg->committed_version_num < our_version_number){
-    barrier();
+      //TODO: is this barrier here because of a lack of volatile?
+      barrier();
   }
   //ok, its safe to update now
   //cv_update_parallel_to_version_no_merge(vma, our_version_number);

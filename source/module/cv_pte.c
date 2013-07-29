@@ -9,6 +9,7 @@
 #include <asm/tlbflush.h>
 
 #include "conversion.h"
+#include "cv_debugging.h"
 
 int snap_page_counter=0;
 
@@ -68,6 +69,7 @@ int pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 	  //do this only if the old page is actually mapped into our address space
 	  //remove from the rmap
 	  page_remove_rmap(old_page);
+          cv_page_debugging_inc_flag(old_page, CV_PAGE_DEBUG_UPDATE_OLDPAGE_PUT);
 	  put_page(old_page);
 	}
 	page = pfn_to_page(pfn);

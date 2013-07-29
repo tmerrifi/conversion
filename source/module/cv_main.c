@@ -71,20 +71,11 @@ int __commit_times(uint64_t microsecs){
   msync system call. If we are making a version, then we call commit. otherwise, we perform an update*/
 void cv_msync(struct vm_area_struct * vma, unsigned long flags){
   struct timespec ts1, ts2;
-
-  //return;
-
-  getrawmonotonic(&ts1);
   if (flags & MS_KSNAP_MAKE){
     cv_commit_version_parallel(vma, flags);
   }
   else{
     cv_update_parallel(vma, flags);
-  }
-  getrawmonotonic(&ts2);
-  if (ts1.tv_nsec % 1000 == 0 &&
-      cv_stats_elapsed_time_ns(&ts1, &ts2) > 10000){
-    printk(KSNAP_LOG_LEVEL "elapsed time %lu\n", cv_stats_elapsed_time_ns(&ts1, &ts2));
   }
   ksnap_vma_to_userdata(vma)->debug_commit_times[__commit_times(cv_stats_elapsed_time_ns(&ts1, &ts2)/1000)]++;
 }
