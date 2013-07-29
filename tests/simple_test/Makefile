@@ -5,7 +5,7 @@ SHELL=/bin/bash
 
 all: simple
 
-simple: 
+simple: simple.c
 	gcc -fno-stack-protector -o simple simple.c -lrt -lksnap
 
 tests : simple

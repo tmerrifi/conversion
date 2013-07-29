@@ -35,9 +35,7 @@ void run(conv_seg * array_seg, int id){
     }
 
     conv_commit(array_seg);
-    printf("%d committed....\n", id);
     sleep(1);
-    printf("\n");
     conv_update(array_seg);
 
     //a poor man's barrier
