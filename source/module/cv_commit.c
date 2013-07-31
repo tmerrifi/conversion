@@ -260,9 +260,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //now we perform an update so that we are fully up to date....the merging has already been done here in commit
   //if our version is not visible...we must wait.
   while(cv_seg->committed_version_num < our_version_number){
-      //TODO: is this barrier here because of a lack of volatile?
-      barrier();
+      //pause inside our busy loop
+      rep_nop();
   }
+
   //ok, its safe to update now
   //cv_update_parallel_to_version_no_merge(vma, our_version_number);
   cv_meta_set_dirty_page_count(vma, 0);
