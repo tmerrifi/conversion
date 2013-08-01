@@ -137,7 +137,9 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     return;
   }
 
-  //printk(KSNAP_LOG_LEVEL "IN COMMIT %d\n", current->pid);
+#ifdef CONV_LOGGING_ON
+  printk(KSNAP_LOG_LEVEL "CONVERSION: IN COMMIT %d\n", current->pid);
+#endif
 
   //get conversion for this segment
   cv_seg=mapping_to_ksnap(vma->vm_file->f_mapping);
@@ -147,7 +149,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   cv_user->commits++;
 
   if (list_empty(&(cv_user->dirty_pages_list->list))){
-    printk(KSNAP_LOG_LEVEL "whoops!\n");
     return;
   }
 
@@ -232,7 +233,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //we only have the right to commit if we are one greater than the current committed version
   if (our_version_number == cv_seg->committed_version_num+1){
     //walk from our version up...find the largest visible entry
-    //list_for_each_prev(version_pos, our_version_entry->list.next){
     version_entry_it=our_version_entry;
     for(version_pos=&our_version_entry->list; version_entry_it->visible==1; version_pos=version_pos->prev){
       version_entry_it=list_entry(version_pos, struct snapshot_version_list, list);
@@ -265,7 +265,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   }
 
   //ok, its safe to update now
-  //cv_update_parallel_to_version_no_merge(vma, our_version_number);
+  cv_update_parallel_to_version_no_merge(vma, our_version_number);
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
   #ifdef CONV_LOGGING_ON
