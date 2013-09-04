@@ -118,7 +118,6 @@ struct ksnap_user_data{
   uint64_t version_num;
   int commits;
   struct timespec last_commit_time;
-  int debug_commit_times[10];
   uint64_t debug_version_num;
 };
 
