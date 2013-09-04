@@ -72,12 +72,23 @@ int __commit_times(uint64_t microsecs){
 void cv_msync(struct vm_area_struct * vma, unsigned long flags){
   struct timespec ts1, ts2;
   if (flags & MS_KSNAP_MAKE){
-    cv_commit_version_parallel(vma, flags);
+
+#if defined(CONV_ATOMIC)
+      cv_commit_version_atomic(vma, flags);
+#else
+      cv_commit_version_parallel(vma, flags);
+#endif
+
   }
   else{
-    cv_update_parallel(vma, flags);
+
+#if defined(CONV_ATOMIC)
+      cv_update_atomic(vma, flags);
+#else 
+      cv_update_parallel(vma, flags);
+#endif
+
   }
-  ksnap_vma_to_userdata(vma)->debug_commit_times[__commit_times(cv_stats_elapsed_time_ns(&ts1, &ts2)/1000)]++;
 }
 
 /*call in to our page fault handler code to keep track of this new page*/

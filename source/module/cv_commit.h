@@ -9,4 +9,6 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
 
 void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags);
 
+void cv_commit_version_atomic(struct vm_area_struct * vma, unsigned long flags);
+
 #endif
