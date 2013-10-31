@@ -136,11 +136,19 @@ void * __open_shared_memory_segment(int size_of_segment, char * file_name, void 
 }
 
 unsigned int __compute_dirty_list_length(unsigned int meta_data_pages){
-  return (meta_data_pages - 1) * ((KSNAP_PAGE_SIZE/sizeof(unsigned long)) - 10);
+    return (meta_data_pages - 1) * ((KSNAP_PAGE_SIZE/sizeof(unsigned long)) - 10);
 }
 
-unsigned int get_dirty_list_size(conv_seg * seg){
-  return __get_meta_local_page(seg)->dirty_page_count;
+unsigned int conv_get_dirty_page_count(conv_seg * seg){
+    return __get_meta_local_page(seg)->dirty_page_count;
+}
+
+unsigned int conv_get_merged_page_count(conv_seg * seg){
+    return __get_meta_local_page(seg)->merged_pages;
+}
+
+unsigned int conv_get_updated_page_count(conv_seg * seg){
+    return __get_meta_local_page(seg)->updated_pages;
 }
 
 void __ksnap_open_meta_data_segments(int size_of_segment, char * segment_name, conv_seg * snap, int create){

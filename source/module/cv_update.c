@@ -121,6 +121,9 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   //if the target was passed in....use that!
   target_version_number=(target_version_input==0) ? atomic64_read(&cv_seg->committed_version_atomic) : target_version_input;
   list_to_stop_at=(struct snapshot_version_list *)atomic64_read(&cv_seg->uncommitted_version_entry_atomic);
+  //set the number of updated pages to zero
+  cv_meta_set_updated_page_count(vma, 0);  
+  cv_meta_set_merged_page_count(vma, 0);
 
   if (target_version_number<=cv_user->version_num){
     return;
@@ -219,6 +222,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
 
   cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
+
+  cv_meta_set_updated_page_count(vma, gotten_pages);
+  cv_meta_set_merged_page_count(vma, merge_count);
+
   return;
 }
 

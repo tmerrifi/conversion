@@ -6,12 +6,14 @@
 #include <linux/mm.h>
 
 struct ksnap_meta_data_local{
-  unsigned int meta_data_size; //in pages
-  unsigned char dirty_list_mode; //bitmap or list
-  unsigned int dirty_page_count; 
-  unsigned int dirty_list_size; //
-  unsigned int snapshot_version_num; //the current version number
-  unsigned int pid; 
+    unsigned int meta_data_size; //in pages
+    unsigned char dirty_list_mode; //bitmap or list
+    unsigned int dirty_page_count; 
+    unsigned int dirty_list_size; //
+    unsigned int snapshot_version_num; //the current version number
+    unsigned int updated_pages; //the number of pages updated by the last update
+    unsigned int merged_pages; //the number of pages updated by the last update
+    unsigned int pid; 
 };
 
 struct ksnap_meta_data_shared{
@@ -32,6 +34,12 @@ struct ksnap_dirty_list_entry{
 void cv_meta_set_dirty_page_count(struct vm_area_struct * vma, uint32_t count);
 
 void cv_meta_inc_dirty_page_count(struct vm_area_struct * vma);
+
+void cv_meta_inc_updated_page_count(struct vm_area_struct * vma);
+
+void cv_meta_set_updated_page_count(struct vm_area_struct * vma, uint32_t count);
+
+void cv_meta_set_merged_page_count(struct vm_area_struct * vma, uint32_t count);
 
 unsigned char ksnap_meta_search_dirty_list(struct vm_area_struct * vma, unsigned long page_index);
 
