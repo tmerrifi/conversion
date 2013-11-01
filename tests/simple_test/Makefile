@@ -6,13 +6,16 @@ SHELL=/bin/bash
 all: simple
 
 simple: simple.c
-	gcc -fno-stack-protector -o simple simple.c -lrt -lksnap
+	gcc -g -fno-stack-protector -o simple simple.c -lrt -lksnap
+
+new : 
+	./simple;
 
 tests : simple
 	pushd ../../source/module; \
 	sudo ./install.sh y; \
 	popd; \
-	sudo rm *.mem; \
+	sudo rm *.mem*; \
 	./simple;
 
 clean:
