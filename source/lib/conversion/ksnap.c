@@ -75,7 +75,6 @@ void * __open_shared_memory_segment(int size_of_segment, char * file_name, void 
       goto error;
     }
   }
-  //
   else{
     *fd = open(file_path, O_RDWR, 0644);
     if (*fd==-1){
@@ -100,38 +99,6 @@ void * __open_shared_memory_segment(int size_of_segment, char * file_name, void 
  error:
   fprintf(stderr, "failed to create file for segment %s\n", file_name);
   return NULL;
-
-
-  /**fd = open(file_path, O_RDWR, 0644);
-  if (*fd==-1){
-    *fd = open(file_path, O_CREAT | O_RDWR | O_EXCL, 0644);
-    if (*fd < 0){
-      ++tries;
-      if (tries>5){
-	printf("failed to open %s\n", file_name);
-	exit(1);
-      }
-      goto open;
-    }
-    if (*fd ==-1){
-      fprintf(stderr, "failed to make file for kSnap segment %s\n", file_name);
-      perror("huh?");
-      exit(0);
-    }
-  }
-  size_of_file=__get_file_size(*fd);
-  if (size_of_file==0){
-    ftruncate(*fd, size_of_segment);
-  }
-  if (desired_address){
-    flags |= MAP_FIXED;
-  }
-  mem = mmap(desired_address,size_of_segment,PROT_READ|PROT_WRITE,flags,*fd,0);
-  if (!mem){
-    fprintf(stderr, "failed mapping %s at %p\n", file_name, desired_address);
-    exit(0);
-  }
-  return mem;*/
 
 }
 
@@ -186,6 +153,7 @@ conv_seg * __create_conv_seg(int size_of_segment, char * segment_name){
   sprintf(snap->file_name, "%s.mem", segment_name);
   sprintf(snap->name, "%s", __strip_file_name(segment_name));
   snap->size_of_segment = size_of_segment;
+  return snap;
 }
 
 //open up the segment, if create is set then we ONLY create...else we ONLY open (not create)
@@ -282,6 +250,9 @@ void conv_merge(conv_seg * seg){
   }
 }
 
+/*DETERMINISM STUFF*/
+/*TODO: This is stuff related to determinism...it should really be refactored out since its not "core" conversion*/
+
 void conv_update_only_barrier_determ(conv_seg * seg){
   if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
     msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET | KSNAP_SYNC_BARRIER_DETERM);
@@ -299,6 +270,9 @@ void conv_commit_barrier_determ(conv_seg * seg){
     msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE | KSNAP_SYNC_BARRIER_DETERM);
   }
 }
+
+/*DONE WITH DETERMINISM STUFF*/
+
 
 void conv_commit(conv_seg * seg){
   struct timespec t1,t2;
