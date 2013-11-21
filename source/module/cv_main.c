@@ -32,6 +32,7 @@
 #include "cv_lock_list.h"
 #include "cv_commit.h"
 #include "cv_update.h"
+#include "cv_determinism.h"
 
 MODULE_LICENSE("GPL");
 
@@ -133,6 +134,7 @@ int init_module(void)
   mmap_snapshot_instance.do_snapshot_add_pte = cv_page_fault;
   mmap_snapshot_instance.ksnap_userdata_copy = ksnap_userdata_copy;
   mmap_snapshot_instance.snap_sequence_number=random32()%10000;
+  mmap_snapshot_instance.conversion_determ_init=cv_determinism_init;
   register_die_notifier(&nmi_snap_nb);
   ksnap_merge_init();
   printk(KSNAP_LOG_LEVEL "vfork!! %d\n", __NR_vfork);

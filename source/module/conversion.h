@@ -8,6 +8,7 @@
 #include "cv_stats.h"
 #include "cv_per_page_version.h"
 #include "cv_garbage.h"
+#include "cv_hooks.h"
 
 #define SNAPSHOT_PREFIX "snapshot"
 #define SNAPSHOT_DEBUG Y
@@ -37,16 +38,15 @@
 of pte values that have changed. A subscriber traverses the pte_list for each version that has changed
 since the last snapshot and then changes it's page table to use the pte's in the list.*/
 struct snapshot_pte_list{
-  struct list_head list;
-  pte_t * pte;	
-  unsigned long addr;
-  unsigned long pfn;
-  unsigned long page_index;
-  struct page * ref_page;
-  struct snapshot_version_list * version_list; //purly for debugging
-  uint64_t wait_revision;
-  uint64_t obsolete_version;
-
+    struct list_head list;
+    pte_t * pte;	
+    unsigned long addr;
+    unsigned long pfn;
+    unsigned long page_index;
+    struct page * ref_page;
+    struct snapshot_version_list * version_list; //purly for debugging
+    uint64_t wait_revision;
+    uint64_t obsolete_version;
 };
 
 /*this structure is a list of snapshot_pte_list objects. Each node in this list represents a version of the
@@ -68,34 +68,36 @@ struct snapshot_version_list{
 
 
 struct ksnap{
-  struct snapshot_version_list * snapshot_pte_list;	/*TODO: change to list_head if that's what we want this to be....*/
-  struct radix_tree_root snapshot_page_tree; /*used for keeping track of the current page index -> pte, gets used when we get snapshot*/
-  wait_queue_head_t snapshot_wq;		/*wait queue for blocking get_snapshot requests*/
-  atomic_t revision_number;			/*the current revision number*/
-  atomic_t id_counter;
-  struct list_head prio_list; 		/*an ordered list of dynamic priorities*/
-  struct timeval last_commit_time;	/*the last time that we committed*/
-  struct timeval last_snapshot_time;	/*the last time that a subscriber tried to take a snapshot*/
-  uint64_t last_committed_pages_gc_start; /*number of comitted pages last time we started the gc*/
-  uint64_t committed_pages;             /* committed pages not yet GC'd*/
-  unsigned long ewma_adapt;			/*keeping track of the ewma (in microseconds) of the rate of get_snapshots from subscribers*/
-  unsigned long sub_interval; 		/*the amount of time requested by this subscriber*/
-  struct list_head segment_list;        /*the vma's mapping this segment*/
-  struct kmem_cache * pte_list_mem_cache;
-  spinlock_t lock;
-  struct cv_statistics cv_stats;
-  struct cv_per_process_detailed_statistics cv_per_process_stats[CV_MAX_PER_PROCESS_STATS];
-  int creator_id;
-  struct cv_per_page_version * ppv;
-  struct snapshot_version_list * uncommitted_version_entry;
-  uint64_t committed_version_num;
-  uint64_t next_avail_version_num;
-  atomic_t gc_thread_count;
-  struct cv_garbage_work garbage_work;
-  atomic64_t committed_version_atomic;
-  atomic64_t uncommitted_version_entry_atomic;
-  struct timespec last_acq_time;
-  int debug_points[32];
+    struct snapshot_version_list * snapshot_pte_list;	/*TODO: change to list_head if that's what we want this to be....*/
+    struct radix_tree_root snapshot_page_tree; /*used for keeping track of the current page index -> pte, gets used when we get snapshot*/
+    wait_queue_head_t snapshot_wq;		/*wait queue for blocking get_snapshot requests*/
+    atomic_t revision_number;			/*the current revision number*/
+    atomic_t id_counter;
+    struct list_head prio_list; 		/*an ordered list of dynamic priorities*/
+    struct timeval last_commit_time;	/*the last time that we committed*/
+    struct timeval last_snapshot_time;	/*the last time that a subscriber tried to take a snapshot*/
+    uint64_t last_committed_pages_gc_start; /*number of comitted pages last time we started the gc*/
+    uint64_t committed_pages;             /* committed pages not yet GC'd*/
+    unsigned long ewma_adapt;			/*keeping track of the ewma (in microseconds) of the rate of get_snapshots from subscribers*/
+    unsigned long sub_interval; 		/*the amount of time requested by this subscriber*/
+    struct list_head segment_list;        /*the vma's mapping this segment*/
+    struct kmem_cache * pte_list_mem_cache;
+    spinlock_t lock;
+    struct cv_statistics cv_stats;
+    struct cv_per_process_detailed_statistics cv_per_process_stats[CV_MAX_PER_PROCESS_STATS];
+    int creator_id;
+    struct cv_per_page_version * ppv;
+    struct snapshot_version_list * uncommitted_version_entry;
+    uint64_t committed_version_num;
+    uint64_t next_avail_version_num;
+    atomic_t gc_thread_count;
+    struct cv_garbage_work garbage_work;
+    atomic64_t committed_version_atomic;
+    atomic64_t uncommitted_version_entry_atomic;
+    struct timespec last_acq_time;
+    int debug_points[32];
+    struct conversion_hooks hooks; /*for applications that want to tie into conversion events*/
+    void * app_data; /*for applications (ex: determinsim) that want to store segment specific data*/
 };
 
 struct ksnap_user_data{

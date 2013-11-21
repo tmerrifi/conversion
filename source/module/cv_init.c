@@ -91,6 +91,9 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
 
 struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_area_struct * vma){
 
+    //    #ifdef CONV_LOGGING_ON
+    printk(KERN_EMERG " CONVERSION: initializing segment at address %p and vma %p\n", vma->vm_start, vma);
+    //#endif
 
   struct ksnap * ksnap_data = kmalloc(sizeof(struct ksnap), GFP_KERNEL);
   //do we need to initialize the list?
@@ -133,5 +136,7 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   cv_stats_init(&ksnap_data->cv_stats);
   memset(ksnap_data->cv_per_process_stats, 0, sizeof(struct cv_per_process_detailed_statistics) * CV_MAX_PER_PROCESS_STATS);
   memset(ksnap_data->debug_points, 0, sizeof(int)*32);
+  //initialize the hooks to NULL
+  CV_HOOKS_INIT(ksnap_data);
   return ksnap_data;
 }

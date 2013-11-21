@@ -245,18 +245,18 @@ void conv_update_mutex(conv_seg * seg, sem_t * sem){
 
 //lets update and get a new view of the snapshot
 void conv_merge(conv_seg * seg){
-  if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
+    //if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
     msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE);
-  }
+    //}
 }
 
 /*DETERMINISM STUFF*/
 /*TODO: This is stuff related to determinism...it should really be refactored out since its not "core" conversion*/
 
 void conv_update_only_barrier_determ(conv_seg * seg){
-  if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
+    //  if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
     msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET | KSNAP_SYNC_BARRIER_DETERM);
-  }
+    //}
 }
 
 void conv_merge_barrier_determ(conv_seg * seg){
@@ -275,10 +275,19 @@ void conv_commit_barrier_determ(conv_seg * seg){
 
 
 void conv_commit(conv_seg * seg){
-  struct timespec t1,t2;
   if(__get_meta_local_page(seg)->dirty_page_count > 0){
     msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE);
   }
+}
+
+//performs a commit and a combined update (even if there are no dirty pages)
+void conv_commit_and_update(conv_seg * seg){
+    if(__get_meta_local_page(seg)->dirty_page_count == 0){
+        msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE);
+    }
+    else{
+        msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE);
+    }
 }
 
 void conv_commit_mutex(conv_seg * seg, sem_t * sem){

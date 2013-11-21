@@ -167,8 +167,9 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   cv_stats_start(cv_seg, 1, commit_wait_lock);
   spin_lock(&cv_seg->lock);
   cv_stats_end(cv_seg, cv_user, 1, commit_wait_lock);
+  CV_HOOKS_BEGIN_COMMIT(cv_seg, flags);
   //get the right version number
-  cv_seg->next_avail_version_num++;
+  cv_seg->next_avail_version_num+=1;
   our_version_number=cv_seg->next_avail_version_num;
   //claim the list we'll be using to add to the version list
   our_version_entry = cv_seg->uncommitted_version_entry;
@@ -242,6 +243,12 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     }
     cv_seg->committed_version_num=max_version_number;
     atomic64_set(&cv_seg->committed_version_atomic, cv_seg->committed_version_num);
+
+#ifdef CONV_LOGGING_ON
+    printk(KERN_EMERG "IN COMMIT %d for segment %p, old committed version %lu, new version number %lu, next %lu\n", 
+           cv_seg->committed_version_num, cv_seg, max_version_number, atomic64_read(&cv_seg->committed_version_atomic), cv_seg->next_avail_version_num);
+#endif
+
     BUG_ON(cv_seg->committed_version_num < our_version_number);
     //export the new version to user space
     ksnap_meta_set_shared_version(vma, cv_seg->committed_version_num);
@@ -269,10 +276,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
   #ifdef CONV_LOGGING_ON
-  if (committed_pages > 50){
-    printk(KSNAP_LOG_LEVEL "IN COMMIT %d, committed pages %d....our version num %lu committed %lu\n", 
-	   current->pid, committed_pages, our_version_number, cv_seg->committed_version_num);
-  }
+    printk(KSNAP_LOG_LEVEL "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
+	   current->pid, cv_seg, committed_pages, our_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);
   #endif
 
 }
