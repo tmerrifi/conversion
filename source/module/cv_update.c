@@ -84,8 +84,8 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   int gotten_pages = 0;
   int merge_count=0;
   unsigned int merge=(flags & MS_KSNAP_GET_MERGE);
-  unsigned int merge_only=(flags & MS_KSNAP_GET_MERGE) && (flags & MS_KSNAP_DETERM_LAZY);
-  unsigned int update_only=(flags & MS_KSNAP_GET) && (flags & MS_KSNAP_DETERM_LAZY);
+  //if we pass in the partial flag, we perform the work up to the latest version, without merging
+  unsigned int partial_update_only_update=(flags & MS_KSNAP_GET) && (flags & MS_KSNAP_DETERM_LAZY);
   int flush_tlb_per_page=1;
   struct ksnap * cv_seg;
   struct ksnap_user_data * cv_user;
@@ -99,15 +99,15 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: vma not setup right\n");
   }
 
+  if ((flags & MS_KSNAP_GET_MERGE) && (flags & MS_KSNAP_DETERM_LAZY)){
+      printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: can't combine partial updates with merging\n");
+  }
+
   mapping=vma->vm_file->f_mapping;
   //get the conversion segment data structure
   cv_seg=ksnap_vma_to_ksnap(vma);
   //get the user segment data structure
   cv_user=ksnap_vma_to_userdata(vma);
-  //if we aren't merging then revert everything in our dirty page list
-  if (!merge){
-    ksnap_revert_dirty_list(vma, mapping);
-  }
 
   if (cv_seg==NULL){
     printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: segment is null for some reason, vma is %p vm_file %p f_mapping %p seg %p\n", 
@@ -162,7 +162,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	  continue;
 	}
 	if (merge && 
-	    !update_only &&
+	    !partial_update_only_update &&
 	    ksnap_meta_search_dirty_list(vma, tmp_pte_list->page_index) &&
 	    (dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index)) ){
 	  //we have to merge our changes with the committed stuff
@@ -175,7 +175,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	  cv_stats_inc_merged_pages(&cv_seg->cv_stats);
 	  merge_count++;
 	}
-	else if (!merge_only){
+	else{
 	  cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
 	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page);
 #ifdef CONV_LOGGING_ON
@@ -190,9 +190,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       new_list = pos_outer;
     }
     //done traversing the versions
-    //printk(KSNAP_LOG_LEVEL "Merge only %d new list %p pid %d\n", merge_only, new_list, current->pid);
-    //we only change the position of our current version if it wasn't a merge_only
-    if (!merge_only && new_list){
+    if (new_list){
       latest_version_entry = list_entry( new_list, struct snapshot_version_list, list);
       atomic_inc(&latest_version_entry->ref_c);
       //only set it to the new list if it's not null
