@@ -177,7 +177,7 @@ static void __cv_update_atomic(struct vm_area_struct * vma, unsigned long flags,
 	    (dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index)) ){
 	  //we have to merge our changes with the committed stuff
 	  ksnap_merge(pfn_to_page(tmp_pte_list->pfn), 
-		      (unsigned int *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
+		      (uint8_t *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
 		      dirty_entry->ref_page, pfn_to_page(tmp_pte_list->pfn));
 	  //cv_stats_inc_merged_pages(&cv_seg->cv_stats);
 	  merge_count++;

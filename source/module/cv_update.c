@@ -167,7 +167,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	    (dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index)) ){
 	  //we have to merge our changes with the committed stuff
 	  ksnap_merge(pfn_to_page(tmp_pte_list->pfn), 
-		      (unsigned int *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
+		      (uint8_t *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
 		      dirty_entry->ref_page, pfn_to_page(tmp_pte_list->pfn));
 #ifdef CONV_LOGGING_ON
           printk(KERN_EMERG "    Update %d for segment %p, merge page index %d\n", current->pid, cv_seg, tmp_pte_list->page_index);

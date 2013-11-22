@@ -22,22 +22,20 @@
 #include "conversion.h"
 #include "cv_merge.h"
 
-unsigned int * cv_merge_empty_page;
+uint8_t * cv_merge_empty_page;
 
 void ksnap_merge_init(){
   int i=0;  
   cv_merge_empty_page = kmalloc(PAGE_SIZE, GFP_KERNEL);
-  for (;i<(PAGE_SIZE/sizeof(unsigned int));++i){
-    cv_merge_empty_page[i]=0;
-  }
+  memset(cv_merge_empty_page, 0, PAGE_SIZE);
 }
 
 void cv_merge_free(){
   kfree(cv_merge_empty_page);
 }
 
-void ksnap_merge(struct page * latest_page, unsigned int * local, struct page * ref_page, struct page * local_page){
-  unsigned int * latest, * ref;
+void ksnap_merge(struct page * latest_page, uint8_t * local, struct page * ref_page, struct page * local_page){
+  uint8_t * latest, * ref;
   int i=0;
 
   #ifdef CONV_LOGGING_ON
@@ -67,7 +65,7 @@ void ksnap_merge(struct page * latest_page, unsigned int * local, struct page * 
   cv_per_thread_debug_insert(local, 2);
   
   //now do the diff
-  for (;i<1024;++i){
+  for (;i<PAGE_SIZE;++i){
     if (unlikely(latest[i]!=ref[i] && local[i]==ref[i])){
       local[i]=latest[i];
     }

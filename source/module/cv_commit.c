@@ -94,7 +94,7 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   committed_entry = cv_version_list_lookup(cv_seg, version_list_entry->page_index);
   if (committed_entry && pfn_to_page(committed_entry->pfn) != version_list_entry->ref_page){
     ksnap_merge(pfn_to_page(committed_entry->pfn),
-		(unsigned int *)((version_list_entry->page_index << PAGE_SHIFT) + vma->vm_start), 
+		(uint8_t *)((version_list_entry->page_index << PAGE_SHIFT) + vma->vm_start), 
 		version_list_entry->ref_page, pfn_to_page(version_list_entry->pfn));
     
     cv_stats_inc_merged_pages(&cv_seg->cv_stats);
