@@ -6,7 +6,7 @@ SHELL=/bin/bash
 all: simple
 
 simple: simple.c
-	gcc -g -fno-stack-protector -o simple simple.c -lrt -lksnap
+	gcc -g -fno-stack-protector -o simple simple.c ../common/common.o -lrt -lksnap -lpthread
 
 new : 
 	./simple;
@@ -16,7 +16,8 @@ tests : simple
 	sudo ./install.sh y; \
 	popd; \
 	sudo rm *.mem*; \
-	./simple;
+	for i in `seq 1 10`; do ./simple; done;
 
 clean:
-	rm simple;
+	rm simple; \
+	sudo rm *.mem*;
