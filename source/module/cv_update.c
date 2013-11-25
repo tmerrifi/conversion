@@ -85,7 +85,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   int merge_count=0;
   unsigned int merge=(flags & MS_KSNAP_GET_MERGE);
   //if we pass in the partial flag, we perform the work up to the latest version, without merging
-  unsigned int partial_update_only_update=(flags & MS_KSNAP_GET) && (flags & MS_KSNAP_DETERM_LAZY);
+  unsigned int partial_update=(flags & MS_KSNAP_GET) && (flags & MS_KSNAP_PARTIAL);
+  //if this is set, we keep the version number where it is. Next time around we'll perform only merges
+  //and any subsequent commits
+  uint8_t keep_current_version=(partial_update && target_version_input==0);
   int flush_tlb_per_page=1;
   struct ksnap * cv_seg;
   struct ksnap_user_data * cv_user;
@@ -99,7 +102,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: vma not setup right\n");
   }
 
-  if ((flags & MS_KSNAP_GET_MERGE) && (flags & MS_KSNAP_DETERM_LAZY)){
+  if ((flags & MS_KSNAP_GET_MERGE) && (flags & MS_KSNAP_PARTIAL)){
       printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: can't combine partial updates with merging\n");
   }
 
@@ -161,45 +164,53 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	if (tmp_pte_list->obsolete_version <= target_version_number){
 	  continue;
 	}
-	if (merge && 
-	    !partial_update_only_update &&
-	    ksnap_meta_search_dirty_list(vma, tmp_pte_list->page_index) &&
-	    (dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index)) ){
+        dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
+	if (merge && dirty_entry){
 	  //we have to merge our changes with the committed stuff
-	  ksnap_merge(pfn_to_page(tmp_pte_list->pfn), 
-		      (uint8_t *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
-		      dirty_entry->ref_page, pfn_to_page(tmp_pte_list->pfn));
+            ksnap_merge(pfn_to_page(tmp_pte_list->pfn), 
+                        (uint8_t *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
+                        dirty_entry->ref_page, pfn_to_page(tmp_pte_list->pfn));
 #ifdef CONV_LOGGING_ON
           printk(KERN_EMERG "    Update %d for segment %p, merge page index %d\n", current->pid, cv_seg, tmp_pte_list->page_index);
 #endif
 	  cv_stats_inc_merged_pages(&cv_seg->cv_stats);
 	  merge_count++;
 	}
-	else{
+        //if we have a partial version, it means that we previously did a partial upate. If so, and this entry's version number
+        //is less than our partial version number, then this update is superfluous
+	else if (!dirty_entry && !(cv_user->partial_version_num >= latest_version_entry->version_num)){
 	  cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
 	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page);
 #ifdef CONV_LOGGING_ON
-          printk(KERN_EMERG "    Update %d for segment %p, update page index %d\n", current->pid, cv_seg, tmp_pte_list->page_index);
+          printk(KERN_EMERG "    Update %d for segment %p, update page index %d \n", 
+                 current->pid, cv_seg, tmp_pte_list->page_index);
 #endif
-          
 	  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
 	  ++gotten_pages;
 	}
       }
+#ifdef CONV_LOGGING_ON
+      printk(KERN_EMERG "  Updated to version %d\n", latest_version_entry->version_num);
+#endif
+
       //done traversing a list of ptes
       new_list = pos_outer;
     }
     //done traversing the versions
-    if (new_list){
+    if (new_list && !keep_current_version){
       latest_version_entry = list_entry( new_list, struct snapshot_version_list, list);
       atomic_inc(&latest_version_entry->ref_c);
       //only set it to the new list if it's not null
       vma->snapshot_pte_list = (new_list) ? new_list : vma->snapshot_pte_list;
-      //printk(KSNAP_LOG_LEVEL "Setting new list to %p pid %d\n", vma->snapshot_pte_list, current->pid);
       //set the new version
       ksnap_meta_set_local_version(vma,target_version_number);
       cv_user->version_num=target_version_number;
+      cv_user->partial_version_num=0;
     }
+    else if (new_list && keep_current_version){
+        cv_user->partial_version_num=target_version_number;
+    }
+
     //we didn't flush along the way....we need to flush the whole thing
     if (!flush_tlb_per_page){
       flush_tlb();
@@ -226,5 +237,5 @@ void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags){
 //update to a specific version...called by commit and merging is already done
 void cv_update_parallel_to_version_no_merge(struct vm_area_struct * vma, uint64_t version){
   //TODO: the flags here are dumb and don't really make a lot of sense in this context. They need to be fixed
-  __cv_update_parallel(vma,  (MS_KSNAP_GET | MS_KSNAP_DETERM_LAZY), version);
+  __cv_update_parallel(vma,  (MS_KSNAP_GET | MS_KSNAP_PARTIAL), version);
 }

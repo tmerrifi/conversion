@@ -30,47 +30,50 @@
 #include "cv_merge.h"
 #include "cv_update.h"
 #include "cv_debugging.h"
+#include "cv_dirty.h"
 
 //remove the old page from the page cache, handle its LRU stuff, etc...
 void __remove_old_page(struct address_space * mapping, struct vm_area_struct * vma, 
 		       unsigned long index, struct page * ref_page, uint64_t our_version){
-
-  struct list_head * old_entry_lh;
-  struct snapshot_pte_list * old_entry; 
-
-  old_entry_lh = radix_tree_lookup(&mapping_to_ksnap(mapping)->snapshot_page_tree, index);
-  if (old_entry_lh==NULL){
-    return;
-  }
-  old_entry = list_entry(old_entry_lh, struct snapshot_pte_list, list);
-  old_entry->obsolete_version=our_version;
+    struct ksnap * cv_seg;
+    struct list_head * old_entry_lh;
+    struct snapshot_pte_list * old_entry; 
+    cv_seg = ksnap_vma_to_ksnap(vma);
+    spin_lock(&cv_seg->snapshot_page_tree_lock);
+    old_entry_lh = radix_tree_lookup(&mapping_to_ksnap(mapping)->snapshot_page_tree, index);
+    spin_unlock(&cv_seg->snapshot_page_tree_lock);
+    if (old_entry_lh==NULL){
+        return;
+    }
+    old_entry = list_entry(old_entry_lh, struct snapshot_pte_list, list);
+    old_entry->obsolete_version=our_version;
 }
 
 void __update_page_mapping(struct address_space * mapping, struct vm_area_struct * vma, 
 			   struct page * page, struct snapshot_pte_list * version_list_entry, int stats){
-  struct ksnap * cv_seg;
-  int insert_error=0;
-  cv_seg = ksnap_vma_to_ksnap(vma);
-  //make sure the page wasn't free'd out from under us
-  if (!page_count(page)){
-    BUG();
-  }
-  do{
-    //lets now add our new pte into the pte radix tree
-    insert_error = radix_tree_insert(&cv_seg->snapshot_page_tree, page->index, &version_list_entry->list);
-    //if it wasn't an eexist error, then something is wrong and we have a bug
-    if (insert_error == -EEXIST){
-      radix_tree_delete(&cv_seg->snapshot_page_tree, page->index);
+    struct ksnap * cv_seg;
+    int insert_error=0;
+    cv_seg = ksnap_vma_to_ksnap(vma);
+    //make sure the page wasn't free'd out from under us
+    if (!page_count(page)){
+        BUG();
     }
-    else if(insert_error){
-      BUG();
-      return;
-    }
-  }while(insert_error);
-
-  cv_per_page_version_update_version_entry(cv_seg->ppv, version_list_entry);
-  get_page(page);
-  return;
+    spin_lock(&cv_seg->snapshot_page_tree_lock);
+    do{
+        //lets now add our new pte into the pte radix tree
+        insert_error = radix_tree_insert(&cv_seg->snapshot_page_tree, page->index, &version_list_entry->list);
+        //if it wasn't an eexist error, then something is wrong and we have a bug
+        if (insert_error == -EEXIST){
+            radix_tree_delete(&cv_seg->snapshot_page_tree, page->index);
+        }
+        else if(insert_error){
+            BUG();
+        }
+    }while(insert_error);
+    spin_unlock(&cv_seg->snapshot_page_tree_lock);
+    cv_per_page_version_update_version_entry(cv_seg->ppv, version_list_entry);
+    get_page(page);
+    return;
 }
 
 void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_area_struct * vma, uint64_t our_revision, int stats){
@@ -152,7 +155,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     return;
   }
 
-
   //initializes variables used to track stats
   cv_stats_function_init();
   //increment total commits
@@ -179,13 +181,13 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   cv_seg->uncommitted_version_entry = next_version_entry;
   cv_per_page_version_walk(cv_user->dirty_pages_list, wait_list,
 			   cv_seg->ppv, our_version_number);
+
   spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
-
   atomic64_set(&cv_seg->uncommitted_version_entry_atomic, (uint64_t)cv_seg->uncommitted_version_entry);
-
-  cv_stats_add_counter(cv_seg, cv_user, our_version_number - cv_user->version_num, version_diff);
   
+  cv_stats_add_counter(cv_seg, cv_user, our_version_number - cv_user->version_num, version_diff);
+  //*****
   //set the version entry version number  
   our_version_entry->version_num=our_version_number;
   //set the number of ptes we are committing
@@ -200,12 +202,13 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     list_del(pos);
     list_add(pos, &our_version_entry->pte_list->list);
     cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
+    barrier();
     ++committed_pages;
+    conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
   }
 
   //now we need to commit the stuff in the 
   while(!list_empty(&wait_list->list)){
-    barrier();
     if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv))){
       //grab the currently committed entry
       cv_commit_page(pte_entry, vma, our_version_number, 1);
@@ -213,7 +216,9 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
       list_del(&pte_entry->list);
       list_add(&pte_entry->list, &our_version_entry->pte_list->list);
       cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
+      barrier();
       ++committed_pages;
+      conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
     }
   }
   //cv_stats_end(cv_seg, cv_user, 6, commit_waitlist_latency);      

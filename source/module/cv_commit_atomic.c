@@ -200,6 +200,7 @@ void cv_commit_version_atomic(struct vm_area_struct * vma, unsigned long flags){
     __cv_commit_page_atomic(pte_entry, vma, our_version_number, 0);
     //removing from the dirty list
     list_del(pos);
+    conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
     list_add(pos, &our_version_entry->pte_list->list);
     //cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
     ++committed_pages;

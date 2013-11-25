@@ -8,7 +8,7 @@ ksnapmod-y = cv_main.o ksnap_writer.o ksnap_version_list.o cv_commit.o cv_commit
 #-DCV_STATS_ON - Generates statistics about number of calls to various conversion operations
 #-DCV_HOOKS - Uses the hooks (function pointers) on certain events
 
-KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement -DCV_HOOKS #-DCONV_LOGGING_ON
+KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement #-DCONV_ATOMIC -DCONV_LOGGING_ON
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

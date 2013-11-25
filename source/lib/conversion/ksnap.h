@@ -72,9 +72,13 @@ struct ksnap_dirty_list_entry{
      
      void conv_commit(conv_seg * seg);
      void conv_commit_mutex(conv_seg * seg, sem_t * sem);
-
      void conv_commit_and_update(conv_seg * seg);
-     
+
+     //Allow a segment to perform updates (no merging) without actually rev'ing the version number.
+     //This is useful if some thread is waiting for another to commit, but knows it has lots of work
+     //to do to catch-up to the current version. It can perform the partial update safely while it waits.
+     void conv_partial_background_update(conv_seg * seg);
+
      /*functions for use only by dthreads*/
      void conv_update_only_barrier_determ(conv_seg * seg);
      void conv_merge_barrier_determ(conv_seg * seg);
@@ -97,7 +101,7 @@ struct ksnap_dirty_list_entry{
 #define KSNAP_SYNC_GET 8
 #define KSNAP_SYNC_MAKE 16
 #define KSNAP_SYNC_MERGE 32
-#define KSNAP_SYNC_BARRIER_DETERM 64
+#define KSNAP_SYNC_PARTIAL 64
 #define CONVERSION_DETERM_TOKEN_RELEASE 128
 
 #define KSNAP_NO_SYNC MS_SYNC

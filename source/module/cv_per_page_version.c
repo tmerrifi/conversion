@@ -57,14 +57,19 @@ void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struc
   struct list_head * pos, * tmp_pos;
   struct snapshot_pte_list * pte_entry;
 
+  //loop through all our dirty pages
   list_for_each_safe(pos, tmp_pos, &dirty_pages_list->list){
+      //get the pte_entry
       pte_entry = list_entry(pos, struct snapshot_pte_list, list);
+      //if the interest and actual aren't equal, we need to store the interest and move it into the right list
       if (__commit_page_status(ppv, pte_entry->page_index)==__CV_PPV_UNSAFE){
 	pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version; //keep this so we can wait on interest to match actual later...
+        //add it to the wait list
 	list_del(&pte_entry->list);
 	INIT_LIST_HEAD(&pte_entry->list);
 	list_add(&pte_entry->list, &wait_list->list);
       }
+      //regardless, set our own interest level
       ppv->entries[pte_entry->page_index].interest_version=revision_number;
   }
 }

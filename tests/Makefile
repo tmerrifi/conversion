@@ -1,22 +1,35 @@
 
 SHELL=/bin/bash
 
-.PHONY: simple_test array_test
+.PHONY: common simple_test array_test
 
-all : simple_test array_test
+all : common simple_test array_test partial
 
-simple_test:
+
+simple_test: common
 	echo "SIMPLE TEST"; \
 	printf "\n\n\n"; \
-	pushd simple_test; \
+	pushd simple_test > /dev/null; \
 	make; \
 	make tests; \
-	popd;
+	popd > /dev/null;
 
-array_test :
+array_test : common
 	echo "ARRAY TEST"; \
 	printf "\n\n\n"; \
-	pushd array_test; \
+	pushd array_test > /dev/null; \
 	make; \
 	make tests; \
-	popd;
+	popd > /dev/null;
+
+common :
+	pushd common > /dev/null; \
+	make; \
+	popd > /dev/null;
+
+partial :
+	echo "Partial Update and Merging Test"; \
+	pushd partial_updates_test > /dev/null; \
+	make; \
+	make tests; \
+	popd > /dev/null;

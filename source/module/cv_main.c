@@ -143,22 +143,21 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-
-  tim_debug_instance.tim_get_unmapped_area_debug=NULL;
-  tim_debug_instance.tim_unmap_debug=NULL;
-  mmap_snapshot_instance.ksnap_close = NULL;
-  mmap_snapshot_instance.ksnap_open = NULL;
-  mmap_snapshot_instance.is_snapshot = NULL;
-  mmap_snapshot_instance.snapshot_msync = NULL;
-  mmap_snapshot_instance.init_snapshot = NULL;
-  mmap_snapshot_instance.do_snapshot_add_pte = NULL;
-  mmap_snapshot_instance.init_subscriber = NULL;
-  mmap_snapshot_instance.stats_inc_pages_allocated = NULL;
-  mmap_snapshot_instance.stats_dec_pages_allocated = NULL;
-  mmap_snapshot_instance.ksnap_userdata_copy = NULL;
-  mmap_snapshot_instance.ksnap_tracking_on = NULL;
-  cv_merge_free();
-  unregister_die_notifier(&nmi_snap_nb);
+    tim_debug_instance.tim_get_unmapped_area_debug=NULL;
+    tim_debug_instance.tim_unmap_debug=NULL;
+    mmap_snapshot_instance.ksnap_close = NULL;
+    mmap_snapshot_instance.ksnap_open = NULL;
+    mmap_snapshot_instance.is_snapshot = NULL;
+    mmap_snapshot_instance.snapshot_msync = NULL;
+    mmap_snapshot_instance.init_snapshot = NULL;
+    mmap_snapshot_instance.do_snapshot_add_pte = NULL;
+    mmap_snapshot_instance.init_subscriber = NULL;
+    mmap_snapshot_instance.stats_inc_pages_allocated = NULL;
+    mmap_snapshot_instance.stats_dec_pages_allocated = NULL;
+    mmap_snapshot_instance.ksnap_userdata_copy = NULL;
+    mmap_snapshot_instance.ksnap_tracking_on = NULL;
+    cv_merge_free();
+    unregister_die_notifier(&nmi_snap_nb);
 }
 
 

@@ -70,6 +70,7 @@ struct snapshot_version_list{
 struct ksnap{
     struct snapshot_version_list * snapshot_pte_list;	/*TODO: change to list_head if that's what we want this to be....*/
     struct radix_tree_root snapshot_page_tree; /*used for keeping track of the current page index -> pte, gets used when we get snapshot*/
+    spinlock_t snapshot_page_tree_lock;
     wait_queue_head_t snapshot_wq;		/*wait queue for blocking get_snapshot requests*/
     atomic_t revision_number;			/*the current revision number*/
     atomic_t id_counter;
@@ -101,26 +102,27 @@ struct ksnap{
 };
 
 struct ksnap_user_data{
-  unsigned char use_tracking;
-  unsigned char use_adapt;              /* which policy does this user want to use? */
-  unsigned char use_periodic;
-  unsigned char use_always;
-  unsigned long periodic_commit_interval;
-  void * current_snapshot;
-  struct snapshot_pte_list * dirty_pages_list;
-  uint32_t dirty_pages_list_count;   //TODO: get rid of the atomic one when you can
-  atomic_t dirty_page_count;
-  rwlock_t metadata_lock;
-  struct list_head segment_list;
-  struct vm_area_struct * vma;
-  struct ksnap_meta_data_local * meta_data;
-  struct ksnap_dirty_list_entry * dirty_list_bitmap;   /*the meta data that is exported to userspace that contains a bitmap (or a list)*/
-  struct radix_tree_root dirty_list_lookup; /*find the relevant entry in the dirty list*/
-  int id;
-  uint64_t version_num;
-  int commits;
-  struct timespec last_commit_time;
-  uint64_t debug_version_num;
+    unsigned char use_tracking;
+    unsigned char use_adapt;              /* which policy does this user want to use? */
+    unsigned char use_periodic;
+    unsigned char use_always;
+    unsigned long periodic_commit_interval;
+    void * current_snapshot;
+    struct snapshot_pte_list * dirty_pages_list;
+    uint32_t dirty_pages_list_count;   //TODO: get rid of the atomic one when you can
+    atomic_t dirty_page_count;
+    rwlock_t metadata_lock;
+    struct list_head segment_list;
+    struct vm_area_struct * vma;
+    struct ksnap_meta_data_local * meta_data;
+    struct ksnap_dirty_list_entry * dirty_list_bitmap;   /*the meta data that is exported to userspace that contains a bitmap (or a list)*/
+    struct radix_tree_root dirty_list_lookup; /*find the relevant entry in the dirty list*/
+    int id;
+    uint64_t version_num;
+    uint64_t partial_version_num; /*keeps track of the version we've done a partial update to*/
+    int commits;
+    struct timespec last_commit_time;
+    uint64_t debug_version_num;
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/

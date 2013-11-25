@@ -84,13 +84,21 @@ static void __cv_update_atomic(struct vm_area_struct * vma, unsigned long flags,
   int gotten_pages = 0;
   int merge_count=0;
   unsigned int merge=(flags & MS_KSNAP_GET_MERGE);
-  unsigned int merge_only=(flags & MS_KSNAP_GET_MERGE) && (flags & MS_KSNAP_DETERM_LAZY);
-  unsigned int update_only=(flags & MS_KSNAP_GET) && (flags & MS_KSNAP_DETERM_LAZY);
+  //if we pass in the partial flag, we perform the work up to the latest version, without merging
+  unsigned int partial_update=(flags & MS_KSNAP_GET) && (flags & MS_KSNAP_PARTIAL);
   int flush_tlb_per_page=1;
   struct ksnap * cv_seg;
   struct ksnap_user_data * cv_user;
   uint64_t target_version_number; //what version are we updating to?
   struct snapshot_version_list * version_list, * list_to_stop_at;
+  //if this is set, we keep the version number where it is. Next time around we'll perform only merges
+  //and any subsequent commits
+  uint8_t keep_current_version=(partial_update && target_version_input==0);
+
+  int skipped;
+  int versions[4];
+
+  memset(versions,0,sizeof(int)*4);
 
   cv_stats_function_init();
   
@@ -119,12 +127,16 @@ static void __cv_update_atomic(struct vm_area_struct * vma, unsigned long flags,
 	   vma, vma->vm_file, vma->vm_file->f_mapping, vma->vm_file->f_mapping->ksnap_data);
   }
 
+  //grab the lock
+  spin_lock(&cv_seg->lock);
+  
   //if the target was passed in....use that!
   target_version_number=(target_version_input==0) ? atomic64_read(&cv_seg->committed_version_atomic) : target_version_input;
   list_to_stop_at=(struct snapshot_version_list *)atomic64_read(&cv_seg->uncommitted_version_entry_atomic);
 
   if (target_version_number<=cv_user->version_num){
-    return;
+      spin_unlock(&cv_seg->lock);
+      return;
   }
 
 
@@ -132,10 +144,6 @@ static void __cv_update_atomic(struct vm_area_struct * vma, unsigned long flags,
   version_list=(struct snapshot_version_list *)mapping_to_ksnap(mapping)->snapshot_pte_list;
   //we're going to update, so increment the stats
   cv_stats_inc_reader_get_snapshots(&cv_seg->cv_stats);        
-
-  //grab the lock
-  spin_lock(&cv_seg->lock);
-  
 
   //only go in here if there is an element in the list (prev != next)
   if (version_list && version_list->list.prev != version_list->list.next){
@@ -171,10 +179,8 @@ static void __cv_update_atomic(struct vm_area_struct * vma, unsigned long flags,
 	if (tmp_pte_list->obsolete_version <= target_version_number){
 	  continue;
 	}
-	if (merge && 
-	    !update_only &&
-	    ksnap_meta_search_dirty_list(vma, tmp_pte_list->page_index) &&
-	    (dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index)) ){
+        dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
+	if (merge && dirty_entry){
 	  //we have to merge our changes with the committed stuff
 	  ksnap_merge(pfn_to_page(tmp_pte_list->pfn), 
 		      (uint8_t *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
@@ -182,19 +188,29 @@ static void __cv_update_atomic(struct vm_area_struct * vma, unsigned long flags,
 	  //cv_stats_inc_merged_pages(&cv_seg->cv_stats);
 	  merge_count++;
 	}
-	else if (!merge_only){
+        else if (!dirty_entry && !(cv_user->partial_version_num >= latest_version_entry->version_num)){
 	  cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
 	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page);
 	  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
 	  ++gotten_pages;
+#ifdef CONV_LOGGING_ON
+          printk(KERN_EMERG "    Update %d for segment %p, update page index %d \n", 
+                 current->pid, cv_seg, tmp_pte_list->page_index);
+#endif
+          versions[tmp_pte_list->page_index]++;
 	}
+        else{
+            versions[tmp_pte_list->page_index]++;
+        }
+        
       }
       //done traversing a list of ptes
       new_list = pos_outer;
     }
+
     //done traversing the versions
     //we only change the position of our current version if it wasn't a merge_only
-    if (!merge_only && new_list){
+    if (new_list && !keep_current_version){
       latest_version_entry = list_entry( new_list, struct snapshot_version_list, list);
       atomic_inc(&latest_version_entry->ref_c);
       //only set it to the new list if it's not null
@@ -202,7 +218,12 @@ static void __cv_update_atomic(struct vm_area_struct * vma, unsigned long flags,
       //set the new version
       ksnap_meta_set_local_version(vma,target_version_number);
       cv_user->version_num=target_version_number;
+      cv_user->partial_version_num=0;
     }
+    else if (new_list && keep_current_version){
+        cv_user->partial_version_num=target_version_number;
+    }
+
     //we didn't flush along the way....we need to flush the whole thing
     if (!flush_tlb_per_page){
       flush_tlb();
@@ -212,11 +233,10 @@ static void __cv_update_atomic(struct vm_area_struct * vma, unsigned long flags,
   //grab the lock
   spin_unlock(&cv_seg->lock);
   
-
-  #ifdef CONV_LOGGING_ON
+#ifdef CONV_LOGGING_ON
     printk(KSNAP_LOG_LEVEL "UPDATE: pid %d updated to version %llu and merged %d pages and updated %d pages target_input %lu\n", 
 	   current->pid, target_version_number, merge_count, gotten_pages, target_version_input);
-  #endif
+#endif
 
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
 
@@ -232,5 +252,5 @@ void cv_update_atomic(struct vm_area_struct * vma, unsigned long flags){
 //update to a specific version...called by commit and merging is already done
 void cv_update_atomic_to_version_no_merge(struct vm_area_struct * vma, uint64_t version){
   //TODO: the flags here are dumb and don't really make a lot of sense in this context. They need to be fixed
-  __cv_update_atomic(vma,  (MS_KSNAP_GET | MS_KSNAP_DETERM_LAZY), version);
+  __cv_update_atomic(vma,  (MS_KSNAP_GET | MS_KSNAP_PARTIAL), version);
 }

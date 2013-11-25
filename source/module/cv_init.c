@@ -50,13 +50,10 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
 
   if (!mapping->ksnap_data){
     int i=0;
-    for (;i<100;++i){
+    for (;i<500;++i){
       per_thread_debug.location[i]=0;
     }
   }
-
-  per_thread_debug.location[current->pid % 10]=0;
-
 
   //get the main ksnap_data (version list, etc...) from the mapping
   ksnap_data = (mapping->ksnap_data) ? mapping->ksnap_data : ksnap_init_snapshot(mapping, vma);
@@ -127,6 +124,7 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   ksnap_data->last_committed_pages_gc_start=0;
   atomic_set(&ksnap_data->gc_thread_count, -1);
   spin_lock_init(&ksnap_data->lock);
+  spin_lock_init(&ksnap_data->snapshot_page_tree_lock);
   INIT_WORK(&ksnap_data->garbage_work.work, cv_garbage_collection);
   ksnap_data->garbage_work.cv_seg = ksnap_data;
   atomic64_set(&ksnap_data->committed_version_atomic, 0);

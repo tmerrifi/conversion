@@ -250,24 +250,28 @@ void conv_merge(conv_seg * seg){
     //}
 }
 
+void conv_partial_background_update(conv_seg * seg){
+    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET | KSNAP_SYNC_PARTIAL);
+}
+
 /*DETERMINISM STUFF*/
 /*TODO: This is stuff related to determinism...it should really be refactored out since its not "core" conversion*/
 
 void conv_update_only_barrier_determ(conv_seg * seg){
     //  if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET | KSNAP_SYNC_BARRIER_DETERM);
+    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET | KSNAP_SYNC_PARTIAL);
     //}
 }
 
 void conv_merge_barrier_determ(conv_seg * seg){
   if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE | KSNAP_SYNC_BARRIER_DETERM);
+    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE | KSNAP_SYNC_PARTIAL);
   }
 }
 
 void conv_commit_barrier_determ(conv_seg * seg){
   if (__get_meta_local_page(seg)->dirty_page_count > 0){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE | KSNAP_SYNC_BARRIER_DETERM);
+    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE | KSNAP_SYNC_PARTIAL);
   }
 }
 
