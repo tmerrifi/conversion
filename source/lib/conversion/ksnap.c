@@ -168,7 +168,8 @@ conv_seg * __conv_open(int size_of_segment, char * segment_name, void * desired_
   madvise(snap->segment, snap->size_of_segment, MADV_KSNAP_TRACK);
   //madvise(snap->segment, snap->size_of_segment, MADV_DONTFORK);
   __ksnap_open_meta_data_segments(size_of_segment, snap->name, snap, create);
-
+  //set default editing unit to one byte
+  snap->editing_unit=1;
   return snap;
 }
 
@@ -178,6 +179,10 @@ conv_seg * conv_checkout_open(int size_of_segment, char * segment_name, void * d
 
 conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags){
   return __conv_open(size_of_segment, segment_name, desired_address, flags, __CONV_CREATE);
+}
+
+void conv_set_editing_unit_bytes(conv_seg * seg, size_t editing_unit){
+    seg->editing_unit=editing_unit;
 }
 
 //what if we want to work with a segment that is already opened in our address space? This is useful for when we are using the
@@ -235,66 +240,39 @@ conv_seg * conv_open_exisiting(char * segment_name){
 
 //lets update and get a new view of the snapshot
 void conv_update(conv_seg * seg){
-  msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET);
+    if (__newer_version_available(seg)){
+        syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MERGE, seg->editing_unit);
+    }
 }
 
-void conv_update_mutex(conv_seg * seg, sem_t * sem){
-  sem_wait(sem);
-  conv_update(seg);
-}
-
-//lets update and get a new view of the snapshot
-void conv_merge(conv_seg * seg){
-    //if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE);
-    //}
+void conv_begin_tx_mutex(conv_seg * seg, sem_t * sem){
+    sem_wait(sem);
+    conv_update(seg);
 }
 
 void conv_partial_background_update(conv_seg * seg){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET | KSNAP_SYNC_PARTIAL);
+    if (__newer_version_available(seg)){
+        syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_GET | KSNAP_SYNC_PARTIAL, seg->editing_unit);
+    }
 }
-
-/*DETERMINISM STUFF*/
-/*TODO: This is stuff related to determinism...it should really be refactored out since its not "core" conversion*/
-
-void conv_update_only_barrier_determ(conv_seg * seg){
-    //  if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_GET | KSNAP_SYNC_PARTIAL);
-    //}
-}
-
-void conv_merge_barrier_determ(conv_seg * seg){
-  if (__get_meta_shared_page(seg)->snapshot_version_num > __get_meta_local_page(seg)->snapshot_version_num){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE | KSNAP_SYNC_PARTIAL);
-  }
-}
-
-void conv_commit_barrier_determ(conv_seg * seg){
-  if (__get_meta_local_page(seg)->dirty_page_count > 0){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE | KSNAP_SYNC_PARTIAL);
-  }
-}
-
-/*DONE WITH DETERMINISM STUFF*/
-
 
 void conv_commit(conv_seg * seg){
-  if(__get_meta_local_page(seg)->dirty_page_count > 0){
-    msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE);
-  }
+    if(__get_meta_local_page(seg)->dirty_page_count > 0){
+        syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MAKE, seg->editing_unit);
+    }
 }
 
 //performs a commit and a combined update (even if there are no dirty pages)
 void conv_commit_and_update(conv_seg * seg){
     if(__get_meta_local_page(seg)->dirty_page_count == 0){
-        msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE);
+        syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MERGE, seg->editing_unit);
     }
     else{
-        msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE);
+        syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MAKE, seg->editing_unit);
     }
 }
 
-void conv_commit_mutex(conv_seg * seg, sem_t * sem){
+void conv_end_tx_mutex(conv_seg * seg, sem_t * sem){
   conv_commit(seg);
   sem_post(sem);
 }

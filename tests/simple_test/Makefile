@@ -16,7 +16,7 @@ tests : simple
 	sudo ./install.sh y; \
 	popd; \
 	sudo rm *.mem*; \
-	for i in `seq 1 10`; do ./simple; done;
+	for i in `seq 1 30`; do ./simple; done;
 
 clean:
 	rm simple; \

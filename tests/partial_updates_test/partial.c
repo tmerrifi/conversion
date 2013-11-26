@@ -138,7 +138,7 @@ void run(int id){
             conv_commit_and_update(seg);
             pthread_barrier_wait(barrier);
             //synchronize everyone
-            conv_merge(seg);
+            conv_update(seg);
             check_merged(id,i);
             pthread_barrier_wait(barrier);
         }
@@ -153,7 +153,7 @@ void run(int id){
             //wait for people to finish their work
             pthread_barrier_wait(barrier);
             //merge with other writers
-            conv_merge(seg);
+            conv_update(seg);
             memcpy(mem3, arr, ARR_SIZE * sizeof(u_int8_t));
             //print_relevant_bytes(id,i,"before check merged");
             check_merged(id,i);
@@ -161,7 +161,7 @@ void run(int id){
             //wait for updaters to do their partial and check
             pthread_barrier_wait(barrier);
             //sync up with everyone
-            conv_merge(seg);
+            conv_update(seg);
             memcpy(mem4, arr, ARR_SIZE * sizeof(u_int8_t));
             pthread_barrier_wait(barrier);
         }

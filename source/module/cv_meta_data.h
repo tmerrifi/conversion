@@ -11,6 +11,7 @@ struct ksnap_meta_data_local{
     unsigned int dirty_page_count; 
     unsigned int dirty_list_size; //
     unsigned int snapshot_version_num; //the current version number
+    unsigned int partial_version_num; //set after doing a partial update
     unsigned int updated_pages; //the number of pages updated by the last update
     unsigned int merged_pages; //the number of pages updated by the last update
     unsigned int pid; 

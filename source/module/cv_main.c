@@ -70,7 +70,7 @@ int __commit_times(uint64_t microsecs){
 
 /*This function's purpose is to be an entry point into our conversion code from the
   msync system call. If we are making a version, then we call commit. otherwise, we perform an update*/
-void cv_msync(struct vm_area_struct * vma, unsigned long flags){
+void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_unit){
   struct timespec ts1, ts2;
   if (flags & MS_KSNAP_MAKE){
 

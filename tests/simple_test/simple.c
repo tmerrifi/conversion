@@ -43,7 +43,7 @@ void run(conv_seg * array_seg, int id){
 
     conv_commit(array_seg);
     pthread_barrier_wait(barrier);
-    conv_merge(array_seg);
+    conv_update(array_seg);
 
     //a poor man's barrier
     sum = sum_up(array_seg);

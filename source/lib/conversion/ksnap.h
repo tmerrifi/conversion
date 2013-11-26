@@ -20,6 +20,7 @@ typedef struct{
   char * name;
   char * file_name;
   sem_t * cv_sem;
+  size_t editing_unit;
 }conv_seg;
 
 struct ksnap_meta_data_local{
@@ -28,6 +29,7 @@ struct ksnap_meta_data_local{
     unsigned int dirty_page_count; 
     unsigned int dirty_list_size; //how many pages can we fit in it?
     unsigned int snapshot_version_num; //the current version number
+    unsigned int partial_version_num; //set after doing a partial update
     unsigned int updated_pages; //the number of pages updated by the last update
     unsigned int merged_pages; //the number of pages updated by the last update
     unsigned int pid;
@@ -56,22 +58,21 @@ struct ksnap_dirty_list_entry{
 #define META_SHARED_OFFSET_FROM_SEGMENT 2
 
 
-#define __get_meta_local_page(snap) ((struct ksnap_meta_data_local *)((unsigned char *)snap->segment - KSNAP_PAGE_SIZE*(META_LOCAL_OFFSET_FROM_SEGMENT)))
-#define __get_meta_shared_page(snap) ((struct ksnap_meta_data_shared *)((unsigned char *)snap->segment - KSNAP_PAGE_SIZE*(META_SHARED_OFFSET_FROM_SEGMENT)))
+#define __get_meta_local_page(seg) ((struct ksnap_meta_data_local *)((unsigned char *)seg->segment - KSNAP_PAGE_SIZE*(META_LOCAL_OFFSET_FROM_SEGMENT)))
+#define __get_meta_shared_page(seg) ((struct ksnap_meta_data_shared *)((unsigned char *)seg->segment - KSNAP_PAGE_SIZE*(META_SHARED_OFFSET_FROM_SEGMENT)))
    
-#define conv_get_current_version_num(snap) (__get_meta_local_page(snap)->snapshot_version_num)
+#define conv_get_current_version_num(seg) (__get_meta_local_page(seg)->snapshot_version_num)
+
+#define __newer_version_available(seg) (__get_meta_local_page(seg)->snapshot_version_num < __get_meta_shared_page(seg)->snapshot_version_num)
 
      conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags);
-     //conv_seg * conv_open(int size_of_segment, char * segment_name, void * desired_address);
      conv_seg * conv_open_exisiting(char * segment_name);
-     
+     void conv_set_editing_unit_bytes(conv_seg * seg, size_t editing_unit);
+
      void conv_update(conv_seg * seg);
-     void conv_update_mutex(conv_seg * seg, sem_t * sem);
-     
-     void conv_merge(conv_seg * seg);
-     
+     void conv_begin_tx_mutex(conv_seg * seg, sem_t * sem);
      void conv_commit(conv_seg * seg);
-     void conv_commit_mutex(conv_seg * seg, sem_t * sem);
+     void conv_end_tx_mutex(conv_seg * seg, sem_t * sem);
      void conv_commit_and_update(conv_seg * seg);
 
      //Allow a segment to perform updates (no merging) without actually rev'ing the version number.
@@ -79,16 +80,9 @@ struct ksnap_dirty_list_entry{
      //to do to catch-up to the current version. It can perform the partial update safely while it waits.
      void conv_partial_background_update(conv_seg * seg);
 
-     /*functions for use only by dthreads*/
-     void conv_update_only_barrier_determ(conv_seg * seg);
-     void conv_merge_barrier_determ(conv_seg * seg);
-     void conv_commit_barrier_determ(conv_seg * seg);
-     
      unsigned int conv_get_dirty_page_count(conv_seg * seg); 
      unsigned int conv_get_updated_page_count(conv_seg * seg);
      unsigned int conv_get_merged_page_count(conv_seg * seg);
-
-     //void conv_commit_and_sync(conv_seg * seg, int debug_it);
      
 #define KSNAP_OWNER SHM_CORE
 #define KSNAP_READER SHM_CLIENT

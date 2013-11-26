@@ -39,6 +39,11 @@ void cv_meta_set_merged_page_count(struct vm_area_struct * vma, uint32_t count){
     meta_data->merged_pages=count;
 }
 
+void cv_meta_set_partial_version_num(struct vm_area_struct * vma, unsigned int version){
+    struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
+    meta_data->partial_version_num=version;
+}
+
 
 struct ksnap_meta_data_local * __get_meta_local(struct vm_area_struct * vma){
   struct ksnap_meta_data_local * meta_data = ksnap_vma_to_userdata(vma)->meta_data;
