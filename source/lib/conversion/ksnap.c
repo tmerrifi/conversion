@@ -251,7 +251,8 @@ void conv_begin_tx_mutex(conv_seg * seg, sem_t * sem){
 }
 
 void conv_partial_background_update(conv_seg * seg){
-    if (__newer_version_available(seg)){
+    if ((__get_meta_local_page(seg)->partial_version_num == 0 && __newer_version_available(seg)) || 
+        (__get_meta_local_page(seg)->partial_version_num > 0 && (__get_meta_local_page(seg)->partial_version_num < __get_meta_shared_page(seg)->snapshot_version_num))){
         syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_GET | KSNAP_SYNC_PARTIAL, seg->editing_unit);
     }
 }

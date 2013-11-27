@@ -206,9 +206,11 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       ksnap_meta_set_local_version(vma,target_version_number);
       cv_user->version_num=target_version_number;
       cv_user->partial_version_num=0;
+      cv_meta_set_partial_version_num(vma, 0);
     }
     else if (new_list && keep_current_version){
         cv_user->partial_version_num=target_version_number;
+        cv_meta_set_partial_version_num(vma, target_version_number);
     }
 
     //we didn't flush along the way....we need to flush the whole thing
