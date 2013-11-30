@@ -43,7 +43,30 @@ void __debug_print_dirty_list(struct ksnap_user_data * cv_user){
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
     printk(KSNAP_LOG_LEVEL "      dirty..... index %lu pfn %lu\n", pte_entry->page_index, pte_entry->pfn);
   }
+}
 
+int __insert_partial_update_page_lookup(struct radix_tree_root * partial_update_page_lookup, uint32_t page_index, 
+                                        uint64_t entry_version_num, uint64_t current_version_num){
+    void * version_tmp = radix_tree_lookup(partial_update_page_lookup, page_index);
+    int is_unique=0;
+    if (version_tmp == NULL){
+        //we've never done a partial update on it, so its unique
+        is_unique=1;
+    }
+    else {
+        //subtract one because we add one to distinguish zero from NULL
+        uint64_t old_version_num = ((uint64_t)version_tmp) >> 4;
+        //if it was updated in the last "real" update (not partial), then we count this upate
+        if (old_version_num <= current_version_num){
+            is_unique=1;
+            radix_tree_delete(partial_update_page_lookup, page_index);
+        }
+    }
+    //if we've got a new entry, lets insert it into the radix tree
+    if (is_unique){
+        radix_tree_insert(partial_update_page_lookup, page_index, (void *)(entry_version_num << 4));
+    }
+    return is_unique;
 }
 
 //we use a simple heuristic to determine in which way to flush the TLB. If 
@@ -83,6 +106,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   struct address_space * mapping;
   int gotten_pages = 0;
   int merge_count=0;
+  int partial_unique_count=0;
   unsigned int merge=(flags & MS_KSNAP_GET_MERGE);
   //if we pass in the partial flag, we perform the work up to the latest version, without merging
   unsigned int partial_update=(flags & MS_KSNAP_GET) && (flags & MS_KSNAP_PARTIAL);
@@ -186,7 +210,12 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                  current->pid, cv_seg, tmp_pte_list->page_index);
 #endif
 	  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
-	  ++gotten_pages;
+          //if its a page that hasn't been seen by a previous partial update, increate the counter
+          if (keep_current_version && __insert_partial_update_page_lookup(&cv_user->partial_update_page_lookup, tmp_pte_list->page_index, 
+                                                                          latest_version_entry->version_num, cv_user->version_num)){
+              ++partial_unique_count;
+          }
+          ++gotten_pages;
 	}
       }
 #ifdef CONV_LOGGING_ON
@@ -227,6 +256,12 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
   cv_meta_set_updated_page_count(vma, gotten_pages);
   cv_meta_set_merged_page_count(vma, merge_count);
+  if (keep_current_version){
+      cv_meta_inc_partial_updated_unique_pages(vma, partial_unique_count);
+  }
+  else{
+      cv_meta_set_partial_updated_unique_pages(vma, 0);
+  }
 
   return;
 }

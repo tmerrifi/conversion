@@ -12,6 +12,23 @@
 #include "cv_meta_data.h"
 #include "cv_pte.h"
 
+void cv_meta_set_partial_updated_unique_pages(struct vm_area_struct * vma, uint32_t count){
+    struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
+    meta_data->partial_updated_unique_pages=count;
+}
+
+unsigned int cv_meta_get_partial_updated_unique_pages(struct vm_area_struct * vma){
+    struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
+    return meta_data->partial_updated_unique_pages;
+}
+
+unsigned int cv_meta_inc_partial_updated_unique_pages(struct vm_area_struct * vma, uint32_t inc_value){
+    struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
+    meta_data->partial_updated_unique_pages+=inc_value;
+    return meta_data->partial_updated_unique_pages;
+}
+
+
 void cv_meta_set_dirty_page_count(struct vm_area_struct * vma, uint32_t count){
   struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
   meta_data->dirty_page_count=count;

@@ -31,6 +31,7 @@ struct ksnap_meta_data_local{
     unsigned int snapshot_version_num; //the current version number
     unsigned int partial_version_num; //set after doing a partial update
     unsigned int updated_pages; //the number of pages updated by the last update
+    unsigned int partial_updated_unique_pages; //unique updated pages from multiple calls to partial_update
     unsigned int merged_pages; //the number of pages updated by the last update
     unsigned int pid;
 };
@@ -83,6 +84,7 @@ struct ksnap_dirty_list_entry{
      unsigned int conv_get_dirty_page_count(conv_seg * seg); 
      unsigned int conv_get_updated_page_count(conv_seg * seg);
      unsigned int conv_get_merged_page_count(conv_seg * seg);
+     unsigned int conv_get_partial_updated_unique_pages(conv_seg * seg);
      
 #define KSNAP_OWNER SHM_CORE
 #define KSNAP_READER SHM_CLIENT

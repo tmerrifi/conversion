@@ -72,6 +72,7 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
 
   INIT_LIST_HEAD(&user_data->segment_list);
   INIT_RADIX_TREE(&user_data->dirty_list_lookup, GFP_KERNEL);
+  INIT_RADIX_TREE(&user_data->partial_update_page_lookup, GFP_KERNEL);
   list_add(&user_data->segment_list, &ksnap_data->segment_list);
   vma->ksnap_user_data=user_data;
   tim_debug_instance.ptr_of_interest1=vma;

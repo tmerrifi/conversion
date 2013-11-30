@@ -257,6 +257,11 @@ void conv_partial_background_update(conv_seg * seg){
     }
 }
 
+
+unsigned int conv_get_partial_updated_unique_pages(conv_seg * seg){
+    return __get_meta_local_page(seg)->partial_updated_unique_pages;
+}
+
 void conv_commit(conv_seg * seg){
     if(__get_meta_local_page(seg)->dirty_page_count > 0){
         syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MAKE, seg->editing_unit);

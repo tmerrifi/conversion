@@ -117,6 +117,7 @@ struct ksnap_user_data{
     struct ksnap_meta_data_local * meta_data;
     struct ksnap_dirty_list_entry * dirty_list_bitmap;   /*the meta data that is exported to userspace that contains a bitmap (or a list)*/
     struct radix_tree_root dirty_list_lookup; /*find the relevant entry in the dirty list*/
+    struct radix_tree_root partial_update_page_lookup;
     int id;
     uint64_t version_num;
     uint64_t partial_version_num; /*keeps track of the version we've done a partial update to*/
