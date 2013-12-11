@@ -105,6 +105,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   struct snapshot_version_list * latest_version_entry;
   struct address_space * mapping;
   int gotten_pages = 0;
+  int ignored_pages = 0;
   int merge_count=0;
   int partial_unique_count=0;
   unsigned int merge=(flags & MS_KSNAP_GET_MERGE);
@@ -118,6 +119,8 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   struct ksnap_user_data * cv_user;
   uint64_t target_version_number; //what version are we updating to?
   struct snapshot_version_list * version_list, * list_to_stop_at;
+  uint64_t old_version;
+  unsigned int first_update_after_partial;
 
   cv_stats_function_init();
   
@@ -135,7 +138,8 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   cv_seg=ksnap_vma_to_ksnap(vma);
   //get the user segment data structure
   cv_user=ksnap_vma_to_userdata(vma);
-
+  
+  first_update_after_partial=(!partial_update && cv_user->partial_version_num>0);
   if (cv_seg==NULL){
     printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: segment is null for some reason, vma is %p vm_file %p f_mapping %p seg %p\n", 
 	   vma, vma->vm_file, vma->vm_file->f_mapping, vma->vm_file->f_mapping->ksnap_data);
@@ -211,12 +215,16 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 #endif
 	  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
           //if its a page that hasn't been seen by a previous partial update, increate the counter
-          if (keep_current_version && __insert_partial_update_page_lookup(&cv_user->partial_update_page_lookup, tmp_pte_list->page_index, 
-                                                                          latest_version_entry->version_num, cv_user->version_num)){
+          if ((keep_current_version || first_update_after_partial) 
+              && __insert_partial_update_page_lookup(&cv_user->partial_update_page_lookup, tmp_pte_list->page_index, 
+                                                     latest_version_entry->version_num, cv_user->version_num)){
               ++partial_unique_count;
           }
           ++gotten_pages;
 	}
+        else{
+            ++ignored_pages;
+        }
       }
 #ifdef CONV_LOGGING_ON
       printk(KERN_EMERG "  Updated to version %d\n", latest_version_entry->version_num);
@@ -225,6 +233,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       //done traversing a list of ptes
       new_list = pos_outer;
     }
+    old_version = cv_user->version_num;
     //done traversing the versions
     if (new_list && !keep_current_version){
       latest_version_entry = list_entry( new_list, struct snapshot_version_list, list);
@@ -247,10 +256,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       flush_tlb();
     }
   }
-  #ifdef CONV_LOGGING_ON
-    printk(KSNAP_LOG_LEVEL "UPDATE for segment %p: pid %d updated to version %llu and merged %d pages and updated %d pages target_input %lu committed version %llu\n", 
-	   cv_seg, current->pid, target_version_number, merge_count, gotten_pages, target_version_input, atomic64_read(&cv_seg->committed_version_atomic)); 
-  #endif
+#ifdef CONV_LOGGING_ON
+  printk(KSNAP_LOG_LEVEL "UPDATE for segment %p: pid %d updated to version %llu old version %llu and merged %d pages and updated %d pages target_input %lu committed version %llu ignored %d\n", 
+         cv_seg, current->pid, target_version_number, old_version, merge_count, gotten_pages, target_version_input, atomic64_read(&cv_seg->committed_version_atomic), ignored_pages); 
+#endif
 
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
   cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
