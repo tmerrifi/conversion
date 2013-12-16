@@ -257,9 +257,16 @@ void conv_partial_background_update(conv_seg * seg){
     }
 }
 
+unsigned int conv_get_partial_version_num(conv_seg * seg){
+    return __get_meta_local_page(seg)->partial_version_num;
+}
 
 unsigned int conv_get_partial_updated_unique_pages(conv_seg * seg){
     return __get_meta_local_page(seg)->partial_updated_unique_pages;
+}
+
+void conv_set_partial_updated_unique_pages(conv_seg * seg, unsigned int val){
+    __get_meta_local_page(seg)->partial_updated_unique_pages=val;
 }
 
 void conv_commit(conv_seg * seg){

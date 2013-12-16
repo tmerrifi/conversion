@@ -84,7 +84,9 @@ struct ksnap_dirty_list_entry{
      unsigned int conv_get_dirty_page_count(conv_seg * seg); 
      unsigned int conv_get_updated_page_count(conv_seg * seg);
      unsigned int conv_get_merged_page_count(conv_seg * seg);
+     void conv_set_partial_updated_unique_pages(conv_seg * seg, unsigned int val);
      unsigned int conv_get_partial_updated_unique_pages(conv_seg * seg);
+     unsigned int conv_get_partial_version_num(conv_seg * seg);
      
 #define KSNAP_OWNER SHM_CORE
 #define KSNAP_READER SHM_CLIENT
