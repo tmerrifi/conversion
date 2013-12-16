@@ -25,10 +25,15 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
   ksnap_vma_to_userdata(new_vma)->dirty_pages_list_count=0;
   ksnap_vma_to_userdata(new_vma)->commits=0;
   ksnap_vma_to_userdata(new_vma)->last_commit_time.tv_sec=0;
-  
+  ksnap_vma_to_userdata(new_vma)->partial_version_num=0;
+
   ksnap_vma_to_userdata(new_vma)->dirty_pages_list = _snapshot_create_pte_list();
+  ksnap_vma_to_userdata(new_vma)->debug_partial_pages_count = 0;
+
   INIT_LIST_HEAD(&ksnap_vma_to_userdata(new_vma)->segment_list);
   INIT_RADIX_TREE(&ksnap_vma_to_userdata(new_vma)->dirty_list_lookup, GFP_KERNEL);
+  INIT_RADIX_TREE(&ksnap_vma_to_userdata(new_vma)->partial_update_page_lookup, GFP_KERNEL);
+
   list_add(&ksnap_vma_to_userdata(new_vma)->segment_list, &ksnap_vma_to_ksnap(old_vma)->segment_list);
   atomic_set(&(ksnap_vma_to_userdata(new_vma)->dirty_page_count), 0);
 

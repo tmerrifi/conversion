@@ -179,11 +179,14 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       if (!latest_version_entry->visible || latest_version_entry->version_num > target_version_number){
 	break;
       }
-      else if (latest_version_entry->committer == vma){
+      else if (latest_version_entry->committer == vma || latest_version_entry->version_num <= cv_user->version_num){
 	//no need to update to stuff we committed
 	new_list = pos_outer;
 	continue;
       }
+#ifdef CONV_LOGGING_ON
+          printk(KERN_EMERG "    Update %d for segment %p, going for version %d, target is %d, target input %d\n", current->pid, cv_seg, latest_version_entry->version_num, target_version_number, target_version_input);
+#endif
       //OK, lets now walk the actual committed ptes
       list_for_each(pos, &latest_version_entry->pte_list->list){
 	//get the pte entry
@@ -215,8 +218,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 #endif
 	  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
           //if its a page that hasn't been seen by a previous partial update, increate the counter
-          if ((keep_current_version || first_update_after_partial) 
-              && __insert_partial_update_page_lookup(&cv_user->partial_update_page_lookup, tmp_pte_list->page_index, 
+          //          if ((keep_current_version || first_update_after_partial) 
+          //  && 
+
+          if (__insert_partial_update_page_lookup(&cv_user->partial_update_page_lookup, tmp_pte_list->page_index, 
                                                      latest_version_entry->version_num, cv_user->version_num)){
               ++partial_unique_count;
           }
@@ -257,20 +262,19 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     }
   }
 #ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL "UPDATE for segment %p: pid %d updated to version %llu old version %llu and merged %d pages and updated %d pages target_input %lu committed version %llu ignored %d\n", 
-         cv_seg, current->pid, target_version_number, old_version, merge_count, gotten_pages, target_version_input, atomic64_read(&cv_seg->committed_version_atomic), ignored_pages); 
+  printk(KSNAP_LOG_LEVEL "UPDATE for segment %p: pid %d updated to version %llu old version %llu and merged %d pages and updated %d \
+pages target_input %lu committed version %llu ignored %d, keep current %d, first_update %d, partial pages %d\n", 
+         cv_seg, current->pid, target_version_number, old_version, merge_count, gotten_pages, 
+         target_version_input, atomic64_read(&cv_seg->committed_version_atomic), ignored_pages, 
+         keep_current_version, first_update_after_partial, cv_meta_get_partial_updated_unique_pages(vma));
+
 #endif
 
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
   cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
   cv_meta_set_updated_page_count(vma, gotten_pages);
   cv_meta_set_merged_page_count(vma, merge_count);
-  if (keep_current_version){
-      cv_meta_inc_partial_updated_unique_pages(vma, partial_unique_count);
-  }
-  else{
-      cv_meta_set_partial_updated_unique_pages(vma, 0);
-  }
+  cv_meta_inc_partial_updated_unique_pages(vma, partial_unique_count);
 
   return;
 }
