@@ -37,7 +37,8 @@ struct ksnap_meta_data_local{
 };
 
 struct ksnap_meta_data_shared{
-  unsigned int snapshot_version_num;
+    unsigned int snapshot_version_num;
+    unsigned int logical_page_count; /*How many pages in our segment have *some* physical frame that has been committed.*/
 };
 
 struct ksnap_dirty_list_entry{
@@ -81,6 +82,7 @@ struct ksnap_dirty_list_entry{
      //to do to catch-up to the current version. It can perform the partial update safely while it waits.
      void conv_partial_background_update(conv_seg * seg);
 
+     unsigned int conv_get_logical_page_count(conv_seg * seg);
      unsigned int conv_get_dirty_page_count(conv_seg * seg); 
      unsigned int conv_get_updated_page_count(conv_seg * seg);
      unsigned int conv_get_merged_page_count(conv_seg * seg);

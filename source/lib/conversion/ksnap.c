@@ -106,6 +106,10 @@ unsigned int __compute_dirty_list_length(unsigned int meta_data_pages){
     return (meta_data_pages - 1) * ((KSNAP_PAGE_SIZE/sizeof(unsigned long)) - 10);
 }
 
+unsigned int conv_get_logical_page_count(conv_seg * seg){
+    return __get_meta_shared_page(seg)->logical_page_count;
+}
+
 unsigned int conv_get_dirty_page_count(conv_seg * seg){
     return __get_meta_local_page(seg)->dirty_page_count;
 }

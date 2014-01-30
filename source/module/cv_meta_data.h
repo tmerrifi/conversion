@@ -19,7 +19,8 @@ struct ksnap_meta_data_local{
 };
 
 struct ksnap_meta_data_shared{
-  unsigned int snapshot_version_num;
+    unsigned int snapshot_version_num;
+    unsigned int logical_page_count; /*How many pages in our segment have *some* physical frame that has been committed.*/
 };
 
 struct ksnap_dirty_list_entry{
@@ -32,6 +33,10 @@ struct ksnap_dirty_list_entry{
 //how many pages between the data and the metadata
 #define META_LOCAL_OFFSET_FROM_SEGMENT 4
 #define META_SHARED_OFFSET_FROM_SEGMENT 2
+
+void cv_meta_inc_logical_page_count(struct vm_area_struct * vma);
+
+void cv_meta_dec_logical_page_count(struct vm_area_struct * vma);
 
 void cv_meta_set_partial_version_num(struct vm_area_struct * vma, unsigned int version);
 

@@ -33,7 +33,7 @@
 #include "cv_dirty.h"
 
 //remove the old page from the page cache, handle its LRU stuff, etc...
-void __remove_old_page(struct address_space * mapping, struct vm_area_struct * vma, 
+int __remove_old_page(struct address_space * mapping, struct vm_area_struct * vma, 
 		       unsigned long index, struct page * ref_page, uint64_t our_version){
     struct ksnap * cv_seg;
     struct list_head * old_entry_lh;
@@ -43,10 +43,11 @@ void __remove_old_page(struct address_space * mapping, struct vm_area_struct * v
     old_entry_lh = radix_tree_lookup(&mapping_to_ksnap(mapping)->snapshot_page_tree, index);
     spin_unlock(&cv_seg->snapshot_page_tree_lock);
     if (old_entry_lh==NULL){
-        return;
+        return 0;
     }
     old_entry = list_entry(old_entry_lh, struct snapshot_pte_list, list);
     old_entry->obsolete_version=our_version;
+    return 1;
 }
 
 void __update_page_mapping(struct address_space * mapping, struct vm_area_struct * vma, 
@@ -112,7 +113,10 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
 
   //flush the tlb cache
   flush_tlb_page(vma, version_list_entry->addr);
-  __remove_old_page(mapping, vma, page->index, version_list_entry->ref_page, our_revision);
+  if (!__remove_old_page(mapping, vma, page->index, version_list_entry->ref_page, our_revision)){
+      //first time we've seen this page
+      cv_meta_inc_logical_page_count(vma);
+  }
   __update_page_mapping(mapping, vma, page, version_list_entry, stats);
   if (version_list_entry->ref_page){
       cv_page_debugging_inc_flag(version_list_entry->ref_page, CV_PAGE_DEBUG_REFPAGE_PUT_COUNT);
@@ -280,10 +284,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   cv_update_parallel_to_version_no_merge(vma, our_version_number);
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
-  #ifdef CONV_LOGGING_ON
+#ifdef CONV_LOGGING_ON
     printk(KSNAP_LOG_LEVEL "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
 	   current->pid, cv_seg, committed_pages, our_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);
-  #endif
+#endif
 
 }
 
