@@ -20,6 +20,7 @@ struct ksnap_meta_data_local{
 
 struct ksnap_meta_data_shared{
     unsigned int snapshot_version_num;
+    unsigned int linearized_version_num; /*a version number set once a commit has been linearized*/
     unsigned int logical_page_count; /*How many pages in our segment have *some* physical frame that has been committed.*/
 };
 
@@ -65,6 +66,12 @@ void ksnap_meta_set_local_version(struct vm_area_struct * vma, unsigned int curr
 unsigned int ksnap_meta_get_local_version(struct vm_area_struct * vma);
 
 unsigned int ksnap_meta_get_shared_version(struct vm_area_struct * vma );
+
+unsigned int cv_meta_get_linearized_version(struct vm_area_struct * vma);
+
+void cv_meta_inc_linearized_version(struct vm_area_struct * vma);
+
+void cv_meta_set_linearized_version(struct vm_area_struct * vma, uint64_t version_num);
 
 unsigned int cv_meta_get_partial_updated_unique_pages(struct vm_area_struct * vma);
 

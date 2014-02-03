@@ -124,6 +124,24 @@ unsigned char ksnap_meta_search_dirty_list(struct vm_area_struct * vma, unsigned
   return result;
 }
 
+unsigned int cv_meta_get_linearized_version(struct vm_area_struct * vma){
+  struct ksnap_meta_data_shared * meta_data = (struct ksnap_meta_data_shared *)(vma->vm_start - (PAGE_SIZE*META_SHARED_OFFSET_FROM_SEGMENT));
+  return meta_data->linearized_version_num;
+}
+
+//increment the version number that is mapped in by all segments
+void cv_meta_inc_linearized_version(struct vm_area_struct * vma){
+  struct ksnap_meta_data_shared * meta_data = (struct ksnap_meta_data_shared *)(vma->vm_start - (PAGE_SIZE*META_SHARED_OFFSET_FROM_SEGMENT));
+  meta_data->linearized_version_num+=1;
+}
+
+//set the version number that is mapped in by all segments
+void cv_meta_set_linearized_version(struct vm_area_struct * vma, uint64_t version_num){
+  struct ksnap_meta_data_shared * meta_data = (struct ksnap_meta_data_shared *)(vma->vm_start - (PAGE_SIZE*META_SHARED_OFFSET_FROM_SEGMENT));
+  meta_data->linearized_version_num=version_num;
+}
+
+
 unsigned int ksnap_meta_get_shared_version(struct vm_area_struct * vma){
   struct ksnap_meta_data_shared * meta_data = (struct ksnap_meta_data_shared *)(vma->vm_start - (PAGE_SIZE*META_SHARED_OFFSET_FROM_SEGMENT));
   return meta_data->snapshot_version_num;

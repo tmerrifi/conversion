@@ -38,6 +38,7 @@ struct ksnap_meta_data_local{
 
 struct ksnap_meta_data_shared{
     unsigned int snapshot_version_num;
+    unsigned int linearized_version_num; /*a version number set once a commit has been linearized*/
     unsigned int logical_page_count; /*How many pages in our segment have *some* physical frame that has been committed.*/
 };
 
@@ -64,6 +65,7 @@ struct ksnap_dirty_list_entry{
 #define __get_meta_shared_page(seg) ((struct ksnap_meta_data_shared *)((unsigned char *)seg->segment - KSNAP_PAGE_SIZE*(META_SHARED_OFFSET_FROM_SEGMENT)))
    
 #define conv_get_current_version_num(seg) (__get_meta_local_page(seg)->snapshot_version_num)
+#define conv_get_committed_version_num(seg) (__get_meta_shared_page(seg)->snapshot_version_num)
 
 #define __newer_version_available(seg) (__get_meta_local_page(seg)->snapshot_version_num < __get_meta_shared_page(seg)->snapshot_version_num)
 
@@ -89,6 +91,7 @@ struct ksnap_dirty_list_entry{
      void conv_set_partial_updated_unique_pages(conv_seg * seg, unsigned int val);
      unsigned int conv_get_partial_updated_unique_pages(conv_seg * seg);
      unsigned int conv_get_partial_version_num(conv_seg * seg);
+     unsigned int conv_get_linearized_version_num(conv_seg * seg);
      
 #define KSNAP_OWNER SHM_CORE
 #define KSNAP_READER SHM_CLIENT

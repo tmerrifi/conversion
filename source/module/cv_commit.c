@@ -177,6 +177,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //get the right version number
   cv_seg->next_avail_version_num+=1;
   our_version_number=cv_seg->next_avail_version_num;
+  //we've linearized this version...we can mark it as such for interested parties in userspace
+  cv_meta_set_linearized_version(vma, our_version_number);
   //claim the list we'll be using to add to the version list
   our_version_entry = cv_seg->uncommitted_version_entry;
   //add our "next version" to the end of the list for the next committer to use
