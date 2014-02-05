@@ -9,6 +9,7 @@
 #include "cv_per_page_version.h"
 #include "cv_garbage.h"
 #include "cv_hooks.h"
+#include "cv_event.h"
 
 #define SNAPSHOT_PREFIX "snapshot"
 #define SNAPSHOT_DEBUG Y
@@ -99,6 +100,7 @@ struct ksnap{
     int debug_points[32];
     struct conversion_hooks hooks; /*for applications that want to tie into conversion events*/
     void * app_data; /*for applications (ex: determinsim) that want to store segment specific data*/
+    struct timespec start_time;
 };
 
 struct ksnap_user_data{
@@ -124,6 +126,8 @@ struct ksnap_user_data{
     int commits;
     struct timespec last_commit_time;
     uint64_t debug_version_num;
+    struct cv_event_info event_info;
+    struct ksnap * cv_seg;
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/

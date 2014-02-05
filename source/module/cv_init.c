@@ -14,6 +14,7 @@
 #include "ksnap_version_list.h"
 #include "cv_stats.h"
 #include "cv_meta_data.h"
+#include "cv_event.h"
 
 MODULE_LICENSE("GPL");
 
@@ -61,15 +62,14 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   user_data = kmalloc(sizeof(struct ksnap_user_data), GFP_KERNEL);
   BUG_ON(!user_data);
   memset(user_data,0,sizeof(struct ksnap_user_data));
-  user_data->id=atomic_read(&ksnap_data->id_counter);
-  atomic_inc(&ksnap_data->id_counter);
+  user_data->id=atomic_inc_return(&ksnap_data->id_counter);
   user_data->vma =vma;
   user_data->dirty_pages_list_count=0;
   user_data->version_num=0;
   user_data->commits=0;
   user_data->last_commit_time.tv_sec=0;
   user_data->dirty_pages_list = _snapshot_create_pte_list();
-
+  user_data->cv_seg=ksnap_data;
   INIT_LIST_HEAD(&user_data->segment_list);
   INIT_RADIX_TREE(&user_data->dirty_list_lookup, GFP_KERNEL);
   INIT_RADIX_TREE(&user_data->partial_update_page_lookup, GFP_KERNEL);
@@ -80,6 +80,7 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   if (vma->vm_file){
     vma->vm_file->f_ra.ra_pages=0;
   }
+  cv_event_init(&user_data->event_info, &ksnap_data->start_time);
 
   //calling anon_vma_prepare in the case that we don't have an anon_vma, bug if it returns non-zero;
   BUG_ON(anon_vma_prepare(vma));
@@ -137,5 +138,6 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   memset(ksnap_data->debug_points, 0, sizeof(int)*32);
   //initialize the hooks to NULL
   CV_HOOKS_INIT(ksnap_data);
+  getnstimeofday(&ksnap_data->start_time);
   return ksnap_data;
 }
