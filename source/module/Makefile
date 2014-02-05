@@ -9,7 +9,7 @@ ksnapmod-y = cv_main.o ksnap_writer.o ksnap_version_list.o cv_commit.o cv_commit
 #-DCV_HOOKS - Uses the hooks (function pointers) on certain events
 #-DCV_EVENT_ON - Used for adding find grained event logging in the code...gets printed out when a thread closes the conversion segment
 
-KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement #-DCONV_ATOMIC -DCONV_LOGGING_ON
+KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement #-DCV_EVENT_ON -DCONV_ATOMIC -DCONV_LOGGING_ON
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

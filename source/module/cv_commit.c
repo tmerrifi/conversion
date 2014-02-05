@@ -37,18 +37,18 @@
 int __remove_old_page(struct address_space * mapping, struct vm_area_struct * vma, 
 		       unsigned long index, struct page * ref_page, uint64_t our_version){
     struct ksnap * cv_seg;
-    struct list_head * old_entry_lh;
     struct snapshot_pte_list * old_entry; 
     cv_seg = ksnap_vma_to_ksnap(vma);
-    spin_lock(&cv_seg->snapshot_page_tree_lock);
-    old_entry_lh = radix_tree_lookup(&mapping_to_ksnap(mapping)->snapshot_page_tree, index);
-    spin_unlock(&cv_seg->snapshot_page_tree_lock);
-    if (old_entry_lh==NULL){
+    //get the current entry from the per-page version list
+    old_entry = cv_per_page_version_get_version_entry(cv_seg->ppv, index);
+    if (old_entry==NULL){
         return 0;
     }
-    old_entry = list_entry(old_entry_lh, struct snapshot_pte_list, list);
-    old_entry->obsolete_version=our_version;
-    return 1;
+    else{
+        //BUG_ON(old_entry_tmp!=old_entry);
+        old_entry->obsolete_version=our_version;
+        return 1;
+    }
 }
 
 void __update_page_mapping(struct address_space * mapping, struct vm_area_struct * vma, 
@@ -60,19 +60,6 @@ void __update_page_mapping(struct address_space * mapping, struct vm_area_struct
     if (!page_count(page)){
         BUG();
     }
-    spin_lock(&cv_seg->snapshot_page_tree_lock);
-    do{
-        //lets now add our new pte into the pte radix tree
-        insert_error = radix_tree_insert(&cv_seg->snapshot_page_tree, page->index, &version_list_entry->list);
-        //if it wasn't an eexist error, then something is wrong and we have a bug
-        if (insert_error == -EEXIST){
-            radix_tree_delete(&cv_seg->snapshot_page_tree, page->index);
-        }
-        else if(insert_error){
-            BUG();
-        }
-    }while(insert_error);
-    spin_unlock(&cv_seg->snapshot_page_tree_lock);
     cv_per_page_version_update_version_entry(cv_seg->ppv, version_list_entry);
     get_page(page);
     return;
@@ -81,14 +68,13 @@ void __update_page_mapping(struct address_space * mapping, struct vm_area_struct
 void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_area_struct * vma, uint64_t our_revision, int stats){
   struct page * page;
   struct address_space * mapping = NULL;
-  struct snapshot_pte_list * committed_entry;
+  struct snapshot_pte_list * committed_entry, * committed_entry_tmp;
   struct ksnap * cv_seg;
   struct ksnap_user_data * cv_user;
   pte_t page_table_e;
 
   cv_seg = ksnap_vma_to_ksnap(vma);
   cv_user = ksnap_vma_to_userdata(vma);
-  cv_event_start_event(&cv_user->event_info, CV_EVENT_OP_LIST_LOOKUP, 777, 666);
   //first we get the address_space
   mapping = vma->vm_file->f_mapping;
   //the pfn in our current page table doesn't equal the one we are trying to commit. Perhaps a fork() occured since our last commit?
@@ -99,17 +85,13 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   page = pfn_to_page(version_list_entry->pfn);
   BUG_ON(page==NULL);
   //has this page been committed since we've updated? Then we need to merge
-  committed_entry = cv_version_list_lookup(cv_seg, version_list_entry->page_index);
-  cv_event_end_event(&cv_user->event_info, CV_EVENT_OP_LIST_LOOKUP);
+  committed_entry = cv_per_page_version_get_version_entry(cv_seg->ppv, version_list_entry->page_index);
   if (committed_entry && pfn_to_page(committed_entry->pfn) != version_list_entry->ref_page){
-      cv_event_start_event(&cv_user->event_info, CV_EVENT_OP_MERGE, version_list_entry->page_index, 666);
       ksnap_merge(pfn_to_page(committed_entry->pfn),
                   (uint8_t *)((version_list_entry->page_index << PAGE_SHIFT) + vma->vm_start), 
                   version_list_entry->ref_page, pfn_to_page(version_list_entry->pfn));
-      cv_event_end_event(&cv_user->event_info, CV_EVENT_OP_MERGE);
       cv_stats_inc_merged_pages(&cv_seg->cv_stats);
   }
-  cv_event_start_event(&cv_user->event_info, CV_EVENT_OP_PTE_STUFF, version_list_entry->page_index, 666);
   //get the pre-existing pte value and clear the pte pointer
   page_table_e = ptep_get_and_clear(vma->vm_mm, version_list_entry->addr, version_list_entry->pte);
   //we need to write protect the owner's pte again
@@ -119,8 +101,6 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
 
   //flush the tlb cache
   flush_tlb_page(vma, version_list_entry->addr);
-  cv_event_end_event(&cv_user->event_info, CV_EVENT_OP_PTE_STUFF);
-  cv_event_start_event(&cv_user->event_info, CV_EVENT_OP_LIST_DELETE, 777, 666);
   if (!__remove_old_page(mapping, vma, page->index, version_list_entry->ref_page, our_revision)){
       //first time we've seen this page
       cv_meta_inc_logical_page_count(vma);
@@ -130,7 +110,6 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
       cv_page_debugging_inc_flag(version_list_entry->ref_page, CV_PAGE_DEBUG_REFPAGE_PUT_COUNT);
       put_page(version_list_entry->ref_page);
   }
-  cv_event_end_event(&cv_user->event_info, CV_EVENT_OP_LIST_DELETE);
 }
 
 
@@ -210,46 +189,30 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   //Now we need to traverse our dirty list, and commit
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
       pte_entry = list_entry(pos, struct snapshot_pte_list, list);
-      //cv_event_start_event(&cv_user->event_info, CV_EVENT_NORMAL_PAGE_COMMIT);
       cv_commit_page(pte_entry, vma, our_version_number, 0);
-      cv_event_start_event(&cv_user->event_info, CV_EVENT_NORMAL_PAGE_COMMIT*CV_EVENT_OP_UPDATE_VERSION, pte_entry->page_index, committed_pages);
       //removing from the dirty list
       list_del(pos);
       list_add(pos, &our_version_entry->pte_list->list);
       cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
       barrier();
       ++committed_pages;
-      cv_event_end_event(&cv_user->event_info, CV_EVENT_NORMAL_PAGE_COMMIT*CV_EVENT_OP_UPDATE_VERSION);
-      cv_event_start_event(&cv_user->event_info, CV_EVENT_NORMAL_PAGE_COMMIT*CV_EVENT_OP_DIRTY_DELETE_OP, pte_entry->page_index, committed_pages);
       conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
-      cv_event_end_event(&cv_user->event_info, CV_EVENT_NORMAL_PAGE_COMMIT*CV_EVENT_OP_DIRTY_DELETE_OP);
-      //cv_event_end_event(&cv_user->event_info, CV_EVENT_NORMAL_PAGE_COMMIT);
   }
 
-  cv_event_start_event(&cv_user->event_info, CV_EVENT_WAITLIST_SPIN, -1, committed_pages);
   //now we need to commit the stuff in the 
   while(!list_empty(&wait_list->list)){
       if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv))){
-          cv_event_end_event(&cv_user->event_info, CV_EVENT_WAITLIST_SPIN);
-          //cv_event_start_event(&cv_user->event_info, CV_EVENT_WAITLIST_PAGE_COMMIT, pte_entry->page_index, committed_pages);
           //grab the currently committed entry
           cv_commit_page(pte_entry, vma, our_version_number, 1);
-          cv_event_start_event(&cv_user->event_info, CV_EVENT_WAITLIST_PAGE_COMMIT*CV_EVENT_OP_UPDATE_VERSION, pte_entry->page_index, committed_pages);
           //remove from the waitlist
           list_del(&pte_entry->list);
           list_add(&pte_entry->list, &our_version_entry->pte_list->list);
           cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
           barrier();
           ++committed_pages;
-          cv_event_end_event(&cv_user->event_info, CV_EVENT_WAITLIST_PAGE_COMMIT*CV_EVENT_OP_UPDATE_VERSION);
-          cv_event_start_event(&cv_user->event_info, CV_EVENT_WAITLIST_PAGE_COMMIT*CV_EVENT_OP_DIRTY_DELETE_OP, pte_entry->page_index, committed_pages);
           conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
-          cv_event_end_event(&cv_user->event_info, CV_EVENT_WAITLIST_PAGE_COMMIT*CV_EVENT_OP_DIRTY_DELETE_OP);
-          //cv_event_end_event(&cv_user->event_info, CV_EVENT_WAITLIST_PAGE_COMMIT);
-          cv_event_start_event(&cv_user->event_info, CV_EVENT_WAITLIST_SPIN, -1, committed_pages);
       }
   }
-  cv_event_end_event(&cv_user->event_info, CV_EVENT_WAITLIST_SPIN);
   //cv_stats_end(cv_seg, cv_user, 6, commit_waitlist_latency);      
   cv_stats_add_counter(cv_seg, cv_user, committed_pages, commit_pages);
   //no need to lock this...it doesn't have to be precise
