@@ -70,7 +70,7 @@ void cv_garbage_collection(struct work_struct * work){
   //ok, lets walk the version list, find out of date versions
   list_for_each_prev_safe(version_list_pos, version_list_tmp_pos, &cv_seg->snapshot_pte_list->list){
     version_list_entry = list_entry(version_list_pos, struct snapshot_version_list, list);
-    if (version_list_entry->version_num + 10 < low_version){
+    if (version_list_entry->version_num + 1 < low_version && version_list_pos->prev != &cv_seg->snapshot_pte_list->list ){
       list_for_each_safe(pte_list_entry_pos, pte_list_entry_pos_tmp, &version_list_entry->pte_list->list){
 	pte_list_entry = list_entry(pte_list_entry_pos, struct snapshot_pte_list, list);
 	if (pte_list_entry->obsolete_version < cv_seg->committed_version_num){ 
@@ -82,6 +82,8 @@ void cv_garbage_collection(struct work_struct * work){
 	  kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
 	}
       }
+      list_del(version_list_pos);
+      kfree(version_list_entry);
     }
   }
   //reduce the total number of allocated pages. TODO: don't we don't need an atomic op here?
