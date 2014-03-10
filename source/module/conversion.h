@@ -33,6 +33,8 @@
 
 #define DO_ADAPT_NO_MATTER_WHAT 1 
 
+#define MAX_VERSION_NUM 50000000000ULL
+
 #define KSNAP_LOG_LEVEL KERN_EMERG
 
 /*a structure that defines a node in the pte list. Each version of the snapshot memory keeps a list
