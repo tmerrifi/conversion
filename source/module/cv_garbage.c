@@ -53,7 +53,7 @@ void cv_garbage_collection(struct work_struct * work){
   struct snapshot_version_list * version_list_entry;
   struct snapshot_pte_list * pte_list_entry;
   struct page * the_page;
-  uint64_t low_version = ~(0x0);
+  uint64_t low_version = MAX_VERSION_NUM;
   uint64_t collected_count = 0;
 
   garbage_work = container_of(work, struct cv_garbage_work, work);
@@ -67,10 +67,14 @@ void cv_garbage_collection(struct work_struct * work){
     }
   }
 
+  if (low_version==MAX_VERSION_NUM){
+      goto out;
+  }
+
   //ok, lets walk the version list, find out of date versions
   list_for_each_prev_safe(version_list_pos, version_list_tmp_pos, &cv_seg->snapshot_pte_list->list){
     version_list_entry = list_entry(version_list_pos, struct snapshot_version_list, list);
-    if (version_list_entry->version_num + 1 < low_version && version_list_pos->prev != &cv_seg->snapshot_pte_list->list ){
+    if (version_list_entry->version_num + 1ULL < low_version && version_list_pos->prev != &cv_seg->snapshot_pte_list->list ){
       list_for_each_safe(pte_list_entry_pos, pte_list_entry_pos_tmp, &version_list_entry->pte_list->list){
 	pte_list_entry = list_entry(pte_list_entry_pos, struct snapshot_pte_list, list);
 	if (pte_list_entry->obsolete_version < cv_seg->committed_version_num){ 
@@ -86,6 +90,8 @@ void cv_garbage_collection(struct work_struct * work){
       kfree(version_list_entry);
     }
   }
+
+ out:
   //reduce the total number of allocated pages. TODO: don't we don't need an atomic op here?
   cv_seg->committed_pages-=collected_count;
   atomic_set(&cv_seg->gc_thread_count, -1);

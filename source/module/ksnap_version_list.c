@@ -24,7 +24,7 @@ struct snapshot_version_list * cv_create_version_list_entry(){
   INIT_LIST_HEAD(&version_entry->list);
   version_entry->pte_list = _snapshot_create_pte_list();
   atomic_set(&version_entry->ref_c, 0);
-  version_entry->version_num=~(0x0);
+  version_entry->version_num=MAX_VERSION_NUM;
   version_entry->visible=0;
   return version_entry;
 }
