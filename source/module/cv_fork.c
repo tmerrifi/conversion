@@ -31,7 +31,8 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
     ksnap_vma_to_userdata(new_vma)->partial_version_num=0;
     ksnap_vma_to_userdata(new_vma)->id=atomic_inc_return(&cv_seg->id_counter);
     ksnap_vma_to_userdata(new_vma)->dirty_pages_list = _snapshot_create_pte_list();
-    
+    ksnap_vma_to_userdata(new_vma)->status = CV_USER_STATUS_AWAKE;
+
     INIT_LIST_HEAD(&ksnap_vma_to_userdata(new_vma)->segment_list);
     INIT_RADIX_TREE(&ksnap_vma_to_userdata(new_vma)->dirty_list_lookup, GFP_KERNEL);
     INIT_RADIX_TREE(&ksnap_vma_to_userdata(new_vma)->partial_update_page_lookup, GFP_KERNEL);

@@ -37,6 +37,10 @@
 
 #define KSNAP_LOG_LEVEL KERN_EMERG
 
+#define CV_USER_STATUS_AWAKE 1
+
+#define CV_USER_STATUS_ASLEEP 0
+
 /*a structure that defines a node in the pte list. Each version of the snapshot memory keeps a list
 of pte values that have changed. A subscriber traverses the pte_list for each version that has changed
 since the last snapshot and then changes it's page table to use the pte's in the list.*/
@@ -50,6 +54,7 @@ struct snapshot_pte_list{
     struct snapshot_version_list * version_list; //purly for debugging
     uint64_t wait_revision;
     uint64_t obsolete_version;
+    struct mm_struct * mm; //use to do memory accounting
 };
 
 /*this structure is a list of snapshot_pte_list objects. Each node in this list represents a version of the
@@ -95,6 +100,7 @@ struct ksnap{
     uint64_t committed_version_num;
     uint64_t next_avail_version_num;
     atomic_t gc_thread_count;
+    volatile uint64_t gc_seq_num;
     struct cv_garbage_work garbage_work;
     atomic64_t committed_version_atomic;
     atomic64_t uncommitted_version_entry_atomic;
@@ -103,6 +109,8 @@ struct ksnap{
     struct conversion_hooks hooks; /*for applications that want to tie into conversion events*/
     void * app_data; /*for applications (ex: determinsim) that want to store segment specific data*/
     struct timespec start_time;
+    atomic_t pages_allocated;
+    atomic_t max_pages;
 };
 
 struct ksnap_user_data{
@@ -130,6 +138,7 @@ struct ksnap_user_data{
     uint64_t debug_version_num;
     struct cv_event_info event_info;
     struct ksnap * cv_seg;
+    int status;
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/

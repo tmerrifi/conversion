@@ -251,11 +251,11 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
     ksnap_meta_set_shared_version(vma, cv_seg->committed_version_num);
   }
   spin_unlock(&cv_seg->lock);
-  if (cv_seg->committed_pages > 10000 &&  
+  if (cv_seg->committed_pages > CV_GARBAGE_INIT_PAGES &&  
       (cv_seg->committed_pages - cv_seg->last_committed_pages_gc_start) > CV_GARBAGE_START_INC && 
       atomic_inc_and_test(&cv_seg->gc_thread_count)){
-    cv_seg->last_committed_pages_gc_start = cv_seg->committed_pages;
-    schedule_work_on(0, &cv_seg->garbage_work.work);
+      cv_seg->last_committed_pages_gc_start = cv_seg->committed_pages;
+      schedule_work_on(0, &cv_seg->garbage_work.work);
   }
 
 

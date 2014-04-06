@@ -23,6 +23,7 @@
 #include "cv_pte.h"
 #include "cv_lock_list.h"
 #include "cv_debugging.h"
+#include "cv_memory_accounting.h"
 
 void __add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte_list * new_dirty_entry, unsigned long index){
 
@@ -90,6 +91,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   pte_list_entry->page_index = new_page->index;
   pte_list_entry->obsolete_version=~(0x0);
   pte_list_entry->wait_revision = 0;
+  pte_list_entry->mm = current->mm;
   /*now we need to add the pte to the list */
   list_add_tail(&pte_list_entry->list, &dirty_pages_list->list);
 #ifdef CONV_LOGGING_ON
@@ -100,4 +102,5 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   cv_user_data->dirty_pages_list_count++;
   cv_page_debugging_clear_flags(new_page,counter);
   unlock_page(new_page);
+  cv_memory_accounting_inc_pages(ksnap_segment);
 }

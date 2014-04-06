@@ -44,6 +44,16 @@ int is_snapshot (struct vm_area_struct * vma, struct mm_struct * mm, struct file
   return (vma && vma->ksnap_user_data);
 }
 
+void conversion_thread_status (struct vm_area_struct * vma, unsigned long status){
+    if (!vma->ksnap_user_data){
+        return;
+    }
+    ksnap_vma_to_userdata(vma)->status = (status == 0) ? CV_USER_STATUS_ASLEEP : CV_USER_STATUS_AWAKE;
+    if (status){
+        ksnap_vma_to_ksnap(vma)->gc_seq_num++;
+    }
+}
+
 int __commit_times(uint64_t microsecs){
   int output=0;
   
@@ -104,7 +114,7 @@ int cv_page_fault (struct vm_area_struct * vma, struct page * old_page, pte_t * 
 int snapshot_nmi_dead_callback(struct notifier_block * nb, unsigned long err, void * data){
   struct page * pg;
     int i=0;
-    printk(KSNAP_LOG_LEVEL "DIED!!!!!\n");
+    //printk(KSNAP_LOG_LEVEL "DIED!!!!!\n");
     /*for (;i<500;++i){
       printk(KSNAP_LOG_LEVEL "%d:%p,", i, (void *)per_thread_debug.location[i]);
       if (per_thread_debug.location[i]==0x666){
@@ -135,6 +145,7 @@ int init_module(void)
   mmap_snapshot_instance.ksnap_userdata_copy = ksnap_userdata_copy;
   mmap_snapshot_instance.snap_sequence_number=random32()%10000;
   mmap_snapshot_instance.conversion_determ_init=cv_determinism_init;
+  mmap_snapshot_instance.conversion_thread_status=conversion_thread_status;
   register_die_notifier(&nmi_snap_nb);
   ksnap_merge_init();
   printk(KSNAP_LOG_LEVEL "vfork!! %d\n", __NR_vfork);
@@ -156,6 +167,7 @@ void cleanup_module(void)
     mmap_snapshot_instance.stats_dec_pages_allocated = NULL;
     mmap_snapshot_instance.ksnap_userdata_copy = NULL;
     mmap_snapshot_instance.ksnap_tracking_on = NULL;
+    mmap_snapshot_instance.conversion_thread_status=NULL;
     cv_merge_free();
     unregister_die_notifier(&nmi_snap_nb);
 }

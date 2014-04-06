@@ -13,6 +13,7 @@
 
 #include "conversion.h"
 #include "cv_event.h"
+#include "cv_memory_accounting.h"
 
 void cv_close(struct vm_area_struct * vma){
 
@@ -32,6 +33,7 @@ void cv_close(struct vm_area_struct * vma){
     cv_stats_print_all(&(cv->cv_stats), 
 		       cv->cv_per_process_stats,
 		       atomic_read(&cv->id_counter));
+    cv_memory_accounting_print(cv);
   }
   cv_event_print(&cv_user->event_info, cv_user->id);
   //deregister this vma

@@ -297,3 +297,13 @@ void conv_end_tx_mutex(conv_seg * seg, sem_t * sem){
   conv_commit(seg);
   sem_post(sem);
 }
+
+//thread is temporarily not interested in the happenings of this segment
+void conv_sleep(conv_seg * seg){
+    madvise(seg->segment, seg->size_of_segment, MADV_KSNAP_SLEEP);
+}
+
+//waking up from sleep
+void conv_wake(conv_seg * seg){
+    madvise(seg->segment, seg->size_of_segment, MADV_KSNAP_WAKE);
+}

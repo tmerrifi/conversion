@@ -70,6 +70,7 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   user_data->last_commit_time.tv_sec=0;
   user_data->dirty_pages_list = _snapshot_create_pte_list();
   user_data->cv_seg=ksnap_data;
+  user_data->status=CV_USER_STATUS_AWAKE;
   INIT_LIST_HEAD(&user_data->segment_list);
   INIT_RADIX_TREE(&user_data->dirty_list_lookup, GFP_KERNEL);
   INIT_RADIX_TREE(&user_data->partial_update_page_lookup, GFP_KERNEL);
@@ -90,9 +91,9 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
 
 struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_area_struct * vma){
 
-    //    #ifdef CONV_LOGGING_ON
+#ifdef CONV_LOGGING_ON
     printk(KERN_EMERG " CONVERSION: initializing segment at address %p and vma %p\n", vma->vm_start, vma);
-    //#endif
+#endif
 
   struct ksnap * ksnap_data = kmalloc(sizeof(struct ksnap), GFP_KERNEL);
   //do we need to initialize the list?
@@ -124,6 +125,7 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   ksnap_data->next_avail_version_num=0;
   ksnap_data->committed_pages=0;
   ksnap_data->last_committed_pages_gc_start=0;
+  ksnap_data->gc_seq_num=0;
   atomic_set(&ksnap_data->gc_thread_count, -1);
   spin_lock_init(&ksnap_data->lock);
   spin_lock_init(&ksnap_data->snapshot_page_tree_lock);
@@ -131,6 +133,8 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   ksnap_data->garbage_work.cv_seg = ksnap_data;
   atomic64_set(&ksnap_data->committed_version_atomic, 0);
   atomic64_set(&ksnap_data->uncommitted_version_entry_atomic, (uint64_t)ksnap_data->uncommitted_version_entry);
+  atomic_set(&ksnap_data->pages_allocated,0);
+  atomic_set(&ksnap_data->max_pages,0);
   atomic_set(&ksnap_data->id_counter, 0);
   mapping->ksnap_data = ksnap_data;  
   cv_stats_init(&ksnap_data->cv_stats);

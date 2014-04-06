@@ -2,6 +2,7 @@
 #include "conversion.h"
 #include "cv_garbage.h"
 #include "cv_debugging.h"
+#include "cv_memory_accounting.h"
 
 void __cv_garbage_free_page(struct page * p){
     p->mapping=NULL;
@@ -31,6 +32,7 @@ void cv_garbage_final(struct ksnap * cv_seg){
         old_prev = pte_list_entry_pos;
 	old_page = pfn_to_page(pte_list_entry->pfn);
 	__cv_garbage_free_page(old_page);
+        cv_memory_accounting_dec_pages(cv_seg);
 	list_del(pte_list_entry_pos);
 	kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
       }
@@ -40,8 +42,6 @@ void cv_garbage_final(struct ksnap * cv_seg){
   }
 
 }
-
-
 
 
 void cv_garbage_collection(struct work_struct * work){
@@ -59,11 +59,16 @@ void cv_garbage_collection(struct work_struct * work){
   garbage_work = container_of(work, struct cv_garbage_work, work);
   cv_seg = garbage_work->cv_seg;
 
+  int pid=-1;
+
+  uint64_t current_seq_num = cv_seg->gc_seq_num;
+
   //find lowest version still held on to
   list_for_each(users_pos, &cv_seg->segment_list){
     user_data = list_entry(users_pos, struct ksnap_user_data, segment_list);
-    if (user_data->version_num < low_version){
+    if (user_data->version_num < low_version && user_data->status == CV_USER_STATUS_AWAKE){
       low_version = user_data->version_num;
+      pid=user_data->id;
     }
   }
 
@@ -71,27 +76,39 @@ void cv_garbage_collection(struct work_struct * work){
       goto out;
   }
 
+  //printk(KERN_EMERG " low version %d current %d pages %d pid %d\n", low_version, cv_seg->committed_version_num, cv_seg->committed_pages, pid);
+
   //ok, lets walk the version list, find out of date versions
   list_for_each_prev_safe(version_list_pos, version_list_tmp_pos, &cv_seg->snapshot_pte_list->list){
-    version_list_entry = list_entry(version_list_pos, struct snapshot_version_list, list);
-    if (version_list_entry->version_num + 1ULL < low_version && version_list_pos->prev != &cv_seg->snapshot_pte_list->list ){
-      list_for_each_safe(pte_list_entry_pos, pte_list_entry_pos_tmp, &version_list_entry->pte_list->list){
-	pte_list_entry = list_entry(pte_list_entry_pos, struct snapshot_pte_list, list);
-	if (pte_list_entry->obsolete_version < cv_seg->committed_version_num){ 
-	  the_page = pfn_to_page(pte_list_entry->pfn);
-          __cv_garbage_free_page(the_page);
-	  ++collected_count;
-          version_list_entry->num_of_entries--;
-	  list_del(pte_list_entry_pos);
-	  kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
-	}
+      //validate
+      if (current_seq_num!=cv_seg->gc_seq_num){
+          goto out;
       }
-      list_del(version_list_pos);
-      kfree(version_list_entry);
-    }
+      version_list_entry = list_entry(version_list_pos, struct snapshot_version_list, list);
+      if (version_list_entry->version_num + 5ULL < low_version && version_list_pos->prev != &cv_seg->snapshot_pte_list->list ){
+          list_for_each_safe(pte_list_entry_pos, pte_list_entry_pos_tmp, &version_list_entry->pte_list->list){
+              pte_list_entry = list_entry(pte_list_entry_pos, struct snapshot_pte_list, list);
+              if (pte_list_entry->obsolete_version < cv_seg->committed_version_num){
+                  //validate
+                  if (current_seq_num!=cv_seg->gc_seq_num){
+                      goto out;
+                  }
+                  the_page = pfn_to_page(pte_list_entry->pfn);
+                  __cv_garbage_free_page(the_page);
+                  ++collected_count;
+                  version_list_entry->num_of_entries--;
+                  list_del(pte_list_entry_pos);
+                  kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
+                  cv_memory_accounting_dec_pages(cv_seg);
+              }
+          }
+          //list_del(version_list_pos);
+          //kfree(version_list_entry);
+      }
   }
-
+  
  out:
+  //printk(KERN_EMERG " LEAVING!!!! collected %d\n", collected_count);
   //reduce the total number of allocated pages. TODO: don't we don't need an atomic op here?
   cv_seg->committed_pages-=collected_count;
   atomic_set(&cv_seg->gc_thread_count, -1);

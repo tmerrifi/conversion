@@ -54,7 +54,8 @@ struct ksnap_dirty_list_entry{
 #define MADV_KSNAP_ALWAYS 200
 #define MADV_KSNAP_ADAPT 201
 #define MADV_KSNAP_PERIODIC 202
-#define MADV_KSNAP_TURNOFF 203
+#define MADV_KSNAP_SLEEP 203
+#define MADV_KSNAP_WAKE 204
 #define MADV_KSNAP_TRACK 210
 
 #define META_LOCAL_OFFSET_FROM_SEGMENT 4
@@ -78,6 +79,8 @@ struct ksnap_dirty_list_entry{
      void conv_commit(conv_seg * seg);
      void conv_end_tx_mutex(conv_seg * seg, sem_t * sem);
      void conv_commit_and_update(conv_seg * seg);
+     void conv_sleep(conv_seg * seg);
+     void conv_wake(conv_seg * seg);
 
      //Allow a segment to perform updates (no merging) without actually rev'ing the version number.
      //This is useful if some thread is waiting for another to commit, but knows it has lots of work

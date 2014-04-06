@@ -160,6 +160,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     return;
   }
 
+#ifdef CONV_LOGGING_ON
+  printk(KSNAP_LOG_LEVEL "IN UPDATE %d for segment %p\n", current->pid,cv_seg);
+#endif
+
   //grab the head of the version list
   version_list=(struct snapshot_version_list *)mapping_to_ksnap(mapping)->snapshot_pte_list;
   //we're going to update, so increment the stats
