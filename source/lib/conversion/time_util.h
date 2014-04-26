@@ -11,6 +11,8 @@ struct timespec * time_util_create_timespec_us(int microseconds);
 
 long time_util_time_diff(struct timespec * start, struct timespec * end);
 
+unsigned long long time_util_time_diff_ns(struct timespec * start, struct timespec * end);
+
 #ifdef __cplusplus
  }
 #endif
