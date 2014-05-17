@@ -102,11 +102,8 @@ void cv_garbage_collection(struct work_struct * work){
                   cv_memory_accounting_dec_pages(cv_seg);
               }
           }
-          
-          //if (list_empty(&version_list_entry->pte_list->list)){
           //list_del(version_list_pos);
           //kfree(version_list_entry);
-          //}
       }
   }
   
