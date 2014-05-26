@@ -307,3 +307,9 @@ void conv_sleep(conv_seg * seg){
 void conv_wake(conv_seg * seg){
     madvise(seg->segment, seg->size_of_segment, MADV_KSNAP_WAKE);
 }
+
+//prints outs the last several conversion ops to the syslog file.
+//the output shows what pages were committed/updated/merged
+void conv_print_trace(conv_seg * seg){
+    syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_TRACE, 0);
+}

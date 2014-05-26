@@ -161,6 +161,8 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     return;
   }
 
+  cv_profiling_op_begin(&cv_user->profiling_info, CV_PROFILING_OP_TYPE_UPDATE,target_version_number);
+
 #ifdef CONV_LOGGING_ON
   printk(KSNAP_LOG_LEVEL "IN UPDATE %d for segment %p\n", current->pid,cv_seg);
 #endif
@@ -181,13 +183,14 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	 pos_outer = pos_outer_tmp, pos_outer_tmp = pos_outer->prev){
       //get the version entry
       latest_version_entry = list_entry( pos_outer, struct snapshot_version_list, list);
+      cv_profiling_add_value(&cv_user->profiling_info,list_to_stop_at->version_num,CV_PROFILING_VALUE_TYPE_STOPPED_UPDATE_VERSION);
       if (!latest_version_entry->visible || latest_version_entry->version_num > target_version_number){
-	break;
+          break;
       }
       else if (latest_version_entry->committer == vma || latest_version_entry->version_num <= cv_user->version_num){
-	//no need to update to stuff we committed
-	new_list = pos_outer;
-	continue;
+          //no need to update to stuff we committed
+          new_list = pos_outer;
+          continue;
       }
 #ifdef CONV_LOGGING_ON
           printk(KERN_EMERG "    Update %d for segment %p, going for version %d, target is %d, target input %d\n", current->pid, cv_seg, latest_version_entry->version_num, target_version_number, target_version_input);
@@ -198,7 +201,8 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	tmp_pte_list = list_entry(pos, struct snapshot_pte_list, list);
 	//is the pte outdated? If so, then no use wasting time updating our page table
 	if (tmp_pte_list->obsolete_version <= target_version_number){
-	  continue;
+            cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);
+            continue;
 	}
         dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
 	if (merge && dirty_entry){
@@ -211,11 +215,13 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 #endif
 	  cv_stats_inc_merged_pages(&cv_seg->cv_stats);
 	  merge_count++;
+          cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_MERGE);
 	}
         //if we have a partial version, it means that we previously did a partial upate. If so, and this entry's version number
         //is less than our partial version number, then this update is superfluous
 	else if (!dirty_entry && !(cv_user->partial_version_num >= latest_version_entry->version_num)){
 	  cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
+          cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_UPDATE);
 	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page);
 #ifdef CONV_LOGGING_ON
           printk(KERN_EMERG "    Update %d for segment %p, update page index %d \n", 
@@ -233,6 +239,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
           ++gotten_pages;
 	}
         else{
+            cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);
             ++ignored_pages;
         }
       }

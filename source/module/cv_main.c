@@ -82,7 +82,13 @@ int __commit_times(uint64_t microsecs){
   msync system call. If we are making a version, then we call commit. otherwise, we perform an update*/
 void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_unit){
   struct timespec ts1, ts2;
-  if (flags & MS_KSNAP_MAKE){
+  
+  if (flags & CV_SYNC_TRACE){
+      spin_lock(&ksnap_vma_to_ksnap(vma)->lock);
+      cv_profiling_print(&ksnap_vma_to_userdata(vma)->profiling_info);
+      spin_unlock(&ksnap_vma_to_ksnap(vma)->lock);
+  }
+  else if (flags & MS_KSNAP_MAKE){
 
 #if defined(CONV_ATOMIC)
       cv_commit_version_atomic(vma, flags);

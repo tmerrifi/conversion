@@ -91,6 +91,10 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
                   (uint8_t *)((version_list_entry->page_index << PAGE_SHIFT) + vma->vm_start), 
                   version_list_entry->ref_page, pfn_to_page(version_list_entry->pfn));
       cv_stats_inc_merged_pages(&cv_seg->cv_stats);
+      cv_profiling_add_value(&cv_user->profiling_info,version_list_entry->page_index,CV_PROFILING_VALUE_TYPE_MERGE);
+  }
+  else{
+      cv_profiling_add_value(&cv_user->profiling_info,version_list_entry->page_index,CV_PROFILING_VALUE_TYPE_COMMIT);
   }
   //get the pre-existing pte value and clear the pte pointer
   page_table_e = ptep_get_and_clear(vma->vm_mm, version_list_entry->addr, version_list_entry->pte);
@@ -177,6 +181,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   cv_meta_set_linearized_version(vma, our_version_number);
   spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
+
+  //beging profiling operation
+  cv_profiling_op_begin(&cv_user->profiling_info, CV_PROFILING_OP_TYPE_COMMIT,our_version_number);
+
   cv_stats_add_counter(cv_seg, cv_user, our_version_number - cv_user->version_num, version_diff);
   //*****
   //set the version entry version number  
@@ -245,7 +253,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
 
 #ifdef CONV_LOGGING_ON
     printk(KERN_EMERG "IN COMMIT %d for segment %p, old committed version %lu, new version number %lu, next %lu\n", 
-           cv_seg->committed_version_num, cv_seg, max_version_number, atomic64_read(&cv_seg->committed_version_atomic), cv_seg->next_avail_version_num);
+           cv_seg->committed_version_num, cv_seg, max_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);
 #endif
 
     BUG_ON(cv_seg->committed_version_num < our_version_number);

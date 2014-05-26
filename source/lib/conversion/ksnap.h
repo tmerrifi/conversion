@@ -95,6 +95,8 @@ struct ksnap_dirty_list_entry{
      unsigned int conv_get_partial_updated_unique_pages(conv_seg * seg);
      unsigned int conv_get_partial_version_num(conv_seg * seg);
      unsigned int conv_get_linearized_version_num(conv_seg * seg);
+     void conv_print_trace(conv_seg * seg);
+
      
 #define KSNAP_OWNER SHM_CORE
 #define KSNAP_READER SHM_CLIENT
@@ -104,6 +106,7 @@ struct ksnap_dirty_list_entry{
 #define KSNAP_NO_DEBUG 0
 
 
+#define KSNAP_SYNC_TRACE 1
 #define KSNAP_SYNC_GET 8
 #define KSNAP_SYNC_MAKE 16
 #define KSNAP_SYNC_MERGE 32

@@ -10,9 +10,13 @@
 #include "cv_garbage.h"
 #include "cv_hooks.h"
 #include "cv_event.h"
+#include "cv_profiling.h"
 
 #define SNAPSHOT_PREFIX "snapshot"
 #define SNAPSHOT_DEBUG Y
+
+/*operations*/
+#define CV_SYNC_TRACE 1
 
 /*Policies specified by the subscribers*/
 #define COMMIT_ALWAYS	0x100000
@@ -40,6 +44,9 @@
 #define CV_USER_STATUS_AWAKE 1
 
 #define CV_USER_STATUS_ASLEEP 0
+
+
+
 
 /*a structure that defines a node in the pte list. Each version of the snapshot memory keeps a list
 of pte values that have changed. A subscriber traverses the pte_list for each version that has changed
@@ -139,6 +146,7 @@ struct ksnap_user_data{
     struct cv_event_info event_info;
     struct ksnap * cv_seg;
     int status;
+    struct cv_profiling_ops profiling_info;
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/

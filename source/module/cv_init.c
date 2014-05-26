@@ -15,6 +15,7 @@
 #include "cv_stats.h"
 #include "cv_meta_data.h"
 #include "cv_event.h"
+#include "cv_profiling.h"
 
 MODULE_LICENSE("GPL");
 
@@ -71,6 +72,7 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   user_data->dirty_pages_list = _snapshot_create_pte_list();
   user_data->cv_seg=ksnap_data;
   user_data->status=CV_USER_STATUS_AWAKE;
+  cv_profiling_begin(&user_data->profiling_info, user_data->id);
   INIT_LIST_HEAD(&user_data->segment_list);
   INIT_RADIX_TREE(&user_data->dirty_list_lookup, GFP_KERNEL);
   INIT_RADIX_TREE(&user_data->partial_update_page_lookup, GFP_KERNEL);
