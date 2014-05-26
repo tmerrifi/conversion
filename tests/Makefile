@@ -3,7 +3,7 @@ SHELL=/bin/bash
 
 .PHONY: common simple_test array_test
 
-all : common simple_test array_test partial
+all : common simple_test partial
 
 
 simple_test: common
