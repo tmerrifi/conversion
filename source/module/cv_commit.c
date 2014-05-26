@@ -168,6 +168,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   our_version_entry = cv_seg->uncommitted_version_entry;
   //add our "next version" to the end of the list for the next committer to use
   list_add(&next_version_entry->list, &cv_seg->snapshot_pte_list->list);
+  barrier();
   //setup the new "next" version
   cv_seg->uncommitted_version_entry = next_version_entry;
   cv_per_page_version_walk(cv_user->dirty_pages_list, wait_list,
@@ -176,8 +177,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   cv_meta_set_linearized_version(vma, our_version_number);
   spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
-  atomic64_set(&cv_seg->uncommitted_version_entry_atomic, (uint64_t)cv_seg->uncommitted_version_entry);
-  
   cv_stats_add_counter(cv_seg, cv_user, our_version_number - cv_user->version_num, version_diff);
   //*****
   //set the version entry version number  
@@ -238,8 +237,11 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
 	max_version_number=version_entry_it->version_num;
       }
     }
+    //we use a barrier here because the update is lock free and will simply read this version number
+    //to publish that this version is available. Lets make sure everything that happened before it is
+    //also published.
+    barrier();
     cv_seg->committed_version_num=max_version_number;
-    atomic64_set(&cv_seg->committed_version_atomic, cv_seg->committed_version_num);
 
 #ifdef CONV_LOGGING_ON
     printk(KERN_EMERG "IN COMMIT %d for segment %p, old committed version %lu, new version number %lu, next %lu\n", 

@@ -146,8 +146,9 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   }
 
   //if the target was passed in....use that!
-  target_version_number=(target_version_input==0) ? atomic64_read(&cv_seg->committed_version_atomic) : target_version_input;
-  list_to_stop_at=(struct snapshot_version_list *)atomic64_read(&cv_seg->uncommitted_version_entry_atomic);
+  target_version_number=(target_version_input==0) ? cv_seg->committed_version_num : target_version_input;
+  list_to_stop_at=(struct snapshot_version_list *)cv_seg->uncommitted_version_entry;
+
   //set the number of updated pages to zero
   cv_meta_set_updated_page_count(vma, 0);  
   cv_meta_set_merged_page_count(vma, 0);
