@@ -36,12 +36,12 @@ struct cv_profiling_ops{
 
 #ifdef CV_PROFILING_ON
 
-static inline cv_profiling_begin(struct cv_profiling_ops * ops, int pid){
+static inline void cv_profiling_begin(struct cv_profiling_ops * ops, int pid){
     ops->count=0;
     ops->pid=pid;
 }
 
-static inline cv_profiling_op_begin(struct cv_profiling_ops * ops, cv_profiling_op_type prof_type, int version_num){
+static inline void cv_profiling_op_begin(struct cv_profiling_ops * ops, cv_profiling_op_type prof_type, int version_num){
     ops->count++;
     struct cv_profiling_single_op * op = &ops->single_ops[ops->count % CV_PROFILING_TOTAL_OPS];
     memset(op, 0, sizeof(struct cv_profiling_single_op));
@@ -49,7 +49,7 @@ static inline cv_profiling_op_begin(struct cv_profiling_ops * ops, cv_profiling_
     op->version_num=version_num;
 }
 
-static inline cv_profiling_add_value(struct cv_profiling_ops * ops, int value, cv_profiling_value_type prof_page_type){
+static inline void cv_profiling_add_value(struct cv_profiling_ops * ops, int value, cv_profiling_value_type prof_page_type){
 
     struct cv_profiling_single_op * op = &ops->single_ops[ops->count % CV_PROFILING_TOTAL_OPS];
 
@@ -84,7 +84,7 @@ static inline cv_profiling_add_value(struct cv_profiling_ops * ops, int value, c
     }
 }
 
-static inline cv_profiling_print(struct cv_profiling_ops * ops){
+static inline void cv_profiling_print(struct cv_profiling_ops * ops){
     int i=ops->count;
     int op_count=0;
     char str[20*CV_PROFILING_NUM_PAGES];
@@ -131,13 +131,14 @@ static inline cv_profiling_print(struct cv_profiling_ops * ops){
 
 #else
 
-static inline cv_profiling_begin(struct cv_profiling_ops * ops){}
 
-static inline cv_profiling_op_begin(struct cv_profiling_ops * ops, cv_profiling_op_type prof_type){}
+static inline void cv_profiling_begin(struct cv_profiling_ops * ops, int pid){}
 
-static inline cv_profiling_add_page(struct cv_profiling_ops * ops, int page_index, cv_profiling_value_type prof_page_type){}
+static inline void cv_profiling_op_begin(struct cv_profiling_ops * ops, cv_profiling_op_type prof_type, int version_num){}
 
-static inline cv_profiling_print(struct cv_profiling_ops * ops){}
+static inline void cv_profiling_add_value(struct cv_profiling_ops * ops, int value, cv_profiling_value_type prof_page_type){}
+
+static inline void cv_profiling_print(struct cv_profiling_ops * ops){}
 
 #endif
 
