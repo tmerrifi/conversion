@@ -18,6 +18,27 @@
 /*operations*/
 #define CV_SYNC_TRACE 1
 
+
+//perform a combined update and commit
+#define CONV_COMMIT_AND_UPDATE 1
+//perform a normal update without committing. Merges your working set with committed data
+#define CONV_UPDATE 2
+//performs an update without committing. Doesn't merge your data with committed
+#define CONV_UPDATE_NO_MERGE 4
+//do an update without merging but don't actually move the version ahead.
+#define CONV_UPDATE_PARTIAL 8
+//performs a deferred work commit and update (see function for details)
+#define CONV_COMMIT_AND_UPDATE_DEFERRED_START 16
+//performs a deferred work commit and update (see function for details)
+#define CONV_COMMIT_AND_UPDATE_DEFERRED_END 32
+//performs a deferred work update (see function for details)
+#define CONV_UPDATE_DEFERRED_START 64
+//performs a deferred work update (see function for details)
+#define CONV_UPDATE_DEFERRED_END 128
+//print out a trace of debugging info
+#define CONV_TRACE 256
+
+
 /*Policies specified by the subscribers*/
 #define COMMIT_ALWAYS	0x100000
 #define COMMIT_ADAPT	0x200000

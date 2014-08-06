@@ -32,7 +32,6 @@
 #include "cv_lock_list.h"
 #include "cv_commit.h"
 #include "cv_update.h"
-#include "cv_determinism.h"
 
 MODULE_LICENSE("GPL");
 
@@ -82,29 +81,16 @@ int __commit_times(uint64_t microsecs){
   msync system call. If we are making a version, then we call commit. otherwise, we perform an update*/
 void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_unit){
   struct timespec ts1, ts2;
-  
-  if (flags & CV_SYNC_TRACE){
+  if (flags & CONV_TRACE){
       spin_lock(&ksnap_vma_to_ksnap(vma)->lock);
       cv_profiling_print(&ksnap_vma_to_userdata(vma)->profiling_info);
       spin_unlock(&ksnap_vma_to_ksnap(vma)->lock);
   }
-  else if (flags & MS_KSNAP_MAKE){
-
-#if defined(CONV_ATOMIC)
-      cv_commit_version_atomic(vma, flags);
-#else
-      cv_commit_version_parallel(vma, flags);
-#endif
-
+  else if (flags & CONV_COMMIT_AND_UPDATE){
+      cv_commit_version_parallel(vma);
   }
   else{
-
-#if defined(CONV_ATOMIC)
-      cv_update_atomic(vma, flags);
-#else 
       cv_update_parallel(vma, flags);
-#endif
-
   }
 }
 
@@ -118,18 +104,6 @@ int cv_page_fault (struct vm_area_struct * vma, struct page * old_page, pte_t * 
 }
 
 int snapshot_nmi_dead_callback(struct notifier_block * nb, unsigned long err, void * data){
-  struct page * pg;
-    int i=0;
-    //printk(KSNAP_LOG_LEVEL "DIED!!!!!\n");
-    /*for (;i<500;++i){
-      printk(KSNAP_LOG_LEVEL "%d:%p,", i, (void *)per_thread_debug.location[i]);
-      if (per_thread_debug.location[i]==0x666){
-	pg = (struct page *)per_thread_debug.location[i+1];
-	printk(KSNAP_LOG_LEVEL "   PAGE COUNT %p %d\n", pg, page_count(pg));
-      }
-      
-    }
-    printk( KSNAP_LOG_LEVEL "DONE OUTPUTTING!!!!!\n");*/
     return 1;
 }
 
@@ -150,7 +124,6 @@ int init_module(void)
   mmap_snapshot_instance.do_snapshot_add_pte = cv_page_fault;
   mmap_snapshot_instance.ksnap_userdata_copy = ksnap_userdata_copy;
   mmap_snapshot_instance.snap_sequence_number=random32()%10000;
-  mmap_snapshot_instance.conversion_determ_init=cv_determinism_init;
   mmap_snapshot_instance.conversion_thread_status=conversion_thread_status;
   register_die_notifier(&nmi_snap_nb);
   ksnap_merge_init();

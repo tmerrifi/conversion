@@ -60,7 +60,7 @@ void run(conv_seg * array_seg, int id){
           debug_array[index]++;
       }
       
-      conv_commit(array_seg);
+      conv_commit_and_update(array_seg);
       pthread_barrier_wait(barrier);
       conv_update(array_seg);
       

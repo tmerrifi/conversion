@@ -58,6 +58,26 @@ struct ksnap_dirty_list_entry{
 #define MADV_KSNAP_WAKE 204
 #define MADV_KSNAP_TRACK 210
 
+
+//perform a combined update and commit
+#define CONV_COMMIT_AND_UPDATE 1
+//perform a normal update without committing. Merges your working set with committed data
+#define CONV_UPDATE 2
+//performs an update without committing. Doesn't merge your data with committed
+#define CONV_UPDATE_NO_MERGE 4
+//do an update without merging but don't actually move the version ahead.
+#define CONV_UPDATE_PARTIAL 8
+//performs a deferred work commit and update (see function for details)
+#define CONV_COMMIT_AND_UPDATE_DEFERRED_START 16
+//performs a deferred work commit and update (see function for details)
+#define CONV_COMMIT_AND_UPDATE_DEFERRED_END 32
+//performs a deferred work update (see function for details)
+#define CONV_UPDATE_DEFERRED_START 64
+//performs a deferred work update (see function for details)
+#define CONV_UPDATE_DEFERRED_END 128
+//print out a trace of debugging info
+#define CONV_TRACE 256
+
 #define META_LOCAL_OFFSET_FROM_SEGMENT 4
 #define META_SHARED_OFFSET_FROM_SEGMENT 2
 
@@ -75,12 +95,16 @@ struct ksnap_dirty_list_entry{
      void conv_set_editing_unit_bytes(conv_seg * seg, size_t editing_unit);
 
      void conv_update(conv_seg * seg);
-     void conv_begin_tx_mutex(conv_seg * seg, sem_t * sem);
-     void conv_commit(conv_seg * seg);
-     void conv_end_tx_mutex(conv_seg * seg, sem_t * sem);
      void conv_commit_and_update(conv_seg * seg);
      void conv_sleep(conv_seg * seg);
      void conv_wake(conv_seg * seg);
+
+     //In the case where conversion operations are done inside a critical section (determinism)
+     //we can get better performance by doing conv_commit_and_update_deferred_start under lock
+     //and then calling conv_commit_and_update_deferred_end after we release the lock
+     void conv_commit_and_update_deferred_start(conv_seg * seg);
+     void conv_commit_and_update_deferred_end(conv_seg * seg);
+
 
      //Allow a segment to perform updates (no merging) without actually rev'ing the version number.
      //This is useful if some thread is waiting for another to commit, but knows it has lots of work
@@ -98,6 +122,7 @@ struct ksnap_dirty_list_entry{
      void conv_print_trace(conv_seg * seg);
 
      
+     
 #define KSNAP_OWNER SHM_CORE
 #define KSNAP_READER SHM_CLIENT
 #define KSNAP_SHARED SHM_SHARED
@@ -106,12 +131,12 @@ struct ksnap_dirty_list_entry{
 #define KSNAP_NO_DEBUG 0
 
 
-#define KSNAP_SYNC_TRACE 1
+     /*#define KSNAP_SYNC_TRACE 1
 #define KSNAP_SYNC_GET 8
 #define KSNAP_SYNC_MAKE 16
 #define KSNAP_SYNC_MERGE 32
 #define KSNAP_SYNC_PARTIAL 64
-#define CONVERSION_DETERM_TOKEN_RELEASE 128
+#define CONVERSION_DETERM_TOKEN_RELEASE 128*/
 
 #define KSNAP_NO_SYNC MS_SYNC
 

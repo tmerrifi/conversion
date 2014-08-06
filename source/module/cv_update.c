@@ -108,9 +108,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   int ignored_pages = 0;
   int merge_count=0;
   int partial_unique_count=0;
-  unsigned int merge=(flags & MS_KSNAP_GET_MERGE);
+  //are we merging????
+  unsigned int merge=(flags & CONV_UPDATE);
   //if we pass in the partial flag, we perform the work up to the latest version, without merging
-  unsigned int partial_update=(flags & MS_KSNAP_GET) && (flags & MS_KSNAP_PARTIAL);
+  unsigned int partial_update=(flags & CONV_UPDATE_NO_MERGE) && (flags & CONV_UPDATE_PARTIAL);
   //if this is set, we keep the version number where it is. Next time around we'll perform only merges
   //and any subsequent commits
   uint8_t keep_current_version=(partial_update && target_version_input==0);
@@ -129,7 +130,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: vma not setup right\n");
   }
 
-  if ((flags & MS_KSNAP_GET_MERGE) && (flags & MS_KSNAP_PARTIAL)){
+  if ((flags & CONV_UPDATE) && (flags & CONV_UPDATE_PARTIAL)){
       printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: can't combine partial updates with merging\n");
   }
 
@@ -299,5 +300,5 @@ void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags){
 //update to a specific version...called by commit and merging is already done
 void cv_update_parallel_to_version_no_merge(struct vm_area_struct * vma, uint64_t version){
   //TODO: the flags here are dumb and don't really make a lot of sense in this context. They need to be fixed
-  __cv_update_parallel(vma,  (MS_KSNAP_GET | MS_KSNAP_PARTIAL), version);
+  __cv_update_parallel(vma,  (CONV_UPDATE_NO_MERGE | CONV_UPDATE_PARTIAL), version);
 }

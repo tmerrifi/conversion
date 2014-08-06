@@ -249,19 +249,14 @@ conv_seg * conv_open_exisiting(char * segment_name){
 //lets update and get a new view of the snapshot
 void conv_update(conv_seg * seg){
     if (__newer_version_available(seg)){
-        syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MERGE, seg->editing_unit);
+        syscall(__CONV_SYS_CALL, seg->segment, CONV_UPDATE, seg->editing_unit);
     }
-}
-
-void conv_begin_tx_mutex(conv_seg * seg, sem_t * sem){
-    sem_wait(sem);
-    conv_update(seg);
 }
 
 void conv_partial_background_update(conv_seg * seg){
     if ((__get_meta_local_page(seg)->partial_version_num == 0 && __newer_version_available(seg)) || 
         (__get_meta_local_page(seg)->partial_version_num > 0 && (__get_meta_local_page(seg)->partial_version_num < __get_meta_shared_page(seg)->snapshot_version_num))){
-        syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_GET | KSNAP_SYNC_PARTIAL, seg->editing_unit);
+        syscall(__CONV_SYS_CALL, seg->segment, CONV_UPDATE_NO_MERGE | CONV_UPDATE_PARTIAL, seg->editing_unit);
     }
 }
 
@@ -277,25 +272,14 @@ void conv_set_partial_updated_unique_pages(conv_seg * seg, unsigned int val){
     __get_meta_local_page(seg)->partial_updated_unique_pages=val;
 }
 
-void conv_commit(conv_seg * seg){
-    if(__get_meta_local_page(seg)->dirty_page_count > 0){
-        syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MAKE, seg->editing_unit);
-    }
-}
-
 //performs a commit and a combined update (even if there are no dirty pages)
 void conv_commit_and_update(conv_seg * seg){
     if(__get_meta_local_page(seg)->dirty_page_count == 0){
-        syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MERGE, seg->editing_unit);
+        syscall(__CONV_SYS_CALL, seg->segment, CONV_UPDATE, seg->editing_unit);
     }
     else{
-        syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_MAKE, seg->editing_unit);
+        syscall(__CONV_SYS_CALL, seg->segment, CONV_COMMIT_AND_UPDATE, seg->editing_unit);
     }
-}
-
-void conv_end_tx_mutex(conv_seg * seg, sem_t * sem){
-  conv_commit(seg);
-  sem_post(sem);
 }
 
 //thread is temporarily not interested in the happenings of this segment
@@ -311,5 +295,29 @@ void conv_wake(conv_seg * seg){
 //prints outs the last several conversion ops to the syslog file.
 //the output shows what pages were committed/updated/merged
 void conv_print_trace(conv_seg * seg){
-    syscall(__CONV_SYS_CALL, seg->segment, KSNAP_SYNC_TRACE, 0);
+    syscall(__CONV_SYS_CALL, seg->segment, CONV_TRACE, 0);
+}
+
+
+
+//In the case where conversion operations are done inside a critical section (determinism)
+//we can get better performance by doing conv_commit_and_update_deferred_start under lock
+//and then calling conv_commit_and_update_deferred_end after we release the lock
+void conv_commit_and_update_deferred_start(conv_seg * seg){
+    if(__get_meta_local_page(seg)->dirty_page_count == 0){
+        syscall(__CONV_SYS_CALL, seg->segment, CONV_UPDATE_DEFERRED_START, seg->editing_unit);
+    }
+    else{
+        syscall(__CONV_SYS_CALL, seg->segment, CONV_COMMIT_AND_UPDATE_DEFERRED_START, seg->editing_unit);
+    }
+}
+
+void conv_commit_and_update_deferred_end(conv_seg * seg){
+    if(__get_meta_local_page(seg)->dirty_page_count == 0){
+        syscall(__CONV_SYS_CALL, seg->segment, CONV_UPDATE_DEFERRED_END, seg->editing_unit);
+    }
+    else{
+        syscall(__CONV_SYS_CALL, seg->segment, CONV_COMMIT_AND_UPDATE_DEFERRED_END, seg->editing_unit);
+    }
+
 }

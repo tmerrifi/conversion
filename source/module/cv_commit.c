@@ -118,7 +118,7 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
 
 
 /*This is the main commit function. */
-void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags){
+void cv_commit_version_parallel(struct vm_area_struct * vma){
   struct ksnap * cv_seg; //main conversion datastructure
   struct ksnap_user_data * cv_user;
   struct snapshot_version_list * next_version_entry; //after claiming a new version, we add a new version on the end
@@ -164,7 +164,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, unsigned long flags
   cv_stats_start(cv_seg, 1, commit_wait_lock);
   spin_lock(&cv_seg->lock);
   cv_stats_end(cv_seg, cv_user, 1, commit_wait_lock);
-  CV_HOOKS_BEGIN_COMMIT(cv_seg, flags);
   //get the right version number
   cv_seg->next_avail_version_num+=1;
   our_version_number=cv_seg->next_avail_version_num;
