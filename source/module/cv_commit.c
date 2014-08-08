@@ -104,7 +104,7 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   set_pte(version_list_entry->pte, page_table_e);
 
   //flush the tlb cache
-  flush_tlb_page(vma, version_list_entry->addr);
+  //flush_tlb_page(vma, version_list_entry->addr);
   if (!__remove_old_page(mapping, vma, page->index, version_list_entry->ref_page, our_revision)){
       //first time we've seen this page
       cv_meta_inc_logical_page_count(vma);
@@ -276,9 +276,11 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
       //pause inside our busy loop
       rep_nop();
   }
-
   //ok, its safe to update now
   cv_update_parallel_to_version_no_merge(vma, our_version_number, defer_work);
+  if (!defer_work){
+      flush_tlb();
+  }
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
 #ifdef CONV_LOGGING_ON

@@ -187,7 +187,7 @@ void do_deferred_pte_entry_update(struct cv_defer_work_entry * entry){
 	//clear the accessed bit
 	pte_mkold(tmp_ro_pte);
 	//flush the tlb for this page
-        __flush_tlb_one(readonly_addr);
+        //__flush_tlb_one(readonly_addr);
 	//now set the new pte
 	set_pte(dest_pte, tmp_ro_pte);
 	//set_pte(pte, tmp_master_pte);
@@ -206,4 +206,5 @@ void do_deferred_work(struct vm_area_struct * vma){
         }
         cv_defer_work_entry_free(&cv_user->defer_work, entry);
     }
+    flush_tlb();
 }
