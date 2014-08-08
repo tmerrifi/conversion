@@ -118,7 +118,7 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
 
 
 /*This is the main commit function. */
-void cv_commit_version_parallel(struct vm_area_struct * vma){
+void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   struct ksnap * cv_seg; //main conversion datastructure
   struct ksnap_user_data * cv_user;
   struct snapshot_version_list * next_version_entry; //after claiming a new version, we add a new version on the end
@@ -278,7 +278,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma){
   }
 
   //ok, its safe to update now
-  cv_update_parallel_to_version_no_merge(vma, our_version_number);
+  cv_update_parallel_to_version_no_merge(vma, our_version_number, defer_work);
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
 #ifdef CONV_LOGGING_ON

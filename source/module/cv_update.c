@@ -96,7 +96,7 @@ int __flush_tlb_per_page(struct list_head * current_version_list, struct list_he
   return 1;
 }
 
-void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint64_t target_version_input){
+void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint64_t target_version_input, int defer_work){
   //struct vm_area_struct * master_vma;
   /*for iterating through the list*/
   struct list_head * pos, * pos_outer, * pos_outer_tmp, * ls, * new_list;
@@ -223,16 +223,12 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	else if (!dirty_entry && !(cv_user->partial_version_num >= latest_version_entry->version_num)){
 	  cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
           cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_UPDATE);
-	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page);
+	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page, defer_work, cv_user);
 #ifdef CONV_LOGGING_ON
           printk(KERN_EMERG "    Update %d for segment %p, update page index %d \n", 
                  current->pid, cv_seg, tmp_pte_list->page_index);
 #endif
 	  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
-          //if its a page that hasn't been seen by a previous partial update, increate the counter
-          //          if ((keep_current_version || first_update_after_partial) 
-          //  && 
-
           if (__insert_partial_update_page_lookup(&cv_user->partial_update_page_lookup, tmp_pte_list->page_index, 
                                                      latest_version_entry->version_num, cv_user->version_num)){
               ++partial_unique_count;
@@ -247,7 +243,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 #ifdef CONV_LOGGING_ON
       printk(KERN_EMERG "  Updated to version %d\n", latest_version_entry->version_num);
 #endif
-
       //done traversing a list of ptes
       new_list = pos_outer;
     }
@@ -293,12 +288,12 @@ pages target_input %lu committed version %llu ignored %d, keep current %d, first
 }
 
 
-void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags){
-  __cv_update_parallel(vma, flags, 0);
+void cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, int defer_work){
+    __cv_update_parallel(vma, flags, 0, defer_work);
 }
 
 //update to a specific version...called by commit and merging is already done
-void cv_update_parallel_to_version_no_merge(struct vm_area_struct * vma, uint64_t version){
+void cv_update_parallel_to_version_no_merge(struct vm_area_struct * vma, uint64_t version, int defer_work){
   //TODO: the flags here are dumb and don't really make a lot of sense in this context. They need to be fixed
-  __cv_update_parallel(vma,  (CONV_UPDATE_NO_MERGE | CONV_UPDATE_PARTIAL), version);
+    __cv_update_parallel(vma,  (CONV_UPDATE_NO_MERGE | CONV_UPDATE_PARTIAL), version, defer_work);
 }

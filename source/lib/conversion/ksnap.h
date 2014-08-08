@@ -105,7 +105,6 @@ struct ksnap_dirty_list_entry{
      void conv_commit_and_update_deferred_start(conv_seg * seg);
      void conv_commit_and_update_deferred_end(conv_seg * seg);
 
-
      //Allow a segment to perform updates (no merging) without actually rev'ing the version number.
      //This is useful if some thread is waiting for another to commit, but knows it has lots of work
      //to do to catch-up to the current version. It can perform the partial update safely while it waits.

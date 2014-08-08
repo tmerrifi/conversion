@@ -72,6 +72,9 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   user_data->dirty_pages_list = _snapshot_create_pte_list();
   user_data->cv_seg=ksnap_data;
   user_data->status=CV_USER_STATUS_AWAKE;
+  cv_defer_work_init(&user_data->defer_work);
+  //deferred work entry allocation should be fast
+  user_data->deferred_work_mem_cache=KMEM_CACHE(cv_defer_work_entry,0);
   cv_profiling_begin(&user_data->profiling_info, user_data->id);
   INIT_LIST_HEAD(&user_data->segment_list);
   INIT_RADIX_TREE(&user_data->dirty_list_lookup, GFP_KERNEL);

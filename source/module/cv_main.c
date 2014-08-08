@@ -81,16 +81,32 @@ int __commit_times(uint64_t microsecs){
   msync system call. If we are making a version, then we call commit. otherwise, we perform an update*/
 void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_unit){
   struct timespec ts1, ts2;
-  if (flags & CONV_TRACE){
+  if (flags==CONV_TRACE){
       spin_lock(&ksnap_vma_to_ksnap(vma)->lock);
       cv_profiling_print(&ksnap_vma_to_userdata(vma)->profiling_info);
       spin_unlock(&ksnap_vma_to_ksnap(vma)->lock);
   }
-  else if (flags & CONV_COMMIT_AND_UPDATE){
-      cv_commit_version_parallel(vma);
+  else if (flags==CONV_COMMIT_AND_UPDATE){
+      cv_commit_version_parallel(vma, CONV_DO_WORK_NOW);
+  }
+  else if (flags==CONV_COMMIT_AND_UPDATE_DEFERRED_START){
+      cv_commit_version_parallel(vma, CONV_DEFER_WORK);
+  }
+  else if(flags==CONV_COMMIT_AND_UPDATE_DEFERRED_END){
+      //do nothing yet
+      //printk(KERN_EMERG " C&U Deferred");
+      do_deferred_work(vma);
+  }
+  else if (flags==CONV_UPDATE_DEFERRED_START){
+      cv_update_parallel(vma, flags, CONV_DEFER_WORK);
+  }
+  else if (flags==CONV_UPDATE_DEFERRED_END){
+      //do nothing yet
+      //printk(KERN_EMERG " U Deferred");
+      do_deferred_work(vma);
   }
   else{
-      cv_update_parallel(vma, flags);
+      cv_update_parallel(vma, flags, CONV_DO_WORK_NOW);
   }
 }
 

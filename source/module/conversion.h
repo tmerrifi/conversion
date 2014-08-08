@@ -11,6 +11,7 @@
 #include "cv_hooks.h"
 #include "cv_event.h"
 #include "cv_profiling.h"
+#include "cv_defer_work.h"
 
 #define SNAPSHOT_PREFIX "snapshot"
 #define SNAPSHOT_DEBUG Y
@@ -38,6 +39,9 @@
 //print out a trace of debugging info
 #define CONV_TRACE 256
 
+
+#define CONV_DO_WORK_NOW 0
+#define CONV_DEFER_WORK 1
 
 /*Policies specified by the subscribers*/
 #define COMMIT_ALWAYS	0x100000
@@ -168,6 +172,8 @@ struct ksnap_user_data{
     struct ksnap * cv_seg;
     int status;
     struct cv_profiling_ops profiling_info;
+    struct cv_defer_work defer_work;
+    struct kmem_cache * deferred_work_mem_cache;
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/
