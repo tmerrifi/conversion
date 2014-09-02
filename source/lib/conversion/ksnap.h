@@ -118,6 +118,7 @@ struct ksnap_dirty_list_entry{
      unsigned int conv_get_partial_updated_unique_pages(conv_seg * seg);
      unsigned int conv_get_partial_version_num(conv_seg * seg);
      unsigned int conv_get_linearized_version_num(conv_seg * seg);
+     void conv_clear_local_stats(conv_seg * seg);
      void conv_print_trace(conv_seg * seg);
 
      

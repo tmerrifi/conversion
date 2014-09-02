@@ -1,4 +1,4 @@
-
+  
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -124,6 +124,12 @@ unsigned int conv_get_merged_page_count(conv_seg * seg){
 
 unsigned int conv_get_updated_page_count(conv_seg * seg){
     return __get_meta_local_page(seg)->updated_pages;
+}
+
+void conv_clear_local_stats(conv_seg * seg){
+    __get_meta_local_page(seg)->updated_pages=0;
+    __get_meta_local_page(seg)->merged_pages=0;
+    __get_meta_local_page(seg)->dirty_page_count=0;
 }
 
 void __ksnap_open_meta_data_segments(int size_of_segment, char * segment_name, conv_seg * snap, int create){
