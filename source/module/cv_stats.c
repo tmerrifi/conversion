@@ -93,10 +93,6 @@ void cv_stats_inc_merged_pages(struct cv_statistics * stats){
   atomic_inc(&stats->total_merged_pages);
 }
 
-unsigned long cv_stats_elapsed_time_ns(struct timespec * start, struct timespec * end){
-  return (end->tv_sec-start->tv_sec)*1000000000+(end->tv_nsec-start->tv_nsec);
-}
-
 #else
 
 void cv_stats_print_all(struct cv_statistics * cv_stats, struct cv_per_process_detailed_statistics * cv_per_proc, int total_threads){}
@@ -119,6 +115,8 @@ void cv_stats_dec_ksnap_page_faults(struct cv_statistics * stats){}
 
 void cv_stats_inc_merged_pages(struct cv_statistics * stats){}
 
-unsigned long cv_stats_elapsed_time_ns(struct timespec * start, struct timespec * end){}
-
 #endif
+
+unsigned long cv_stats_elapsed_time_ns(struct timespec * start, struct timespec * end){
+  return (end->tv_sec-start->tv_sec)*1000000000+(end->tv_nsec-start->tv_nsec);
+}
