@@ -76,7 +76,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   struct ksnap * ksnap_segment = ksnap_vma_to_ksnap(vma);
   /*grab the new page*/
   new_page=pte_page(*new_pte);
-  lock_page(new_page);
+  //lock_page(new_page);
   if (new_page!=pte_page(*new_pte)){
     BUG();
   }
@@ -98,9 +98,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   printk(KSNAP_LOG_LEVEL " %d added index %lu pfn %lu", current->pid, pte_list_entry->page_index, pte_list_entry->pfn);
 #endif
   cv_meta_inc_dirty_page_count(vma);
-  atomic_inc(&cv_user_data->dirty_page_count);
   cv_user_data->dirty_pages_list_count++;
   cv_page_debugging_clear_flags(new_page,counter);
-  unlock_page(new_page);
   cv_memory_accounting_inc_pages(ksnap_segment);
 }
