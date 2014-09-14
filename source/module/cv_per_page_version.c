@@ -99,3 +99,7 @@ struct snapshot_pte_list * cv_per_page_version_get_version_entry(struct cv_per_p
 void cv_per_page_version_update_actual_version(struct cv_per_page_version * ppv, uint32_t index, uint64_t version){
   ppv->entries[index].actual_version=version;
 }
+
+struct cv_per_page_version_entry * cv_per_page_version_get_ppv_entry(struct cv_per_page_version * ppv, uint32_t index){
+    return &ppv->entries[index];
+}

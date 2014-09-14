@@ -51,6 +51,7 @@ void conversion_thread_status (struct vm_area_struct * vma, unsigned long status
     if (status){
         ksnap_vma_to_ksnap(vma)->gc_seq_num++;
     }
+    printk(KERN_EMERG "Setting status");
 }
 
 int __commit_times(uint64_t microsecs){
@@ -111,12 +112,48 @@ void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_u
 }
 
 /*call in to our page fault handler code to keep track of this new page*/
-int cv_page_fault (struct vm_area_struct * vma, struct page * old_page, pte_t * new_pte, unsigned long address){
-  ksnap_add_dirty_page_to_list (vma, old_page, new_pte, address);
-  //do some statistics stuff
-  cv_stats_inc_pages_allocated(&mapping_to_ksnap(vma->vm_file->f_mapping)->cv_stats);
-  cv_stats_inc_ksnap_page_faults(&mapping_to_ksnap(vma->vm_file->f_mapping)->cv_stats);	
-  return 1;
+int cv_page_fault (struct vm_area_struct * vma, struct page * old_page_in, pte_t * new_pte_in, unsigned long address_in){
+
+    struct page * old_page = old_page_in;
+    pte_t * new_pte = new_pte_in;
+    unsigned long address = address_in;
+    int max_prefetch=50;
+    int prefetched=0;
+    struct ksnap_user_data * cv_user=ksnap_vma_to_userdata(vma);
+    
+    //printk(KERN_EMERG "Page fault on %d\n", old_page_in->index);
+
+    struct page * pages = alloc_pages(GFP_HIGHUSER_MOVABLE, 1);
+    struct page * page2 = pages++;
+
+    while(1){
+        ksnap_add_dirty_page_to_list (vma, old_page, new_pte, address);
+        //should we prefetch?
+        if (prefetched<max_prefetch && cv_prefetcher_should_prefetch(old_page->index, ksnap_vma_to_userdata(vma))){
+            //printk(KERN_EMERG "we are going to prefetch!!!! %d\n", old_page->index);
+            if (cv_pte_do_cow_prefetch(vma, cv_prefetcher_get_page_index_to_prefetch(old_page->index, ksnap_vma_to_userdata(vma)), 
+                                       &old_page, &address, &new_pte, cv_user)){
+                //the prefetch happened
+                ++prefetched;
+                printk(KERN_EMERG "Successful prefetch!!!!\n");
+            }
+            else{
+                break;
+            }
+        }
+        else{
+            break;
+        }
+        //do some statistics stuff
+        //cv_stats_inc_pages_allocated(&mapping_to_ksnap(vma->vm_file->f_mapping)->cv_stats);
+        //cv_stats_inc_ksnap_page_faults(&mapping_to_ksnap(vma->vm_file->f_mapping)->cv_stats);	
+    }
+
+    if (prefetched > 0){
+        flush_tlb();
+    }
+
+    return 1;
 }
 
 int snapshot_nmi_dead_callback(struct notifier_block * nb, unsigned long err, void * data){

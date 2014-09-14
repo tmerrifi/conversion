@@ -14,4 +14,7 @@ int pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 
 void do_deferred_work(struct vm_area_struct * vma);
 
+int cv_pte_do_cow_prefetch(struct vm_area_struct * vma, unsigned int index, struct page ** old_page_out, 
+                           unsigned long * addr_out, pte_t ** new_pte_out, struct ksnap_user_data * cv_user);
+
 #endif

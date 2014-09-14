@@ -3,11 +3,13 @@
 #define CV_PER_PAGE_VERSION_H
 
 #include "conversion.h"
+#include "cv_prefetcher.h"
 
 struct cv_per_page_version_entry{
-  uint64_t interest_version; //threads register their "interest" in committing this version
-  uint64_t actual_version;  //what version is actually "committed"
-  struct snapshot_pte_list * version_list_entry;
+    uint64_t interest_version; //threads register their "interest" in committing this version
+    uint64_t actual_version;  //what version is actually "committed"
+    struct snapshot_pte_list * version_list_entry;
+    struct cv_page_prefetch prefetch_info;
 };
 
 struct cv_per_page_version{
@@ -34,5 +36,7 @@ void cv_per_page_version_update_version_entry(struct cv_per_page_version * ppv, 
 struct snapshot_pte_list * cv_per_page_version_get_version_entry(struct cv_per_page_version * ppv, uint32_t index);
 
 void cv_per_page_version_update_actual_version(struct cv_per_page_version * ppv, uint32_t index, uint64_t version);
+
+struct cv_per_page_version_entry * cv_per_page_version_get_ppv_entry(struct cv_per_page_version * ppv, uint32_t index);
 
 #endif
