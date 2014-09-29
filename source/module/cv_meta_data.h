@@ -16,6 +16,9 @@ struct ksnap_meta_data_local{
     unsigned int partial_updated_unique_pages; //unique updated pages from multiple calls to partial_update
     unsigned int merged_pages; //the number of pages updated by the last update
     unsigned int pid; 
+#ifdef CONV_TAGGED_VERSIONS
+    unsigned long version_tag;
+#endif
 };
 
 struct ksnap_meta_data_shared{
@@ -79,5 +82,9 @@ unsigned int cv_meta_get_partial_updated_unique_pages(struct vm_area_struct * vm
 void ksnap_meta_inc_shared_version(struct vm_area_struct * vma);
 
 void ksnap_meta_set_shared_version(struct vm_area_struct * vma, uint64_t version_num);
+
+#ifdef CONV_TAGGED_VERSIONS
+unsigned int cv_meta_get_local_tag(struct vm_area_struct * vma);
+#endif
 
 #endif

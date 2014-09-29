@@ -178,6 +178,9 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
 			   cv_seg->ppv, our_version_number);
   //we've linearized this version...we can mark it as such for interested parties in userspace
   cv_meta_set_linearized_version(vma, our_version_number);
+#ifdef CONV_TAGGED_VERSIONS
+  our_version_entry->version_tag=cv_meta_get_local_tag(vma);
+#endif
   spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
 

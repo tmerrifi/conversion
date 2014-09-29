@@ -327,3 +327,13 @@ void conv_commit_and_update_deferred_end(conv_seg * seg){
     }
 
 }
+
+#ifdef CONV_TAGGED_VERSIONS
+void conv_set_version_tag(conv_seg * seg, unsigned int tag){
+    __get_meta_local_page(seg)->version_tag=tag;
+}
+
+void conv_clear_version_tag(conv_seg * seg){
+    __get_meta_local_page(seg)->version_tag=0;
+}
+#endif

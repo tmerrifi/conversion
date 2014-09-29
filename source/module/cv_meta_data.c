@@ -215,3 +215,18 @@ void ksnap_meta_add_dirty_page(struct vm_area_struct * vma, unsigned long cow_pa
     }
   //printk(KERN_INFO "meta address %p %d %d\n", meta_data, meta_data->meta_data_size, meta_data->dirty_page_count);
 }
+
+
+#ifdef CONV_TAGGED_VERSIONS
+
+unsigned int cv_meta_get_local_tag(struct vm_area_struct * vma){
+    struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
+    if (access_ok(VERIFY_WRITE, meta_data, PAGE_SIZE)){
+        return meta_data->version_tag;
+    }
+    else{
+        BUG();
+    }
+}
+
+#endif

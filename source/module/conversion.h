@@ -103,6 +103,9 @@ struct snapshot_version_list{
   unsigned int updated_ptes;
   uint8_t visible;  //is this version available for updating?
   uint32_t num_of_entries; // how many entries are in this version?
+#ifdef CONV_TAGGED_VERSIONS
+    unsigned long version_tag;
+#endif
 };
 
 
@@ -174,6 +177,10 @@ struct ksnap_user_data{
     struct cv_profiling_ops profiling_info;
     struct cv_defer_work defer_work;
     struct kmem_cache * deferred_work_mem_cache;
+#ifdef CONV_TAGGED_VERSIONS
+    uint64_t matching_tag_counter;
+    uint64_t nonmatching_tag_counter;
+#endif
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/

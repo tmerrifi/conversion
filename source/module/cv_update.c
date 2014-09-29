@@ -122,6 +122,9 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   struct snapshot_version_list * version_list, * list_to_stop_at;
   uint64_t old_version;
   unsigned int first_update_after_partial;
+#ifdef CONV_TAGGED_VERSIONS
+  unsigned int local_tag=cv_meta_get_local_tag(vma);
+#endif
 
   cv_stats_function_init();
   
@@ -184,6 +187,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	 pos_outer = pos_outer_tmp, pos_outer_tmp = pos_outer->prev){
       //get the version entry
       latest_version_entry = list_entry( pos_outer, struct snapshot_version_list, list);
+#ifdef CONV_TAGGED_VERSIONS
+      //printk(KERN_EMERG "local tag %u and version tag %u, %u\n", local_tag, latest_version_entry->version_tag, latest_version_entry->version_num);
+#endif
+
       cv_profiling_add_value(&cv_user->profiling_info,list_to_stop_at->version_num,CV_PROFILING_VALUE_TYPE_STOPPED_UPDATE_VERSION);
       if (!latest_version_entry->visible || latest_version_entry->version_num > target_version_number){
           break;
@@ -217,6 +224,15 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	  cv_stats_inc_merged_pages(&cv_seg->cv_stats);
 	  merge_count++;
           cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_MERGE);
+#ifdef CONV_TAGGED_VERSIONS
+          if (latest_version_entry->version_tag==local_tag && cv_user->version_num>0 && local_tag!=0xDEAD){
+              cv_user->matching_tag_counter++;
+          }
+          else if (cv_user->version_num>0 && local_tag!=0xDEAD){
+              cv_user->nonmatching_tag_counter++;
+          }
+
+#endif
 	}
         //if we have a partial version, it means that we previously did a partial upate. If so, and this entry's version number
         //is less than our partial version number, then this update is superfluous
@@ -234,6 +250,14 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
               ++partial_unique_count;
           }
           ++gotten_pages;
+#ifdef CONV_TAGGED_VERSIONS
+          if (latest_version_entry->version_tag==local_tag && cv_user->version_num>0 && local_tag!=0xDEAD){
+              cv_user->matching_tag_counter++;
+          }
+          else if (cv_user->version_num>0 && local_tag!=0xDEAD){
+              cv_user->nonmatching_tag_counter++;
+          }
+#endif
 	}
         else{
             cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);

@@ -34,6 +34,9 @@ struct ksnap_meta_data_local{
     unsigned int partial_updated_unique_pages; //unique updated pages from multiple calls to partial_update
     unsigned int merged_pages; //the number of pages updated by the last update
     unsigned int pid;
+#ifdef CONV_TAGGED_VERSIONS
+    unsigned int version_tag;
+#endif
 };
 
 struct ksnap_meta_data_shared{
@@ -120,7 +123,10 @@ struct ksnap_dirty_list_entry{
      unsigned int conv_get_linearized_version_num(conv_seg * seg);
      void conv_clear_local_stats(conv_seg * seg);
      void conv_print_trace(conv_seg * seg);
-
+#ifdef CONV_TAGGED_VERSIONS
+     void conv_set_version_tag(conv_seg * seg, unsigned int tag);
+     void conv_clear_version_tag(conv_seg * seg);
+#endif
      
      
 #define KSNAP_OWNER SHM_CORE
