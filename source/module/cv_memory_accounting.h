@@ -5,7 +5,7 @@
 #ifndef CV_MEMORY_ACCOUNTING_H
 #define CV_MEMORY_ACCOUNTING_H
 
-#ifdef CV_STATS_ON
+#ifdef CV_MEM_ACCOUNTING_ON
 
 static inline void cv_memory_accounting_inc_pages(struct ksnap * cv_seg){
     int max = 0;
