@@ -5,7 +5,6 @@
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
 #include <linux/time.h>
-#include <linux/highmem.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
@@ -70,9 +69,7 @@ int __pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 	  //do this only if the old page is actually mapped into our address space
 	  //remove from the rmap
 	  page_remove_rmap(old_page);
-
-          cv_page_debugging_set_flag(old_page,cv_user->id+1,page_mapcount(old_page));
-
+          cv_page_debugging_inc_flag(old_page, CV_PAGE_DEBUG_UPDATE_OLDPAGE_PUT);
 	  put_page(old_page);
 	}
 	page = pfn_to_page(pfn);
@@ -171,6 +168,7 @@ void do_deferred_pte_entry_update(struct cv_defer_work_entry * entry){
 	  //do this only if the old page is actually mapped into our address space
 	  //remove from the rmap
 	  page_remove_rmap(old_page);
+          cv_page_debugging_inc_flag(old_page, CV_PAGE_DEBUG_UPDATE_OLDPAGE_PUT);
 	  put_page(old_page);
 	}
 	page = pfn_to_page(entry->pfn);
@@ -209,71 +207,4 @@ void do_deferred_work(struct vm_area_struct * vma){
         cv_defer_work_entry_free(&cv_user->defer_work, entry);
     }
     flush_tlb();
-}
-
-
-int cv_pte_do_cow_prefetch(struct vm_area_struct * vma, unsigned int index, struct page ** old_page_out, 
-                           unsigned long * addr_out, pte_t ** new_pte_out, struct ksnap_user_data * cv_user){
-    
-    struct page * new_page, * old_page;	
-    unsigned long readonly_addr;
-    pte_t * dest_pte;
-    pte_t new_pte;
-        
-    unsigned long addr = (index << PAGE_SHIFT) + vma->vm_start;	//get the new address        
-    dest_pte = pte_get_entry_from_address( vma->vm_mm, addr);
-    
-    if (!dest_pte){
-        return 0;
-    }
-    
-    old_page = pte_page(*dest_pte);	//getting the page struct for the pte we just grabbed
-
-    if (!old_page){
-        return 0;
-    }
-
-#ifdef CV_USE_PAGE_ALLOC_LISTS
-    new_page = cv_alloc_page_get(&cv_user->cap);
-    if (!new_page){
-        new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, addr);
-    }
-    //else{
-    //  printk(KERN_EMERG "copy %d %d %p", new_page->index, cv_alloc_page_list_size(&cv_user->cap), &cv_user->cap);
-    //}
-#else    
-    new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, addr);
-#endif
-
-    if (!new_page){
-        return 0;
-    }
-
-    copy_user_highpage(new_page, old_page, addr, vma);
-    __SetPageUptodate(new_page);
-    //deal with rmap
-    page_remove_rmap(old_page);
-    page_add_anon_rmap(new_page, vma, addr);
-
-    /********DEBUGGING****/
-    cv_page_debugging_set_flag(old_page,0,page_mapcount(old_page));
-    cv_page_debugging_set_flag(new_page,0,page_mapcount(new_page));
-    /*******************/
-
-    //create the new pte given a physical page (frame)
-    new_pte = mk_pte(new_page, vma->vm_page_prot);
-    //clear the accessed bit
-    new_pte = pte_mkold(new_pte);
-    //make it clean, so that if its dirty later we'll know it was touched
-    new_pte = pte_mkclean(new_pte);
-    //make it writeable
-    new_pte = pte_mkwrite(new_pte);
-    //now set the new pte
-    set_pte(dest_pte, new_pte);
-    pte_unmap(dest_pte);
-    //set the out params
-    *old_page_out=old_page;
-    *addr_out=addr;
-    *new_pte_out=dest_pte;
-    return 1;
 }

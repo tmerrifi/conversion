@@ -26,7 +26,6 @@ struct snapshot_version_list * cv_create_version_list_entry(){
   atomic_set(&version_entry->ref_c, 0);
   version_entry->version_num=MAX_VERSION_NUM;
   version_entry->visible=0;
-  version_entry->committer=NULL;
   return version_entry;
 }
 
