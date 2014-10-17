@@ -32,6 +32,7 @@
 #include "cv_lock_list.h"
 #include "cv_commit.h"
 #include "cv_update.h"
+#include "cv_determinism.h"
 
 MODULE_LICENSE("GPL");
 
@@ -81,9 +82,9 @@ int __commit_times(uint64_t microsecs){
   msync system call. If we are making a version, then we call commit. otherwise, we perform an update*/
 void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_unit){
   struct timespec ts1, ts2;
-  if (flags==CONV_TRACE){
+  if (flags==CONV_HAPPENS_BEFORE_UPDATE){
       spin_lock(&ksnap_vma_to_ksnap(vma)->lock);
-      cv_profiling_print(&ksnap_vma_to_userdata(vma)->profiling_info);
+      cv_version_list_calc_happens_before(ksnap_vma_to_ksnap(vma)->snapshot_pte_list, ksnap_vma_to_userdata(vma));
       spin_unlock(&ksnap_vma_to_ksnap(vma)->lock);
   }
   else if (flags==CONV_COMMIT_AND_UPDATE){
@@ -141,6 +142,9 @@ int init_module(void)
   mmap_snapshot_instance.ksnap_userdata_copy = ksnap_userdata_copy;
   mmap_snapshot_instance.snap_sequence_number=random32()%10000;
   mmap_snapshot_instance.conversion_thread_status=conversion_thread_status;
+
+  mmap_snapshot_instance.conversion_determ_init=cv_determinism_init;
+
   register_die_notifier(&nmi_snap_nb);
   ksnap_merge_init();
   printk(KSNAP_LOG_LEVEL "vfork!! %d\n", __NR_vfork);
@@ -163,6 +167,7 @@ void cleanup_module(void)
     mmap_snapshot_instance.ksnap_userdata_copy = NULL;
     mmap_snapshot_instance.ksnap_tracking_on = NULL;
     mmap_snapshot_instance.conversion_thread_status=NULL;
+    mmap_snapshot_instance.conversion_determ_init=NULL;
     cv_merge_free();
     unregister_die_notifier(&nmi_snap_nb);
 }

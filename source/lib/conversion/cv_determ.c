@@ -18,13 +18,3 @@
 void conv_determ_init(conv_seg * seg, void * token_addr){
     syscall(__CONV_DETERM_INIT_SYS_CALL, (unsigned long)(seg->segment), (unsigned long)token_addr);
 }
-
-void conv_determ_commit_and_update_token_release(conv_seg * seg){
-    if(__get_meta_local_page(seg)->dirty_page_count == 0){
-        msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MERGE | CONVERSION_DETERM_TOKEN_RELEASE);
-    }
-    else{
-        msync(seg->segment,seg->size_of_segment, KSNAP_SYNC_MAKE | CONVERSION_DETERM_TOKEN_RELEASE);
-    }
-}
-

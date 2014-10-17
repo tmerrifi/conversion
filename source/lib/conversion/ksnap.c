@@ -304,6 +304,9 @@ void conv_print_trace(conv_seg * seg){
     syscall(__CONV_SYS_CALL, seg->segment, CONV_TRACE, 0);
 }
 
+void conv_happens_before_update(conv_seg * seg){
+    syscall(__CONV_SYS_CALL, seg->segment, CONV_HAPPENS_BEFORE_UPDATE, 0);
+}
 
 
 //In the case where conversion operations are done inside a critical section (determinism)

@@ -181,8 +181,16 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
 #ifdef CONV_TAGGED_VERSIONS
   our_version_entry->version_tag=cv_meta_get_local_tag(vma);
 #endif
+  if (cv_user->vector_clock){
+      //copy the vector clock
+      memcpy(our_version_entry->vector_clock, cv_user->vector_clock, sizeof(uint32_t)*64);
+      our_version_entry->consequence_id=cv_user->consequence_id;
+      
+  }
+  
   spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
+
 
   //beging profiling operation
   cv_profiling_op_begin(&cv_user->profiling_info, CV_PROFILING_OP_TYPE_COMMIT,our_version_number);
@@ -206,6 +214,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
       barrier();
       ++committed_pages;
       conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
+      cv_update_gotten_bitmap(&pte_entry->gotten, cv_user->consequence_id);      
   }
 
   //now we need to commit the stuff in the 
@@ -220,6 +229,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
           barrier();
           ++committed_pages;
           conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
+          cv_update_gotten_bitmap(&pte_entry->gotten, cv_user->consequence_id);      
       }
   }
   //cv_stats_end(cv_seg, cv_user, 6, commit_waitlist_latency);      

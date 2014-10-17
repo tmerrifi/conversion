@@ -37,7 +37,8 @@ void cv_close(struct vm_area_struct * vma){
   }
   cv_event_print(&cv_user->event_info, cv_user->id);
 #ifdef CONV_TAGGED_VERSIONS  
-  printk(KERN_EMERG "TAG: matched %u unmatched %u\n", cv_user->matching_tag_counter, cv_user->nonmatching_tag_counter);
+  printk(KERN_EMERG "TAG: matched %u unmatched %u other %lu hb %u id %d\n", 
+         cv_user->matching_tag_counter, cv_user->nonmatching_tag_counter, cv_user->other_counter, cv_user->happens_before_counter, cv_user->consequence_id);
 #endif
   //deregister this vma
   list_del(&cv_user->segment_list);

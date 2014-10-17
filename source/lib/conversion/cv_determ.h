@@ -10,8 +10,6 @@
      
      void conv_determ_init(conv_seg * seg, void * token_addr);
 
-     void conv_determ_commit_and_update_token_release(conv_seg * seg);
-
 
 #endif
 

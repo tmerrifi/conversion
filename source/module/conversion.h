@@ -37,11 +37,12 @@
 //performs a deferred work update (see function for details)
 #define CONV_UPDATE_DEFERRED_END 128
 //print out a trace of debugging info
-#define CONV_TRACE 256
+#define CONV_HAPPENS_BEFORE_UPDATE 256
 
 
 #define CONV_DO_WORK_NOW 0
 #define CONV_DEFER_WORK 1
+
 
 /*Policies specified by the subscribers*/
 #define COMMIT_ALWAYS	0x100000
@@ -87,6 +88,7 @@ struct snapshot_pte_list{
     uint64_t wait_revision;
     uint64_t obsolete_version;
     struct mm_struct * mm; //use to do memory accounting
+    atomic64_t gotten;
 };
 
 /*this structure is a list of snapshot_pte_list objects. Each node in this list represents a version of the
@@ -106,6 +108,9 @@ struct snapshot_version_list{
 #ifdef CONV_TAGGED_VERSIONS
     unsigned long version_tag;
 #endif
+    uint32_t vector_clock[64];
+    uint32_t consequence_id;
+    atomic64_t gotten;
 };
 
 
@@ -177,10 +182,17 @@ struct ksnap_user_data{
     struct cv_profiling_ops profiling_info;
     struct cv_defer_work defer_work;
     struct kmem_cache * deferred_work_mem_cache;
+    uint32_t * vector_clock;
+    uint32_t consequence_id;
+    struct radix_tree_root hb_lookup;
+    DECLARE_BITMAP(bit_array, (1<<18));
 #ifdef CONV_TAGGED_VERSIONS
     uint64_t matching_tag_counter;
     uint64_t nonmatching_tag_counter;
+    uint64_t happens_before_counter;
+    uint64_t other_counter;
 #endif
+    uint8_t ignore_after_fork;
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/
@@ -210,6 +222,30 @@ extern struct cv_perthread_debug per_thread_debug;
 #define mapping_to_ksnap(m) ((struct ksnap *)m->ksnap_data)
 
 #define ksnap_vma_to_userdata(v) ((struct ksnap_user_data *)v->ksnap_user_data)
+
+static inline void cv_update_gotten_bitmap(atomic64_t * gotten,int bit){
+    long gotten_v;
+ retry:
+    gotten_v=atomic64_read(gotten);
+    //printk(KERN_EMERG "gotten entry %p %lu, bit %d\n", entry, gotten, bit);
+    if (atomic64_cmpxchg(gotten, gotten_v, (gotten_v|(1L<<bit)))!=gotten_v){
+        goto retry;
+    }
+}
+    
+
+static inline int cv_update_gotten_bitmap_isset(atomic64_t * gotten,int bit){
+    long gotten_v=atomic64_read(gotten);
+    return (gotten_v&(1<<bit));
+}
+
+static inline void cv_print_vector_clock(uint32_t * vc){
+    int i=0;
+    for (;i<4;++i){
+        printk(KERN_EMERG "%d:%d", i, vc[i]);
+    }
+}
+
 
 //used to copy a vma's user-specific data when process is forked
 void ksnap_userdata_copy (struct vm_area_struct * new_vma, struct vm_area_struct * old_vma);

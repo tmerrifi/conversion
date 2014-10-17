@@ -92,6 +92,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   pte_list_entry->obsolete_version=~(0x0);
   pte_list_entry->wait_revision = 0;
   pte_list_entry->mm = current->mm;
+  atomic64_set(&pte_list_entry->gotten, 0);
   /*now we need to add the pte to the list */
   list_add_tail(&pte_list_entry->list, &dirty_pages_list->list);
 #ifdef CONV_LOGGING_ON

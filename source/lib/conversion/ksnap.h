@@ -79,7 +79,10 @@ struct ksnap_dirty_list_entry{
 //performs a deferred work update (see function for details)
 #define CONV_UPDATE_DEFERRED_END 128
 //print out a trace of debugging info
-#define CONV_TRACE 256
+#define CONV_TRACE 257
+#define CONV_HAPPENS_BEFORE_UPDATE 256
+
+
 
 #define META_LOCAL_OFFSET_FROM_SEGMENT 4
 #define META_SHARED_OFFSET_FROM_SEGMENT 2
@@ -128,6 +131,7 @@ struct ksnap_dirty_list_entry{
      void conv_clear_version_tag(conv_seg * seg);
 #endif
      
+     void conv_happens_before_update(conv_seg * seg);
      
 #define KSNAP_OWNER SHM_CORE
 #define KSNAP_READER SHM_CLIENT

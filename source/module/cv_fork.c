@@ -32,6 +32,14 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
     ksnap_vma_to_userdata(new_vma)->id=atomic_inc_return(&cv_seg->id_counter);
     ksnap_vma_to_userdata(new_vma)->dirty_pages_list = _snapshot_create_pte_list();
     ksnap_vma_to_userdata(new_vma)->status = CV_USER_STATUS_AWAKE;
+    ksnap_vma_to_userdata(new_vma)->vector_clock = NULL;
+    ksnap_vma_to_userdata(new_vma)->matching_tag_counter=0;
+    ksnap_vma_to_userdata(new_vma)->nonmatching_tag_counter=0;
+    ksnap_vma_to_userdata(new_vma)->happens_before_counter=0;
+    ksnap_vma_to_userdata(new_vma)->other_counter=0;
+    ksnap_vma_to_userdata(new_vma)->ignore_after_fork=1;
+
+
     cv_defer_work_init(&ksnap_vma_to_userdata(new_vma)->defer_work);
 
     cv_profiling_begin(&ksnap_vma_to_userdata(new_vma)->profiling_info, ksnap_vma_to_userdata(new_vma)->id);

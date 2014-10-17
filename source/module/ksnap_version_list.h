@@ -22,4 +22,6 @@ struct snapshot_pte_list * cv_version_list_copy_list_entry(struct ksnap * cv_seg
 
 struct snapshot_pte_list * cv_version_list_lookup(struct ksnap * cv_seg, uint64_t index);
 
+void cv_version_list_calc_happens_before(struct snapshot_version_list * version_list, struct ksnap_user_data * cv_user);
+
 #endif

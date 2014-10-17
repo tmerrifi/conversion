@@ -225,13 +225,19 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	  merge_count++;
           cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_MERGE);
 #ifdef CONV_TAGGED_VERSIONS
-          if (latest_version_entry->version_tag==local_tag && cv_user->version_num>0 && local_tag!=0xDEAD){
+          /*if (latest_version_entry->version_tag==local_tag && cv_user->version_num>0 && local_tag!=0xDEAD){
               cv_user->matching_tag_counter++;
           }
           else if (cv_user->version_num>0 && local_tag!=0xDEAD){
               cv_user->nonmatching_tag_counter++;
           }
+          else{
+              cv_user->other_counter++;
+              }*/
 
+          /*if (cv_user->consequence_id==1){
+              printk(KERN_EMERG "TSO: %d retrieved page %d from version %d", cv_user->consequence_id, tmp_pte_list->page_index, latest_version_entry->version_num);
+              }*/
 #endif
 	}
         //if we have a partial version, it means that we previously did a partial upate. If so, and this entry's version number
@@ -257,7 +263,13 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
           else if (cv_user->version_num>0 && local_tag!=0xDEAD){
               cv_user->nonmatching_tag_counter++;
           }
+          else{
+              cv_user->other_counter++;
+          }
 #endif
+          /*if (cv_user->consequence_id==1){
+              printk(KERN_EMERG "TSO: %d retrieved page %d from version %d", cv_user->consequence_id, tmp_pte_list->page_index, latest_version_entry->version_num);
+              }*/
 	}
         else{
             cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);
@@ -293,14 +305,16 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       flush_tlb();
     }
   }
-#ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL "UPDATE for segment %p: pid %d updated to version %llu old version %llu and merged %d pages and updated %d \
-pages target_input %lu committed version %llu ignored %d, keep current %d, first_update %d, partial pages %d\n", 
-         cv_seg, current->pid, target_version_number, old_version, merge_count, gotten_pages, 
-         target_version_input, atomic64_read(&cv_seg->committed_version_atomic), ignored_pages, 
-         keep_current_version, first_update_after_partial, cv_meta_get_partial_updated_unique_pages(vma));
-
-#endif
+  //#ifdef CONV_LOGGING_ON
+  /*if (target_version_number>20 && target_version_number<50){
+      printk(KSNAP_LOG_LEVEL "UPDATE for segment %p: pid %d updated to version %llu old version %llu and merged %d pages and updated %d \
+pages target_input %lu committed version %llu ignored %d, keep current %d, first_update %d, partial pages %d, consequence id: %d, matched: %d\n", 
+             cv_seg, current->pid, target_version_number, old_version, merge_count, gotten_pages, 
+             target_version_input, atomic64_read(&cv_seg->committed_version_atomic), ignored_pages, 
+             keep_current_version, first_update_after_partial, cv_meta_get_partial_updated_unique_pages(vma), cv_user->consequence_id,
+             cv_user->matching_tag_counter);
+             }*/
+  //#endif
 
   cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
   cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);

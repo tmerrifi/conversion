@@ -90,7 +90,7 @@ void cv_garbage_collection(struct work_struct * work){
               pte_list_entry = list_entry(pte_list_entry_pos, struct snapshot_pte_list, list);
               if (pte_list_entry->obsolete_version < cv_seg->committed_version_num){
                   //validate
-                  if (current_seq_num!=cv_seg->gc_seq_num){
+                  /*if (current_seq_num!=cv_seg->gc_seq_num){
                       goto out;
                   }
                   the_page = pfn_to_page(pte_list_entry->pfn);
@@ -99,7 +99,7 @@ void cv_garbage_collection(struct work_struct * work){
                   version_list_entry->num_of_entries--;
                   list_del(pte_list_entry_pos);
                   kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
-                  cv_memory_accounting_dec_pages(cv_seg);
+                  cv_memory_accounting_dec_pages(cv_seg);*/
               }
           }
           //list_del(version_list_pos);
