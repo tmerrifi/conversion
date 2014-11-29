@@ -96,8 +96,23 @@ struct ksnap_dirty_list_entry{
      //NOT CURRENTLY AVAILABLE
      void conv_set_editing_unit_bytes(conv_seg * seg, size_t editing_unit);
 
+     //the main conversion function a program will use. When conv_fence returns a new version has been created and any
+     //modifications by commits with a lower version number are now visible in your local copy. This is a combined
+     //update/commit as described in the paper.
+     void conv_fence(conv_seg * seg);
+
+     //performs just an update...doesn't commit your changes and merges with your current change set
      void conv_update(conv_seg * seg);
+
+     //does the same thing as conv_fence (just a longer and more specific name). Kept around to support some earlier 
+     //software that used this function.
      void conv_commit_and_update(conv_seg * seg);
+
+     //The garbage collector won't collect any versions with a higher version number than minimum version number
+     //for all "active" threads. For example, if the parent thread goes to is sleeping (waiting on a condition
+     //variable or joining) than any subsequent versions won't be collected. By calling conv_sleep, that is a hint
+     //to conversion that we don't need to worry about concurrent updates from this thread. We can collect obsolete
+     //versions without considering this thread's version number. conv_wake undoes this bahavior.
      void conv_sleep(conv_seg * seg);
      void conv_wake(conv_seg * seg);
 
@@ -112,14 +127,25 @@ struct ksnap_dirty_list_entry{
      //to do to catch-up to the current version. It can perform the partial update safely while it waits.
      void conv_partial_background_update(conv_seg * seg);
 
+     //how many pages in the segment have been touched in this segment by all processes?
      unsigned int conv_get_logical_page_count(conv_seg * seg);
+
+     //how many pages are currently dirty
      unsigned int conv_get_dirty_page_count(conv_seg * seg); 
+
+     //how many pages did we retrieve on our last commit?
      unsigned int conv_get_updated_page_count(conv_seg * seg);
+
+     //how many pages were merged on our last commit?
      unsigned int conv_get_merged_page_count(conv_seg * seg);
+
+     //some specialized functions used for DMT (deterministic multi-threading)
      void conv_set_partial_updated_unique_pages(conv_seg * seg, unsigned int val);
      unsigned int conv_get_partial_updated_unique_pages(conv_seg * seg);
      unsigned int conv_get_partial_version_num(conv_seg * seg);
      unsigned int conv_get_linearized_version_num(conv_seg * seg);
+
+     
      void conv_clear_local_stats(conv_seg * seg);
      void conv_print_trace(conv_seg * seg);
 

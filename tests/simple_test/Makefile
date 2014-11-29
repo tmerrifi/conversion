@@ -16,7 +16,11 @@ tests : simple
 	sudo ./install.sh y; \
 	popd; \
 	sudo rm *.mem*; \
-	for i in `seq 1 20`; do echo "test "$$i;./simple; done;
+	printf "\n\n"; \
+	echo "*******Testing conversion memory propogation***********"; \
+	for i in `seq 1 20`; do echo "   test "$$i;./simple; done; \
+	echo "*******DONE***********"; \
+	printf "\n\n";
 
 clean:
 	rm simple; \

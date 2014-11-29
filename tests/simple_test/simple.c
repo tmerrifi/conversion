@@ -8,7 +8,7 @@
 #include "../common/process_shared_malloc.h"
 
 #define NUM_OF_PAGES 100
-#define NUM_OF_THREADS 16
+#define NUM_OF_THREADS 8
 #define ARRAY_SIZE_BYTES (NUM_OF_PAGES * (1<<12))
 
 #define NUM_OF_RUNS 1000
@@ -50,7 +50,6 @@ void run(conv_seg * array_seg, int id){
   for (;i<NUM_OF_RUNS;++i){
 
       if (*failure_flag){
-          conv_print_trace(array_seg);
           break;
       }
       
@@ -60,11 +59,10 @@ void run(conv_seg * array_seg, int id){
           debug_array[index]++;
       }
       
-      conv_commit_and_update(array_seg);
+      conv_fence(array_seg);
       pthread_barrier_wait(barrier);
-      conv_update(array_seg);
+      conv_fence(array_seg);
       
-      //a poor man's barrier
       sum = sum_up(array_seg);
       if (sum != ((i+1)*NUM_OF_ITERATIONS*NUM_OF_THREADS)){
           sem_wait(&sem);
@@ -83,7 +81,7 @@ void run(conv_seg * array_seg, int id){
 int main(){
     
   srand(time(NULL));
-  conv_seg * array_segment = conv_checkout_create(ARRAY_SIZE_BYTES, "simple_test", NULL, 0);
+  conv_seg * array_segment = conv_checkout_create(ARRAY_SIZE_BYTES, "simple_test", NULL);
 
   int i=0;
   int pid=0;

@@ -287,6 +287,11 @@ void conv_commit_and_update(conv_seg * seg){
     }
 }
 
+void conv_fence(conv_seg * seg){
+    conv_commit_and_update(seg);
+}
+
+
 //thread is temporarily not interested in the happenings of this segment
 void conv_sleep(conv_seg * seg){
     madvise(seg->segment, seg->size_of_segment, MADV_KSNAP_SLEEP);

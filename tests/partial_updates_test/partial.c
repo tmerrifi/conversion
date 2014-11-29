@@ -130,15 +130,14 @@ void run(int id){
             //perform a partial update
             //print_relevant_bytes(id,i,"pre merge");
             conv_partial_background_update(seg);
-            //conv_merge(seg);
             //print_relevant_bytes(id,i,"post merge");
             //verify it did what we expected
             check_partial(id, i);
             //commit our changes, and merge
-            conv_commit_and_update(seg);
+            conv_fence(seg);
             pthread_barrier_wait(barrier);
             //synchronize everyone
-            conv_update(seg);
+            conv_fence(seg);
             check_merged(id,i);
             pthread_barrier_wait(barrier);
         }
@@ -148,12 +147,12 @@ void run(int id){
             //commit our stuff
             //store old stuff
             memcpy(mem1, arr, ARR_SIZE * sizeof(u_int8_t));
-            conv_commit_and_update(seg);
+            conv_fence(seg);
             memcpy(mem2, arr, ARR_SIZE * sizeof(u_int8_t));
             //wait for people to finish their work
             pthread_barrier_wait(barrier);
             //merge with other writers
-            conv_update(seg);
+            conv_fence(seg);
             memcpy(mem3, arr, ARR_SIZE * sizeof(u_int8_t));
             //print_relevant_bytes(id,i,"before check merged");
             check_merged(id,i);
@@ -161,7 +160,7 @@ void run(int id){
             //wait for updaters to do their partial and check
             pthread_barrier_wait(barrier);
             //sync up with everyone
-            conv_update(seg);
+            conv_fence(seg);
             memcpy(mem4, arr, ARR_SIZE * sizeof(u_int8_t));
             pthread_barrier_wait(barrier);
         }
@@ -170,10 +169,10 @@ void run(int id){
 }
 
 int main(){
-    seg = conv_checkout_create(ARR_SIZE * sizeof(u_int8_t), "partial_test", NULL, 0);
+    seg = conv_checkout_create(ARR_SIZE * sizeof(u_int8_t), "partial_test", NULL);
     arr = (u_int8_t *)seg->segment;
     memset(arr,0,sizeof(u_int8_t)*ARR_SIZE);
-    conv_commit_and_update(seg);
+    conv_fence(seg);
     //allocate some memory in a shared place
     barrier=process_shared_malloc(sizeof(pthread_barrier_t));
     //need to mark the barrier as process shared
