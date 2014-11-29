@@ -31,8 +31,8 @@ make tests;
 
 See the file tests/simple_test/simple.c for an example of how to use Conversion.
 
-******Conversion used to be called ksnap....so some of the libraries and header
-files still use that name.***************
+**Conversion used to be called ksnap....so some of the libraries and header
+files still use that name.**
 
 Usage
 =============================================
