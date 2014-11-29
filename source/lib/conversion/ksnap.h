@@ -90,8 +90,10 @@ struct ksnap_dirty_list_entry{
 
 #define __newer_version_available(seg) (__get_meta_local_page(seg)->snapshot_version_num < __get_meta_shared_page(seg)->snapshot_version_num)
 
-     conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags);
-     conv_seg * conv_open_exisiting(char * segment_name);
+     //create a new segment, give it a name and address.
+     conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address);
+
+     //NOT CURRENTLY AVAILABLE
      void conv_set_editing_unit_bytes(conv_seg * seg, size_t editing_unit);
 
      void conv_update(conv_seg * seg);

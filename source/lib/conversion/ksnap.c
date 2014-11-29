@@ -171,7 +171,7 @@ conv_seg * __create_conv_seg(int size_of_segment, char * segment_name){
 }
 
 //open up the segment, if create is set then we ONLY create...else we ONLY open (not create)
-conv_seg * __conv_open(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags, int create){
+conv_seg * __conv_open(int size_of_segment, char * segment_name, void * desired_address, int create){
   int meta_data_pages;
   int created;
 
@@ -180,19 +180,18 @@ conv_seg * __conv_open(int size_of_segment, char * segment_name, void * desired_
 
   madvise(snap->segment, snap->size_of_segment, MADV_KSNAP_ALWAYS);
   madvise(snap->segment, snap->size_of_segment, MADV_KSNAP_TRACK);
-  //madvise(snap->segment, snap->size_of_segment, MADV_DONTFORK);
   __ksnap_open_meta_data_segments(size_of_segment, snap->name, snap, create);
   //set default editing unit to one byte
   snap->editing_unit=1;
   return snap;
 }
 
-conv_seg * conv_checkout_open(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags){
-  return __conv_open(size_of_segment, segment_name, desired_address, flags, __CONV_NO_CREATE);
+conv_seg * conv_checkout_open(int size_of_segment, char * segment_name, void * desired_address){
+  return __conv_open(size_of_segment, segment_name, desired_address, __CONV_NO_CREATE);
 }
 
-conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address, uint64_t flags){
-  return __conv_open(size_of_segment, segment_name, desired_address, flags, __CONV_CREATE);
+conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address){
+  return __conv_open(size_of_segment, segment_name, desired_address, __CONV_CREATE);
 }
 
 void conv_set_editing_unit_bytes(conv_seg * seg, size_t editing_unit){
