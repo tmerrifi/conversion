@@ -37,17 +37,23 @@ files still use that name.***************
 Usage
 =============================================
 
-//Creates a new conversion segment
+**Creates a new conversion segment**
+```C
 conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address);
+```
 
-//Performs a commit of any modifications and retrieves all modifications to the repository since
-//the last update. If no local modications exist, an update is still performed
+**Performs a commit of any modifications and retrieves all modifications to the repository since
+the last update. If no local modications exist, an update is still performed**
+
+
+```C
 void conv_fence(conv_seg * seg);
+```
 
 The original paper described an update/commit API, but the fence call handles both case in a cleaner way.
 
-//does the same thing as conv_fence (just a longer and more specific name). Kept around to support some earlier 
-//software that used this function.
+does the same thing as conv_fence (just a longer and more specific name). Kept around to support some earlier 
+software that used this function.
 void conv_commit_and_update(conv_seg * seg);
 
 //The garbage collector won't collect any versions with a higher version number than minimum version number
