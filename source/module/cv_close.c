@@ -27,7 +27,7 @@ void cv_close(struct vm_area_struct * vma){
 
   spin_lock(&cv->lock);
   if (vma->vm_file->f_mapping->ksnap_data == NULL){
-    goto finished;
+    goto unlock_and_leave;
   }
   if(current->pid==cv->creator_id){
     cv_stats_print_all(&(cv->cv_stats), 
@@ -49,10 +49,12 @@ void cv_close(struct vm_area_struct * vma){
       cv_garbage_final(cv);
       kfree(cv);
       vma->vm_file->f_mapping->ksnap_data=NULL;
+      goto leave;
   }
 
- finished:
+ unlock_and_leave:
   spin_unlock(&cv->lock);
+ leave:
   kfree(vma->ksnap_user_data);
 
 
