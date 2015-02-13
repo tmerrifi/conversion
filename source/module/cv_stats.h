@@ -39,6 +39,17 @@ struct cv_per_process_detailed_statistics{
   long commit_waitlist_latency_count;
 };
 
+void __conv_time_and_print_end(struct timespec *);
+
+#define conv_time_and_print_section()\
+    struct timespec ts_start##__FILE__##__LINE__;                       \
+    int loop_var_time_and_print___##__LINE__;                           \
+    getrawmonotonic(&ts_start##__FILE__##__LINE__);                     \
+    for (loop_var_time_and_print___##__LINE__ = 0;                      \
+         loop_var_time_and_print___##__LINE__ < 1;                      \
+         loop_var_time_and_print___##__LINE__++, __conv_time_and_print_end(&ts_start##__FILE__##__LINE__) )
+    
+
 #ifdef CV_STATS_ON
 
 #define cv_stats_function_init() \

@@ -120,3 +120,9 @@ void cv_stats_inc_merged_pages(struct cv_statistics * stats){}
 unsigned long cv_stats_elapsed_time_ns(struct timespec * start, struct timespec * end){
   return (end->tv_sec-start->tv_sec)*1000000000+(end->tv_nsec-start->tv_nsec);
 }
+
+void __conv_time_and_print_end(struct timespec * start){
+    struct timespec end;
+    getrawmonotonic(&end);
+    printk(KERN_EMERG "Time: %lu\n", cv_stats_elapsed_time_ns(start, &end));
+}
