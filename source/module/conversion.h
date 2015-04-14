@@ -38,7 +38,8 @@
 #define CONV_UPDATE_DEFERRED_END 128
 //print out a trace of debugging info
 #define CONV_TRACE 256
-
+//revert the current working set
+#define CONV_REVERT 512
 
 #define CONV_DO_WORK_NOW 0
 #define CONV_DEFER_WORK 1
@@ -208,5 +209,7 @@ extern struct cv_perthread_debug per_thread_debug;
 void ksnap_userdata_copy (struct vm_area_struct * new_vma, struct vm_area_struct * old_vma);
 
 void cv_close (struct vm_area_struct * vma);
+
+void conv_revert(struct vm_area_struct * vma);
 
 #endif

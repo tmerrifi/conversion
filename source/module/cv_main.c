@@ -80,7 +80,7 @@ int __commit_times(uint64_t microsecs){
 /*This function's purpose is to be an entry point into our conversion code from the
   msync system call. If we are making a version, then we call commit. otherwise, we perform an update*/
 void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_unit){
-  struct timespec ts1, ts2;
+  struct timespec ts1, ts2;  
   if (flags==CONV_TRACE){
       spin_lock(&ksnap_vma_to_ksnap(vma)->lock);
       cv_profiling_print(&ksnap_vma_to_userdata(vma)->profiling_info);
@@ -94,7 +94,6 @@ void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_u
   }
   else if(flags==CONV_COMMIT_AND_UPDATE_DEFERRED_END){
       //do nothing yet
-      //printk(KERN_EMERG " C&U Deferred");
       do_deferred_work(vma);
   }
   else if (flags==CONV_UPDATE_DEFERRED_START){
@@ -102,8 +101,10 @@ void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_u
   }
   else if (flags==CONV_UPDATE_DEFERRED_END){
       //do nothing yet
-      //printk(KERN_EMERG " U Deferred");
       do_deferred_work(vma);
+  }
+  else if (flags==CONV_REVERT){
+      conv_revert(vma);
   }
   else{
       cv_update_parallel(vma, flags, CONV_DO_WORK_NOW);

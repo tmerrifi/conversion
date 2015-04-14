@@ -308,8 +308,6 @@ void conv_print_trace(conv_seg * seg){
     syscall(__CONV_SYS_CALL, seg->segment, CONV_TRACE, 0);
 }
 
-
-
 //In the case where conversion operations are done inside a critical section (determinism)
 //we can get better performance by doing conv_commit_and_update_deferred_start under lock
 //and then calling conv_commit_and_update_deferred_end after we release the lock
@@ -330,4 +328,10 @@ void conv_commit_and_update_deferred_end(conv_seg * seg){
         syscall(__CONV_SYS_CALL, seg->segment, CONV_COMMIT_AND_UPDATE_DEFERRED_END, seg->editing_unit);
     }
 
+}
+
+void conv_revert(conv_seg * seg){
+    if(__get_meta_local_page(seg)->dirty_page_count > 0){        
+        syscall(__CONV_SYS_CALL, seg->segment, CONV_REVERT, seg->editing_unit);
+    }
 }

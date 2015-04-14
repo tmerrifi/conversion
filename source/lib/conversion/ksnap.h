@@ -59,25 +59,27 @@ struct ksnap_dirty_list_entry{
 #define MADV_KSNAP_TRACK 210
 
 
-//perform a combined update and commit
+     //perform a combined update and commit
 #define CONV_COMMIT_AND_UPDATE 1
-//perform a normal update without committing. Merges your working set with committed data
+     //perform a normal update without committing. Merges your working set with committed data
 #define CONV_UPDATE 2
-//performs an update without committing. Doesn't merge your data with committed
+     //performs an update without committing. Doesn't merge your data with committed
 #define CONV_UPDATE_NO_MERGE 4
-//do an update without merging but don't actually move the version ahead.
+     //do an update without merging but don't actually move the version ahead.
 #define CONV_UPDATE_PARTIAL 8
-//performs a deferred work commit and update (see function for details)
+     //performs a deferred work commit and update (see function for details)
 #define CONV_COMMIT_AND_UPDATE_DEFERRED_START 16
-//performs a deferred work commit and update (see function for details)
+     //performs a deferred work commit and update (see function for details)
 #define CONV_COMMIT_AND_UPDATE_DEFERRED_END 32
-//performs a deferred work update (see function for details)
+     //performs a deferred work update (see function for details)
 #define CONV_UPDATE_DEFERRED_START 64
-//performs a deferred work update (see function for details)
+     //performs a deferred work update (see function for details)
 #define CONV_UPDATE_DEFERRED_END 128
-//print out a trace of debugging info
+     //print out a trace of debugging info
 #define CONV_TRACE 256
-
+     //revert the current working set
+#define CONV_REVERT 512
+     
 #define META_LOCAL_OFFSET_FROM_SEGMENT 4
 #define META_SHARED_OFFSET_FROM_SEGMENT 2
 
@@ -149,7 +151,7 @@ struct ksnap_dirty_list_entry{
      void conv_clear_local_stats(conv_seg * seg);
      void conv_print_trace(conv_seg * seg);
 
-     
+     void conv_revert(conv_seg * seg);
      
 #define KSNAP_OWNER SHM_CORE
 #define KSNAP_READER SHM_CLIENT
