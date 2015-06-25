@@ -3,6 +3,7 @@
 #include <asm/tlbflush.h>
 #include "cv_pte.h"
 #include "conversion.h"
+#include "ksnap_writer.h"
 
 //revert the current working set
 void conv_revert(struct vm_area_struct * vma){
@@ -42,6 +43,7 @@ void conv_revert(struct vm_area_struct * vma){
             //clear the pte
             *dest_pte=native_make_pte(0);
         }
+        conv_dirty_delete_lookup(cv_user, entry->page_index);
         //remove this entry
         list_del(pos);
     }
