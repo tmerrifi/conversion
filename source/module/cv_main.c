@@ -106,6 +106,9 @@ void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_u
   else if (flags==CONV_REVERT){
       conv_revert(vma);
   }
+  else if (flags==CONV_CHECKPOINT){
+      conv_checkpoint(vma);
+  }
   else{
       cv_update_parallel(vma, flags, CONV_DO_WORK_NOW);
   }

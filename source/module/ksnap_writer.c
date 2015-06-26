@@ -63,7 +63,7 @@ struct page * ksnap_get_dirty_ref_page(struct vm_area_struct * vma, unsigned lon
 
 void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * old_page, pte_t * new_pte, unsigned long address){
   struct snapshot_pte_list * pte_list_entry, * dirty_pages_list;
-  struct page * new_page;
+  struct page * new_page, * checkpoint_page;
   struct ksnap_user_data * cv_user_data;
   int counter=0;
  
@@ -76,29 +76,37 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   struct ksnap * ksnap_segment = ksnap_vma_to_ksnap(vma);
   /*grab the new page*/
   new_page=pte_page(*new_pte);
-  //lock_page(new_page);
   if (new_page!=pte_page(*new_pte)){
     BUG();
   }
-  /*create the new pte entry*/
-  pte_list_entry = kmem_cache_alloc(ksnap_segment->pte_list_mem_cache, GFP_KERNEL);
-  __add_dirty_page_to_lookup(vma,pte_list_entry, new_page->index);
-  INIT_LIST_HEAD(&pte_list_entry->list);
-  pte_list_entry->pte = new_pte;
-  pte_list_entry->addr = address;
-  pte_list_entry->pfn = pte_pfn(*new_pte);
-  pte_list_entry->ref_page = old_page;
-  pte_list_entry->page_index = new_page->index;
-  pte_list_entry->obsolete_version=~(0x0);
-  pte_list_entry->wait_revision = 0;
-  pte_list_entry->mm = current->mm;
-  /*now we need to add the pte to the list */
-  list_add_tail(&pte_list_entry->list, &dirty_pages_list->list);
+
+  //is this page already in the dirty list? then this is the result of a checkpoint
+  if ((pte_list_entry=conv_dirty_search_lookup(cv_user_data, new_page->index))){
+      pte_list_entry->pfn = pte_pfn(*new_pte);
+      cv_memory_accounting_inc_pages(ksnap_segment);      
+  }
+  else{
+        /*create the new pte entry*/
+      pte_list_entry = kmem_cache_alloc(ksnap_segment->pte_list_mem_cache, GFP_KERNEL);
+      __add_dirty_page_to_lookup(vma,pte_list_entry, new_page->index);
+      INIT_LIST_HEAD(&pte_list_entry->list);
+      pte_list_entry->pte = new_pte;
+      pte_list_entry->addr = address;
+      pte_list_entry->pfn = pte_pfn(*new_pte);
+      pte_list_entry->ref_page = old_page;
+      pte_list_entry->page_index = new_page->index;
+      pte_list_entry->obsolete_version=~(0x0);
+      pte_list_entry->wait_revision = 0;
+      pte_list_entry->mm = current->mm;
+      conv_set_checkpoint_page(pte_list_entry,0);
+      /*now we need to add the pte to the list */
+      list_add_tail(&pte_list_entry->list, &dirty_pages_list->list);
 #ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL " %d added index %lu pfn %lu", current->pid, pte_list_entry->page_index, pte_list_entry->pfn);
+      printk(KSNAP_LOG_LEVEL " %d added index %lu pfn %lu page %p", current->pid, pte_list_entry->page_index, pte_list_entry->pfn, new_page);
 #endif
-  cv_meta_inc_dirty_page_count(vma);
-  cv_user_data->dirty_pages_list_count++;
-  cv_page_debugging_clear_flags(new_page,counter);
-  cv_memory_accounting_inc_pages(ksnap_segment);
+      cv_meta_inc_dirty_page_count(vma);
+      cv_user_data->dirty_pages_list_count++;
+      cv_page_debugging_clear_flags(new_page,counter);
+      cv_memory_accounting_inc_pages(ksnap_segment);
+  }
 }

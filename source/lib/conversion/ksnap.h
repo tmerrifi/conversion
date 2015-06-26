@@ -79,6 +79,9 @@ struct ksnap_dirty_list_entry{
 #define CONV_TRACE 256
      //revert the current working set
 #define CONV_REVERT 512
+     //checkpoint (local commit)
+#define CONV_CHECKPOINT 1024
+
      
 #define META_LOCAL_OFFSET_FROM_SEGMENT 4
 #define META_SHARED_OFFSET_FROM_SEGMENT 2
@@ -152,6 +155,8 @@ struct ksnap_dirty_list_entry{
      void conv_print_trace(conv_seg * seg);
 
      void conv_revert(conv_seg * seg);
+
+     void conv_checkpoint(conv_seg * seg);
      
 #define KSNAP_OWNER SHM_CORE
 #define KSNAP_READER SHM_CLIENT

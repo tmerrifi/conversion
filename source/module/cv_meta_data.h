@@ -45,6 +45,8 @@ void cv_meta_set_dirty_page_count(struct vm_area_struct * vma, uint32_t count);
 
 void cv_meta_inc_dirty_page_count(struct vm_area_struct * vma);
 
+void cv_meta_dec_dirty_page_count(struct vm_area_struct * vma);
+
 void cv_meta_inc_updated_page_count(struct vm_area_struct * vma);
 
 void cv_meta_set_updated_page_count(struct vm_area_struct * vma, uint32_t count);

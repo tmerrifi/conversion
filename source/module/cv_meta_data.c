@@ -49,6 +49,12 @@ void cv_meta_inc_dirty_page_count(struct vm_area_struct * vma){
     meta_data->dirty_page_count++;
 }
 
+void cv_meta_dec_dirty_page_count(struct vm_area_struct * vma){
+    struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
+    meta_data->dirty_page_count--;
+}
+
+
 
 void cv_meta_inc_updated_page_count(struct vm_area_struct * vma){
     struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));

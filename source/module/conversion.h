@@ -40,6 +40,9 @@
 #define CONV_TRACE 256
 //revert the current working set
 #define CONV_REVERT 512
+//checkpoint (local commit)
+#define CONV_CHECKPOINT 1024
+
 
 #define CONV_DO_WORK_NOW 0
 #define CONV_DEFER_WORK 1
@@ -84,7 +87,7 @@ struct snapshot_pte_list{
     unsigned long pfn;
     unsigned long page_index;
     struct page * ref_page;
-    struct snapshot_version_list * version_list; //purly for debugging
+    struct page * local_checkpoint_page;
     uint64_t wait_revision;
     uint64_t obsolete_version;
     struct mm_struct * mm; //use to do memory accounting
@@ -211,5 +214,17 @@ void ksnap_userdata_copy (struct vm_area_struct * new_vma, struct vm_area_struct
 void cv_close (struct vm_area_struct * vma);
 
 void conv_revert(struct vm_area_struct * vma);
+
+void conv_checkpoint(struct vm_area_struct * vma);
+
+#define conv_get_checkpoint_page(entry) \
+    (entry->local_checkpoint_page)
+
+#define conv_is_checkpointed_entry(entry) \
+    (entry->local_checkpoint_page!=NULL)
+
+#define conv_set_checkpoint_page(entry, page)        \
+    entry->local_checkpoint_page=page;
+
 
 #endif

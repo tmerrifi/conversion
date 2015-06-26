@@ -335,3 +335,9 @@ void conv_revert(conv_seg * seg){
         syscall(__CONV_SYS_CALL, seg->segment, CONV_REVERT, seg->editing_unit);
     }
 }
+
+void conv_checkpoint(conv_seg * seg){
+    if(__get_meta_local_page(seg)->dirty_page_count > 0){        
+        syscall(__CONV_SYS_CALL, seg->segment, CONV_CHECKPOINT, seg->editing_unit);
+    }
+}

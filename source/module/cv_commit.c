@@ -114,6 +114,9 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
       cv_page_debugging_inc_flag(version_list_entry->ref_page, CV_PAGE_DEBUG_REFPAGE_PUT_COUNT);
       put_page(version_list_entry->ref_page);
   }
+  if (conv_is_checkpointed_entry(version_list_entry) && page!=conv_get_checkpoint_page(version_list_entry)){
+      put_page(conv_get_checkpoint_page(version_list_entry));
+  }
 }
 
 
