@@ -47,19 +47,14 @@ void ksnap_merge(struct page * latest_page, uint8_t * local, struct page * ref_p
 
   latest = kmap_atomic(latest_page, KM_USER0);
 
-  if (!access_ok(VERIFY_READ, local, PAGE_SIZE)){
-      printk(KSNAP_LOG_LEVEL "merge access failed for local %p\n", local);
-      BUG();
-  }
-
   if (!ref || !latest){
       printk(KSNAP_LOG_LEVEL "failed to map ref %p or latest %p\n", ref, latest);
       BUG();
   }
 
-  #ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL "pid %d MERGING %lu %p %lu %p\n", current->pid, page_to_pfn(latest_page), local, page_to_pfn(ref_page), ref_page);
-  #endif
+#ifdef CONV_LOGGING_ON
+  printk(KSNAP_LOG_LEVEL "pid %d MERGING %lu %p %lu %p %d\n", current->pid, page_to_pfn(latest_page), local, page_to_pfn(ref_page), ref_page, ref_page->index);
+#endif
 
   //now do the diff
   for (;i<(PAGE_SIZE/sizeof(uint64_t));++i,j+=sizeof(uint64_t)){
