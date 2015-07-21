@@ -68,6 +68,7 @@ int __pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 	  BUG_ON(pte_page(*dest_pte)!=old_page);
 	  //do this only if the old page is actually mapped into our address space
 	  //remove from the rmap
+          //printk(KERN_EMERG "UPDATE: dump old page: %p\n", old_page);
 	  page_remove_rmap(old_page);
           cv_page_debugging_inc_flag(old_page, CV_PAGE_DEBUG_UPDATE_OLDPAGE_PUT);
 	  put_page(old_page);

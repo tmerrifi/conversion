@@ -10,6 +10,7 @@
 #include <linux/swap.h>
 #include <linux/poison.h>
 #include <asm/pgtable.h>
+#include <asm/page.h>
 #include <asm/tlbflush.h>
 #include <linux/kdebug.h>
 #include <linux/notifier.h>
@@ -71,6 +72,7 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   struct snapshot_pte_list * committed_entry, * committed_entry_tmp;
   struct ksnap * cv_seg;
   struct ksnap_user_data * cv_user;
+  uint8_t * local_addr;
   pte_t page_table_e;
 
   cv_seg = ksnap_vma_to_ksnap(vma);
@@ -87,9 +89,17 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   //has this page been committed since we've updated? Then we need to merge
   committed_entry = cv_per_page_version_get_version_entry(cv_seg->ppv, version_list_entry->page_index);
   if (committed_entry && pfn_to_page(committed_entry->pfn) != version_list_entry->ref_page){
+      if (version_list_entry->checkpoint==1){
+          local_addr=(uint8_t *)pfn_to_kaddr(version_list_entry->pfn);
+      }
+      else{
+          local_addr=(uint8_t *)((version_list_entry->page_index << PAGE_SHIFT) + vma->vm_start);
+      }
+      
       ksnap_merge(pfn_to_page(committed_entry->pfn),
-                  (uint8_t *)((version_list_entry->page_index << PAGE_SHIFT) + vma->vm_start), 
-                  version_list_entry->ref_page, pfn_to_page(version_list_entry->pfn));
+                  local_addr,
+                  version_list_entry->ref_page,
+                  pfn_to_page(version_list_entry->pfn));
       cv_stats_inc_merged_pages(&cv_seg->cv_stats);
       cv_profiling_add_value(&cv_user->profiling_info,version_list_entry->page_index,CV_PROFILING_VALUE_TYPE_MERGE);
   }
@@ -139,7 +149,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   }
 
 #ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL "CONVERSION: IN COMMIT %d\n", current->pid);
+      printk(KSNAP_LOG_LEVEL "CONVERSION: IN COMMIT %d vma %p\n", current->pid, vma);
 #endif
 
   //get conversion for this segment

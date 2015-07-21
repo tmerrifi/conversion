@@ -13,14 +13,16 @@ void conv_revert(struct vm_area_struct * vma){
     struct page * current_page, * restore_page;
     pte_t * dest_pte;
     pte_t new_pte;
-    
+    int revert_counter=0;
     //walk through every entry
     list_for_each_safe(pos, tmp_pos, &cv_user->dirty_pages_list->list){
-        entry = list_entry(pos, struct snapshot_pte_list, list);            
+        entry = list_entry(pos, struct snapshot_pte_list, list);
+        
         //grab the current page
         current_page = pfn_to_page(entry->pfn);
         //if the entry has been checkpointed but nothing new has been created (we didn't CoW after the checkpoint)
         //then we can dip out right now
+        BUG_ON(current_page==NULL);
         if (conv_is_checkpointed_entry(entry) && conv_get_checkpoint_page(entry)==current_page){
             continue;
         }
@@ -37,11 +39,14 @@ void conv_revert(struct vm_area_struct * vma){
             page_add_anon_rmap(restore_page, vma, PAGE_ALIGN(entry->addr));
             //create the new pte based on the old page
             new_pte=mk_pte(restore_page, vma->vm_page_prot);
-            //clear the accessed bit
-            pte_mkold(new_pte);
             //now set the new pte
             set_pte(dest_pte, new_pte);
-            entry->pfn=page_to_pfn(conv_get_checkpoint_page(entry));
+            entry->pfn=page_to_pfn(restore_page);
+            if (conv_is_checkpointed_entry(entry)){
+                entry->checkpoint=1;
+            }
+            entry->pfn=page_to_pfn(restore_page);
+
         }
         else{
             //clear the pte
@@ -54,7 +59,13 @@ void conv_revert(struct vm_area_struct * vma){
             list_del(pos);
             cv_meta_dec_dirty_page_count(vma);
         }
+        revert_counter++;
     }
-    //flush it up!
-    flush_tlb();
+    if (revert_counter>0){
+        //flush it up!
+        flush_tlb();
+    }
+    cv_user->partial_version_num=0;
+    cv_meta_set_partial_version_num(vma, 0);
+
 }

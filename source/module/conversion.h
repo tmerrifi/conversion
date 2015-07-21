@@ -90,6 +90,7 @@ struct snapshot_pte_list{
     struct page * local_checkpoint_page;
     uint64_t wait_revision;
     uint64_t obsolete_version;
+    uint8_t checkpoint;
     struct mm_struct * mm; //use to do memory accounting
 };
 
@@ -207,6 +208,8 @@ extern struct cv_perthread_debug per_thread_debug;
 #define mapping_to_ksnap(m) ((struct ksnap *)m->ksnap_data)
 
 #define ksnap_vma_to_userdata(v) ((struct ksnap_user_data *)v->ksnap_user_data)
+
+#define page_index_to_addr(vma, page) (((page->index << PAGE_SHIFT) + vma->vm_start))
 
 //used to copy a vma's user-specific data when process is forked
 void ksnap_userdata_copy (struct vm_area_struct * new_vma, struct vm_area_struct * old_vma);

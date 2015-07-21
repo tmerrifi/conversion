@@ -82,6 +82,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
 
   //is this page already in the dirty list? then this is the result of a checkpoint
   if ((pte_list_entry=conv_dirty_search_lookup(cv_user_data, new_page->index))){
+      //printk(KERN_EMERG "old pfn 1 %llu, new pfn %llu, address %p, pid %d\n", pte_list_entry->pfn, pte_pfn(*new_pte), address, current->pid);
       pte_list_entry->pfn = pte_pfn(*new_pte);
       cv_memory_accounting_inc_pages(ksnap_segment);      
   }
@@ -98,12 +99,17 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       pte_list_entry->obsolete_version=~(0x0);
       pte_list_entry->wait_revision = 0;
       pte_list_entry->mm = current->mm;
+      pte_list_entry->checkpoint = 0;
       conv_set_checkpoint_page(pte_list_entry,0);
       /*now we need to add the pte to the list */
       list_add_tail(&pte_list_entry->list, &dirty_pages_list->list);
-#ifdef CONV_LOGGING_ON
-      printk(KSNAP_LOG_LEVEL " %d added index %lu pfn %lu page %p", current->pid, pte_list_entry->page_index, pte_list_entry->pfn, new_page);
-#endif
+      //printk(KERN_EMERG "new pfn 2 %llu, address %p, pid %d\n", pte_list_entry->pfn, address, current->pid);
+      
+      #ifdef CONV_LOGGING_ON
+          printk(KSNAP_LOG_LEVEL " %d added index %lu pfn %lu page %p", current->pid, pte_list_entry->page_index, pte_list_entry->pfn, new_page);
+      #endif
+
+
       cv_meta_inc_dirty_page_count(vma);
       cv_user_data->dirty_pages_list_count++;
       cv_page_debugging_clear_flags(new_page,counter);
