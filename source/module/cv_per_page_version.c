@@ -22,13 +22,19 @@
 #include <linux/mman.h>
 #include <linux/hardirq.h>
 
+#include <linux/vmalloc.h>
+
 #include "conversion.h"
 #include "cv_per_page_version.h"
 
 
 struct cv_per_page_version * cv_per_page_version_init(uint32_t page_count){
   struct cv_per_page_version * ppv = kmalloc(sizeof(struct cv_per_page_version), GFP_KERNEL);
-  ppv->entries = kmalloc(sizeof(struct cv_per_page_version_entry) * page_count, GFP_KERNEL);
+  ppv->entries = vmalloc(sizeof(struct cv_per_page_version_entry) * page_count);
+  if (ppv->entries==NULL){
+      printk(KERN_EMERG "whoops!, size was %lu\n", sizeof(struct cv_per_page_version_entry) * page_count);
+      BUG();
+  }
   memset(ppv->entries, 0, sizeof(struct cv_per_page_version_entry) * page_count);
   return ppv;
 }

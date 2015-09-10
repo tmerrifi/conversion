@@ -8,7 +8,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/list.h>
-
+#include <linux/vmalloc.h>
 
 
 #include "conversion.h"
@@ -40,7 +40,7 @@ void cv_close(struct vm_area_struct * vma){
   list_del(&cv_user->segment_list);
   if (list_empty(&cv->segment_list)){
       //free the version list
-      kfree(cv->ppv->entries);
+      vfree(cv->ppv->entries);
       kfree(cv->ppv);
       while(atomic_read(&cv->gc_thread_count)>=0){
           //use a pause

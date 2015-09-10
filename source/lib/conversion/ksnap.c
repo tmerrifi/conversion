@@ -29,10 +29,10 @@
 
 
 //what should the size of the metadata segment be?
-int __compute_meta_data_pages(int size_in_bytes){
-  int total_pages = (size_in_bytes/(KSNAP_PAGE_SIZE))+1;
+unsigned long __compute_meta_data_pages(unsigned long size_in_bytes){
+  unsigned long total_pages = (size_in_bytes/(KSNAP_PAGE_SIZE))+1;
   //add 2 extra pages, 1 for ksnap_meta_data and 1 to be safe for dirty pages
-  int meta_data_pages = (total_pages/KSNAP_PAGE_SIZE) + 2;
+  unsigned long meta_data_pages = (total_pages/KSNAP_PAGE_SIZE) + 2;
   return meta_data_pages;
 }
 
@@ -56,9 +56,9 @@ char * __strip_file_name(char * file_name){
 }
 
 
-void * __open_shared_memory_segment(int size_of_segment, char * file_name, void * desired_address, int * fd, int flags, int create){
+void * __open_shared_memory_segment(unsigned long size_of_segment, char * file_name, void * desired_address, int * fd, int flags, int create){
   void * mem;
-  int tmp_fd, size_of_file;
+  int tmp_fd;
   char file_path[200];
   int tries=0;
 
@@ -132,12 +132,12 @@ void conv_clear_local_stats(conv_seg * seg){
     __get_meta_local_page(seg)->dirty_page_count=0;
 }
 
-void __ksnap_open_meta_data_segments(int size_of_segment, char * segment_name, conv_seg * snap, int create){
+void __ksnap_open_meta_data_segments(unsigned long size_of_segment, char * segment_name, conv_seg * snap, int create){
   char meta_data_local_name[200];
   char meta_data_shared_name[200];
   sprintf(meta_data_local_name,"meta_local_%s_%d.mem", segment_name, getpid());
   sprintf(meta_data_shared_name,"meta_shared_%s.mem", segment_name);
-  int meta_data_pages = __compute_meta_data_pages(size_of_segment);
+  unsigned long meta_data_pages = __compute_meta_data_pages(size_of_segment);
   //
   void * meta_data_local = __open_shared_memory_segment(meta_data_pages*KSNAP_PAGE_SIZE, 
 							meta_data_local_name, snap->segment - (KSNAP_PAGE_SIZE*(meta_data_pages-1)) - (META_LOCAL_OFFSET_FROM_SEGMENT*KSNAP_PAGE_SIZE),
@@ -160,7 +160,7 @@ void __ksnap_open_meta_data_segments(int size_of_segment, char * segment_name, c
   __get_meta_local_page(snap)->dirty_list_size = __compute_dirty_list_length(meta_data_pages);
 }
 
-conv_seg * __create_conv_seg(int size_of_segment, char * segment_name){
+conv_seg * __create_conv_seg(unsigned long size_of_segment, char * segment_name){
   conv_seg * snap = malloc(sizeof(conv_seg));
   snap->name = malloc(100);
   snap->file_name = malloc(100);
@@ -171,7 +171,7 @@ conv_seg * __create_conv_seg(int size_of_segment, char * segment_name){
 }
 
 //open up the segment, if create is set then we ONLY create...else we ONLY open (not create)
-conv_seg * __conv_open(int size_of_segment, char * segment_name, void * desired_address, int create){
+conv_seg * __conv_open(unsigned long size_of_segment, char * segment_name, void * desired_address, int create){
   int meta_data_pages;
   int created;
 
@@ -186,11 +186,11 @@ conv_seg * __conv_open(int size_of_segment, char * segment_name, void * desired_
   return snap;
 }
 
-conv_seg * conv_checkout_open(int size_of_segment, char * segment_name, void * desired_address){
+conv_seg * conv_checkout_open(unsigned long size_of_segment, char * segment_name, void * desired_address){
   return __conv_open(size_of_segment, segment_name, desired_address, __CONV_NO_CREATE);
 }
 
-conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address){
+conv_seg * conv_checkout_create(unsigned long size_of_segment, char * segment_name, void * desired_address){
   return __conv_open(size_of_segment, segment_name, desired_address, __CONV_CREATE);
 }
 

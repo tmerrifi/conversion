@@ -14,7 +14,7 @@
 
 
 typedef struct{
-  int size_of_segment;
+  unsigned long size_of_segment;
   void * segment;
   int fd;
   char * name;
@@ -96,7 +96,7 @@ struct ksnap_dirty_list_entry{
 #define __newer_version_available(seg) (__get_meta_local_page(seg)->snapshot_version_num < __get_meta_shared_page(seg)->snapshot_version_num)
 
      //create a new segment, give it a name and address.
-     conv_seg * conv_checkout_create(int size_of_segment, char * segment_name, void * desired_address);
+     conv_seg * conv_checkout_create(unsigned long size_of_segment, char * segment_name, void * desired_address);
 
      //NOT CURRENTLY AVAILABLE
      void conv_set_editing_unit_bytes(conv_seg * seg, size_t editing_unit);
