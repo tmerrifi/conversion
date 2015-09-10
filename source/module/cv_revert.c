@@ -36,7 +36,8 @@ void conv_revert(struct vm_area_struct * vma){
         if (entry->ref_page || conv_is_checkpointed_entry(entry)){
             restore_page=(conv_is_checkpointed_entry(entry)) ? conv_get_checkpoint_page(entry) : entry->ref_page;
             //add the old page back
-            page_add_anon_rmap(restore_page, vma, PAGE_ALIGN(entry->addr));
+            //page_add_anon_rmap(restore_page, vma, PAGE_ALIGN(entry->addr));
+            page_add_file_rmap(restore_page);
             //create the new pte based on the old page
             new_pte=mk_pte(restore_page, vma->vm_page_prot);
             //now set the new pte
