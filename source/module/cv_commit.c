@@ -81,6 +81,7 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   mapping = vma->vm_file->f_mapping;
   //the pfn in our current page table doesn't equal the one we are trying to commit. Perhaps a fork() occured since our last commit?
   if (pte_pfn(*(version_list_entry->pte)) != version_list_entry->pfn){
+      CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, version_list_entry->page_index, CV_HOOKS_COMMIT_ENTRY_SKIP);
     return;
   }
   //lets get that page struct that is pointed to by this pte...
@@ -102,9 +103,11 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
                   pfn_to_page(version_list_entry->pfn));
       cv_stats_inc_merged_pages(&cv_seg->cv_stats);
       cv_profiling_add_value(&cv_user->profiling_info,version_list_entry->page_index,CV_PROFILING_VALUE_TYPE_MERGE);
+      CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, version_list_entry->page_index, CV_HOOKS_COMMIT_ENTRY_MERGE);
   }
   else{
       cv_profiling_add_value(&cv_user->profiling_info,version_list_entry->page_index,CV_PROFILING_VALUE_TYPE_COMMIT);
+      CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, version_list_entry->page_index, CV_HOOKS_COMMIT_ENTRY_COMMIT);
   }
   //get the pre-existing pte value and clear the pte pointer
   page_table_e = ptep_get_and_clear(vma->vm_mm, version_list_entry->addr, version_list_entry->pte);

@@ -179,6 +179,9 @@ struct ksnap_user_data{
     struct cv_profiling_ops profiling_info;
     struct cv_defer_work defer_work;
     struct kmem_cache * deferred_work_mem_cache;
+#ifdef CV_DETERMINISM
+    uint32_t clock_tick_buffer; //keeps clock ticks buffered for some time
+#endif //CV_DETERMINISM
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/

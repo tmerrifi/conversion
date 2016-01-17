@@ -153,7 +153,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   //set the number of updated pages to zero
   cv_meta_set_updated_page_count(vma, 0);  
   cv_meta_set_merged_page_count(vma, 0);
-  CV_HOOKS_BEGIN_UPDATE(cv_seg, flags);
 
   if (target_version_number<=cv_user->version_num){
 #ifdef CONV_LOGGING_ON
@@ -203,6 +202,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	//is the pte outdated? If so, then no use wasting time updating our page table
 	if (tmp_pte_list->obsolete_version <= target_version_number){
             cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);
+            CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_SKIP);
             continue;
 	}
         dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
@@ -217,6 +217,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	  cv_stats_inc_merged_pages(&cv_seg->cv_stats);
 	  merge_count++;
           cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_MERGE);
+          CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_MERGE);
 	}
         //if we have a partial version, it means that we previously did a partial upate. If so, and this entry's version number
         //is less than our partial version number, then this update is superfluous
@@ -234,6 +235,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
               ++partial_unique_count;
           }
           ++gotten_pages;
+          CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_UPDATE);
 	}
         else{
             cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);

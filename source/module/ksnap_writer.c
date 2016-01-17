@@ -65,8 +65,10 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   struct snapshot_pte_list * pte_list_entry, * dirty_pages_list;
   struct page * new_page, * checkpoint_page;
   struct ksnap_user_data * cv_user_data;
+  struct ksnap * cv_seg;
   int counter=0;
- 
+
+  cv_seg = ksnap_vma_to_ksnap(vma);
   cv_user_data=ksnap_vma_to_userdata(vma);
 
   if (!cv_user_data->dirty_pages_list){
@@ -115,4 +117,5 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       cv_page_debugging_clear_flags(new_page,counter);
       cv_memory_accounting_inc_pages(ksnap_segment);
   }
+  CV_HOOKS_COW(cv_seg, cv_user_data, new_page->index);
 }

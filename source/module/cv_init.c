@@ -16,6 +16,7 @@
 #include "cv_meta_data.h"
 #include "cv_event.h"
 #include "cv_profiling.h"
+#include "cv_determinism.h"
 
 MODULE_LICENSE("GPL");
 
@@ -87,7 +88,7 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
     vma->vm_file->f_ra.ra_pages=0;
   }
   cv_event_init(&user_data->event_info, &ksnap_data->start_time);
-
+  
   //calling anon_vma_prepare in the case that we don't have an anon_vma, bug if it returns non-zero;
   BUG_ON(anon_vma_prepare(vma));
 
@@ -148,5 +149,10 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   //initialize the hooks to NULL
   CV_HOOKS_INIT(ksnap_data);
   getnstimeofday(&ksnap_data->start_time);
+
+#ifdef CV_DETERMINISM
+  //make sure to do this after the hooks are initialized
+  cv_determinism_init(ksnap_data);
+#endif
   return ksnap_data;
 }
