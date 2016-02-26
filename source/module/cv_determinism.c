@@ -11,6 +11,8 @@
 
 #include "cv_determinism.h"
 
+#if defined(CV_HOOKS) && defined(CV_DETERMINISM)
+
 void __add_clock_ticks(struct ksnap * cv, struct ksnap_user_data * cv_user, uint32_t ticks){
     if (cv_user){
         cv_user->clock_tick_buffer+=ticks;
@@ -64,3 +66,4 @@ void cv_determinism_init(struct ksnap * cv_seg){
         
 }
 
+#endif

@@ -42,13 +42,13 @@ struct conversion_hooks{
 
 #else
 
-#define CV_HOOKS_BEGIN_COMMIT(cv, flags)              \
+#define CV_HOOKS_BEGIN_COMMIT(cv, cv_user, flags)        \
 
-#define CV_HOOKS_BEGIN_UPDATE(cv, flags)              \
+#define CV_HOOKS_BEGIN_UPDATE(cv, cv_user, flags)        \
 
-#define CV_HOOKS_COMMIT_ENTRY(cv, logical_page, type) \
+#define CV_HOOKS_COMMIT_ENTRY(cv, cv_user, logical_page, type) \
 
-#define CV_HOOKS_UPDATE_ENTRY(cv, logical_page, type) \
+#define CV_HOOKS_UPDATE_ENTRY(cv, cv_user, logical_page, type)   \
 
 #define CV_HOOKS_COW(cv, cv_user, logical_page)   \
 
