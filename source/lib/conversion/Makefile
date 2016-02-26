@@ -1,5 +1,4 @@
 CFLAGS = -g -std=gnu99 -fPIC
-#SOURCES = sync.o ftrace.o shmUtility.o ksnap_test_sub.o ksnap_test_owner.o memcpy_shm.o ksnap.o time_util.o bitmap.o
 SOURCES = sync.o ksnap.o time_util.o bitmap.o #cv_determ.o
 LIBS = -pthread -lrt
 
