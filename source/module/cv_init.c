@@ -8,6 +8,8 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm-generic/mman-common.h>
+#include <linux/semaphore.h>
+
 
 #include "conversion.h"
 #include "cv_init.h"
@@ -149,7 +151,8 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   //initialize the hooks to NULL
   CV_HOOKS_INIT(ksnap_data);
   getnstimeofday(&ksnap_data->start_time);
-
+  sema_init(&ksnap_data->sem_gc, 1);
+  
 #ifdef CV_DETERMINISM
   //make sure to do this after the hooks are initialized
   cv_determinism_init(ksnap_data);

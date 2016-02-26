@@ -76,8 +76,8 @@ void cv_garbage_collection(struct work_struct * work){
       goto out;
   }
 
-  //printk(KERN_EMERG " low version %d current %d pages %d pid %d\n", low_version, cv_seg->committed_version_num, cv_seg->committed_pages, pid);
-
+  down(&cv_seg->sem_gc);
+  
   //ok, lets walk the version list, find out of date versions
   list_for_each_prev_safe(version_list_pos, version_list_tmp_pos, &cv_seg->snapshot_pte_list->list){
       //validate
@@ -112,4 +112,5 @@ void cv_garbage_collection(struct work_struct * work){
   //reduce the total number of allocated pages. TODO: don't we don't need an atomic op here?
   cv_seg->committed_pages-=collected_count;
   atomic_set(&cv_seg->gc_thread_count, -1);
+  up(&cv_seg->sem_gc);
 }

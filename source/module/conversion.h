@@ -4,6 +4,9 @@
 
 #include <linux/wait.h>
 #include <linux/slab.h>
+#include <linux/semaphore.h>
+
+
 #include "cv_meta_data.h"
 #include "cv_stats.h"
 #include "cv_per_page_version.h"
@@ -148,6 +151,7 @@ struct ksnap{
     struct timespec start_time;
     atomic_t pages_allocated;
     atomic_t max_pages;
+    struct semaphore sem_gc; /*  */
 };
 
 struct ksnap_user_data{
