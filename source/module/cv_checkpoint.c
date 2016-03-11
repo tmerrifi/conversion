@@ -29,7 +29,6 @@ void conv_checkpoint(struct vm_area_struct * vma){
             checkpointed_counter++;
             //was there an old checkpointed page? If so, get rid of it
             if ((old_checkpoint_page=conv_get_checkpoint_page(entry))!=NULL){
-                printk(KERN_EMERG "we get here!!!! \n", old_checkpoint_page);
                 //need to dump the page
                 put_page(old_checkpoint_page);
                 //TODO: RMAP???????
