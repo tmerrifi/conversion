@@ -77,7 +77,25 @@
 
 #define CV_USER_STATUS_ASLEEP 0
 
+#define LOGGING_SIZE_BYTES (64*8) //one cache line
 
+struct logging_entry{
+    unsigned long addr;
+    uint8_t data[LOGGING_SIZE_BYTES];
+};
+
+struct page_entry{
+    pte_t * pte;	
+    unsigned long addr;
+    unsigned long pfn;
+    unsigned long page_index;
+    struct page * ref_page;
+    struct page * local_checkpoint_page;
+    uint64_t wait_revision;
+    uint64_t obsolete_version;
+    uint8_t checkpoint;
+    struct mm_struct * mm; //use to do memory accounting
+};
 
 
 /*a structure that defines a node in the pte list. Each version of the snapshot memory keeps a list
@@ -95,7 +113,15 @@ struct snapshot_pte_list{
     uint64_t obsolete_version;
     uint8_t checkpoint;
     struct mm_struct * mm; //use to do memory accounting
+
+
+    /*dirty_list_entry_t type;
+    union entry{
+        struct page_entry;
+        struct logging_entry;
+        };*/
 };
+
 
 /*this structure is a list of snapshot_pte_list objects. Each node in this list represents a version of the
 snapshot*/
@@ -152,6 +178,8 @@ struct ksnap{
     atomic_t pages_allocated;
     atomic_t max_pages;
     struct semaphore sem_gc; /*  */
+    uint64_t logging_stats_opcode[256];
+    uint64_t logging_stats_opcode_two[256];
 };
 
 struct ksnap_user_data{
@@ -183,6 +211,7 @@ struct ksnap_user_data{
     struct cv_profiling_ops profiling_info;
     struct cv_defer_work defer_work;
     struct kmem_cache * deferred_work_mem_cache;
+    int committed_non_logging_entries; //the entries we commit at the page level, used to determine when to test a page for logging
 #ifdef CV_DETERMINISM
     uint32_t clock_tick_buffer; //keeps clock ticks buffered for some time
 #endif //CV_DETERMINISM

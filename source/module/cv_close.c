@@ -14,6 +14,7 @@
 #include "conversion.h"
 #include "cv_event.h"
 #include "cv_memory_accounting.h"
+#include "cv_logging.h"
 
 void cv_close(struct vm_area_struct * vma){
 
@@ -39,6 +40,7 @@ void cv_close(struct vm_area_struct * vma){
   //deregister this vma
   list_del(&cv_user->segment_list);
   if (list_empty(&cv->segment_list)){
+      cv_logging_print_stats(cv);
       //free the version list
       vfree(cv->ppv->entries);
       kfree(cv->ppv);

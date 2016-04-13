@@ -105,3 +105,16 @@ struct snapshot_pte_list * cv_per_page_version_get_version_entry(struct cv_per_p
 void cv_per_page_version_update_actual_version(struct cv_per_page_version * ppv, uint32_t index, uint64_t version){
   ppv->entries[index].actual_version=version;
 }
+
+//sliding window of checks on whether we would have benefited from logging
+void cv_per_page_update_logging_diff_bitmap(struct cv_per_page_version * ppv, uint32_t page_index, int should_have_done_logging){
+    ppv->entries[page_index].logging_diff_bitmap=((ppv->entries[page_index].logging_diff_bitmap<<1)|((should_have_done_logging) ? 1 : 0));
+}
+
+void cv_per_page_switch_to_logging(struct cv_per_page_version * ppv, uint32_t page_index){
+    ppv->entries[page_index].type=DIRTY_LIST_ENTRY_TYPE_LOGGING;
+}
+
+int cv_per_page_is_logging_page(struct cv_per_page_version * ppv, uint32_t page_index){
+    return ppv->entries[page_index].type==DIRTY_LIST_ENTRY_TYPE_LOGGING;
+}

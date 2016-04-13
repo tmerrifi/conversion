@@ -152,7 +152,8 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   CV_HOOKS_INIT(ksnap_data);
   getnstimeofday(&ksnap_data->start_time);
   sema_init(&ksnap_data->sem_gc, 1);
-  
+  memset(ksnap_data->logging_stats_opcode, 0, 256*sizeof(uint64_t));
+  memset(ksnap_data->logging_stats_opcode_two, 0, 256*sizeof(uint64_t));
 #ifdef CV_DETERMINISM
   //make sure to do this after the hooks are initialized
   cv_determinism_init(ksnap_data);

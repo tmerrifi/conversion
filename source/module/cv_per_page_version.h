@@ -4,10 +4,14 @@
 
 #include "conversion.h"
 
+typedef enum _dirty_list_entry_t {DIRTY_LIST_ENTRY_TYPE_PAGE=0, DIRTY_LIST_ENTRY_TYPE_LOGGING=1} dirty_list_entry_t;
+
 struct cv_per_page_version_entry{
-  uint64_t interest_version; //threads register their "interest" in committing this version
-  uint64_t actual_version;  //what version is actually "committed"
-  struct snapshot_pte_list * version_list_entry;
+    dirty_list_entry_t type; //what type is this?
+    uint8_t logging_diff_bitmap; //keeps track of how often we perform the logging diff check and succeed
+    uint64_t interest_version; //threads register their "interest" in committing this version
+    uint64_t actual_version;  //what version is actually "committed"
+    struct snapshot_pte_list * version_list_entry;
 };
 
 struct cv_per_page_version{
@@ -34,5 +38,11 @@ void cv_per_page_version_update_version_entry(struct cv_per_page_version * ppv, 
 struct snapshot_pte_list * cv_per_page_version_get_version_entry(struct cv_per_page_version * ppv, uint32_t index);
 
 void cv_per_page_version_update_actual_version(struct cv_per_page_version * ppv, uint32_t index, uint64_t version);
+
+void cv_per_page_update_logging_diff_bitmap(struct cv_per_page_version * ppv, uint32_t page_index, int should_have_done_logging);
+
+void cv_per_page_switch_to_logging(struct cv_per_page_version * ppv, uint32_t page_index);
+
+int cv_per_page_is_logging_page(struct cv_per_page_version * ppv, uint32_t page_index);
 
 #endif

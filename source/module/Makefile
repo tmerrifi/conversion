@@ -1,5 +1,5 @@
 obj-m = ksnapmod.o
-ksnapmod-y = cv_main.o ksnap_writer.o ksnap_version_list.o cv_commit.o cv_update.o cv_garbage.o cv_per_page_version.o cv_stats.o cv_init.o cv_meta_data.o cv_merge.o cv_pte.o cv_fork.o cv_close.o cv_revert.o cv_checkpoint.o cv_determinism.o
+ksnapmod-y = cv_main.o ksnap_writer.o ksnap_version_list.o cv_commit.o cv_update.o cv_garbage.o cv_per_page_version.o cv_stats.o cv_init.o cv_meta_data.o cv_merge.o cv_pte.o cv_fork.o cv_close.o cv_revert.o cv_checkpoint.o cv_determinism.o cv_logging.o
 
 
 #possible flags

@@ -32,6 +32,7 @@
 #include "cv_lock_list.h"
 #include "cv_commit.h"
 #include "cv_update.h"
+#include "cv_logging.h"
 
 MODULE_LICENSE("GPL");
 
@@ -180,7 +181,9 @@ void conv_cow_user_page(struct page * new_page, struct page * old_page,
     
 }    
 
-
+void logging_on_fault (struct vm_area_struct * vma, unsigned long faulting_addr, unsigned long instruction_addr){
+    cv_logging_instruction_stats(ksnap_vma_to_ksnap(vma), ksnap_vma_to_userdata(vma), instruction_addr);
+}
 
 int init_module(void)
 {
@@ -190,6 +193,8 @@ int init_module(void)
   mmap_snapshot_instance.is_snapshot = is_snapshot;
   mmap_snapshot_instance.snapshot_msync = cv_msync;			//TODO: this function name in the struct should change
   mmap_snapshot_instance.init_snapshot = NULL;
+  mmap_snapshot_instance.logging_on_fault = logging_on_fault;
+  
   mmap_snapshot_instance.do_snapshot_add_pte = cv_page_fault;
   mmap_snapshot_instance.ksnap_userdata_copy = ksnap_userdata_copy;
   mmap_snapshot_instance.snap_sequence_number=random32()%10000;
@@ -218,6 +223,7 @@ void cleanup_module(void)
     mmap_snapshot_instance.ksnap_userdata_copy = NULL;
     mmap_snapshot_instance.ksnap_tracking_on = NULL;
     mmap_snapshot_instance.conversion_thread_status=NULL;
+    mmap_snapshot_instance.logging_on_fault = NULL;
     //mmap_snapshot_instance.conv_cow_user_page=NULL;
     cv_merge_free();
     unregister_die_notifier(&nmi_snap_nb);
