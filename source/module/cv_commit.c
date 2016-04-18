@@ -34,26 +34,34 @@
 #include "cv_dirty.h"
 #include "cv_event.h"
 
+
 //remove the old page from the page cache, handle its LRU stuff, etc...
 int __remove_old_page(struct address_space * mapping, struct vm_area_struct * vma, 
 		       unsigned long index, struct page * ref_page, uint64_t our_version){
     struct ksnap * cv_seg;
-    struct snapshot_pte_list * old_entry; 
+    struct snapshot_pte_list * old_entry;
+    struct cv_page_entry * page_entry;
+    
     cv_seg = ksnap_vma_to_ksnap(vma);
     //get the current entry from the per-page version list
     old_entry = cv_per_page_version_get_version_entry(cv_seg->ppv, index);
     if (old_entry==NULL){
         return 0;
     }
-    else{
-        //BUG_ON(old_entry_tmp!=old_entry);
-        old_entry->obsolete_version=our_version;
+    old_entry->obsolete_version=our_version;
+    return 1;
+    /*else if (old_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
+        page_entry=cv_list_entry_get_page_entry(old_entry);
+        page_entry->obsolete_version=our_version;
         return 1;
     }
+    else{
+        BUG();
+        }*/
 }
 
 void __update_page_mapping(struct address_space * mapping, struct vm_area_struct * vma, 
-			   struct page * page, struct snapshot_pte_list * version_list_entry, int stats){
+			   struct page * page, struct snapshot_pte_list * version_list_entry){
     struct ksnap * cv_seg;
     int insert_error=0;
     cv_seg = ksnap_vma_to_ksnap(vma);
@@ -66,10 +74,11 @@ void __update_page_mapping(struct address_space * mapping, struct vm_area_struct
     return;
 }
 
-void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_area_struct * vma, uint64_t our_revision, int stats){
+void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_struct * vma,
+                    uint64_t our_revision, unsigned long page_index, int checkpointed){
   struct page * page;
   struct address_space * mapping = NULL;
-  struct snapshot_pte_list * committed_entry, * committed_entry_tmp;
+  struct cv_page_entry * committed_entry;
   struct ksnap * cv_seg;
   struct ksnap_user_data * cv_user;
   uint8_t * local_addr;
@@ -81,20 +90,23 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   mapping = vma->vm_file->f_mapping;
   //the pfn in our current page table doesn't equal the one we are trying to commit. Perhaps a fork() occured since our last commit?
   if (pte_pfn(*(version_list_entry->pte)) != version_list_entry->pfn){
-      CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, version_list_entry->page_index, CV_HOOKS_COMMIT_ENTRY_SKIP);
+      CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, page_index, CV_HOOKS_COMMIT_ENTRY_SKIP);
     return;
   }
   //lets get that page struct that is pointed to by this pte...
   page = pfn_to_page(version_list_entry->pfn);
   BUG_ON(page==NULL);
   //has this page been committed since we've updated? Then we need to merge
-  committed_entry = cv_per_page_version_get_version_entry(cv_seg->ppv, version_list_entry->page_index);
+  committed_entry = cv_list_entry_get_page_entry(cv_per_page_version_get_version_entry(
+                                                                                       cv_seg->ppv,
+                                                                                       page_index));
+  
   if (committed_entry && pfn_to_page(committed_entry->pfn) != version_list_entry->ref_page){
-      if (version_list_entry->checkpoint==1){
+      if (checkpointed){
           local_addr=(uint8_t *)pfn_to_kaddr(version_list_entry->pfn);
       }
       else{
-          local_addr=(uint8_t *)((version_list_entry->page_index << PAGE_SHIFT) + vma->vm_start);
+          local_addr=(uint8_t *)((page_index << PAGE_SHIFT) + vma->vm_start);
       }
       
       ksnap_merge(pfn_to_page(committed_entry->pfn),
@@ -102,12 +114,12 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
                   version_list_entry->ref_page,
                   pfn_to_page(version_list_entry->pfn));
       cv_stats_inc_merged_pages(&cv_seg->cv_stats);
-      cv_profiling_add_value(&cv_user->profiling_info,version_list_entry->page_index,CV_PROFILING_VALUE_TYPE_MERGE);
-      CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, version_list_entry->page_index, CV_HOOKS_COMMIT_ENTRY_MERGE);
+      cv_profiling_add_value(&cv_user->profiling_info,page_index,CV_PROFILING_VALUE_TYPE_MERGE);
+      CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, page_index, CV_HOOKS_COMMIT_ENTRY_MERGE);
   }
   else{
-      cv_profiling_add_value(&cv_user->profiling_info,version_list_entry->page_index,CV_PROFILING_VALUE_TYPE_COMMIT);
-      CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, version_list_entry->page_index, CV_HOOKS_COMMIT_ENTRY_COMMIT);
+      cv_profiling_add_value(&cv_user->profiling_info,page_index,CV_PROFILING_VALUE_TYPE_COMMIT);
+      CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, page_index, CV_HOOKS_COMMIT_ENTRY_COMMIT);
   }
   //get the pre-existing pte value and clear the pte pointer
   page_table_e = ptep_get_and_clear(vma->vm_mm, version_list_entry->addr, version_list_entry->pte);
@@ -116,13 +128,11 @@ void cv_commit_page(struct snapshot_pte_list * version_list_entry, struct vm_are
   //set it back
   set_pte(version_list_entry->pte, page_table_e);
 
-  //flush the tlb cache
-  //flush_tlb_page(vma, version_list_entry->addr);
   if (!__remove_old_page(mapping, vma, page->index, version_list_entry->ref_page, our_revision)){
       //first time we've seen this page
       cv_meta_inc_logical_page_count(vma);
   }
-  __update_page_mapping(mapping, vma, page, version_list_entry, stats);
+  __update_page_mapping(mapping, vma, page, container_of(version_list_entry, struct snapshot_pte_list, page_entry));
   if (version_list_entry->ref_page){
       cv_page_debugging_inc_flag(version_list_entry->ref_page, CV_PAGE_DEBUG_REFPAGE_PUT_COUNT);
       put_page(version_list_entry->ref_page);
@@ -211,21 +221,28 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   //Now we need to traverse our dirty list, and commit
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
       pte_entry = list_entry(pos, struct snapshot_pte_list, list);
-      cv_commit_page(pte_entry, vma, our_version_number, 0);
-      //removing from the dirty list
-      list_del(pos);
-      list_add(pos, &our_version_entry->pte_list->list);
-      cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
-      barrier();
-      ++committed_pages;
-      conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
+      if (pte_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
+          //do page commit here
+          cv_commit_page(cv_list_entry_get_page_entry(pte_entry), vma, our_version_number, pte_entry->page_index, pte_entry->checkpoint);
+          //removing from the dirty list
+          list_del(pos);
+          list_add(pos, &our_version_entry->pte_list->list);
+          cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
+          barrier();
+          ++committed_pages;
+          conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
+      }
+      else{
+          //do logging stuff in here!
+          BUG();
+      }
   }
 
   //now we need to commit the stuff in the 
   while(!list_empty(&wait_list->list)){
       if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv))){
           //grab the currently committed entry
-          cv_commit_page(pte_entry, vma, our_version_number, 1);
+          cv_commit_page(cv_list_entry_get_page_entry(pte_entry), vma, our_version_number, pte_entry->page_index, pte_entry->checkpoint);
           //remove from the waitlist
           list_del(&pte_entry->list);
           list_add(&pte_entry->list, &our_version_entry->pte_list->list);

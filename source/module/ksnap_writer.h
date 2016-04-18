@@ -8,8 +8,6 @@
 #include <linux/mm.h>
 
 
-struct page * ksnap_get_dirty_ref_page(struct vm_area_struct * vma, unsigned long index);
-
 struct snapshot_pte_list * conv_dirty_search_lookup(struct ksnap_user_data * cv_user_data, unsigned long index);
 
 void conv_dirty_delete_lookup(struct ksnap_user_data * cv_user_data, unsigned long index);

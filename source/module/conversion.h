@@ -79,30 +79,26 @@
 
 #define LOGGING_SIZE_BYTES (64*8) //one cache line
 
-struct logging_entry{
+struct cv_logging_entry{
     unsigned long addr;
     uint8_t data[LOGGING_SIZE_BYTES];
 };
 
-struct page_entry{
+struct cv_page_entry{
     pte_t * pte;	
     unsigned long addr;
     unsigned long pfn;
-    unsigned long page_index;
     struct page * ref_page;
     struct page * local_checkpoint_page;
-    uint64_t wait_revision;
-    uint64_t obsolete_version;
-    uint8_t checkpoint;
-    struct mm_struct * mm; //use to do memory accounting
 };
 
+typedef enum{ CV_DIRTY_LIST_ENTRY_TYPE_PAGING=0, CV_DIRTY_LIST_ENTRY_TYPE_LOGGING=1} dirty_list_entry_type;
 
 /*a structure that defines a node in the pte list. Each version of the snapshot memory keeps a list
 of pte values that have changed. A subscriber traverses the pte_list for each version that has changed
 since the last snapshot and then changes it's page table to use the pte's in the list.*/
 struct snapshot_pte_list{
-    struct list_head list;
+    /*struct list_head list;
     pte_t * pte;	
     unsigned long addr;
     unsigned long pfn;
@@ -112,15 +108,25 @@ struct snapshot_pte_list{
     uint64_t wait_revision;
     uint64_t obsolete_version;
     uint8_t checkpoint;
+    struct mm_struct * mm; //use to do memory accounting*/
+
+
+    dirty_list_entry_type type;
+    struct list_head list;
+    unsigned long page_index;
+    uint64_t wait_revision;
+    uint64_t obsolete_version;
+    uint8_t checkpoint;
     struct mm_struct * mm; //use to do memory accounting
-
-
-    /*dirty_list_entry_t type;
-    union entry{
-        struct page_entry;
-        struct logging_entry;
-        };*/
+    union{
+        struct cv_page_entry page_entry;
+        struct cv_logging_entry logging_entry;
+    };
 };
+
+#define cv_list_entry_get_page_entry(e) ((e) ? &e->page_entry : NULL)
+
+#define cv_list_entry_get_logging_entry(e) ((e) ? &e->logging_entry : NULL)
 
 
 /*this structure is a list of snapshot_pte_list objects. Each node in this list represents a version of the
