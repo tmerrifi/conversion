@@ -1,6 +1,7 @@
 obj-m = ksnapmod.o
 ksnapmod-y = cv_main.o ksnap_writer.o ksnap_version_list.o cv_commit.o cv_update.o cv_garbage.o cv_per_page_version.o cv_stats.o cv_init.o cv_meta_data.o cv_merge.o cv_pte.o cv_fork.o cv_close.o cv_revert.o cv_checkpoint.o cv_determinism.o cv_logging.o
 
+ksnapmod-y += libudis86/decode.o libudis86/itab.o libudis86/syn-att.o libudis86/syn.o libudis86/syn-intel.o libudis86/udis86.o
 
 #possible flags
 #-DCONV_ATOMIC - Use atomic commit/update as opposed to 
@@ -14,7 +15,7 @@ ksnapmod-y = cv_main.o ksnap_writer.o ksnap_version_list.o cv_commit.o cv_update
 KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement #-DCV_DETERMINISM -DCV_HOOKS
 
 all: cv_main.c ksnap_writer.c ksnap_version_list.c cv_commit.c cv_update.c cv_garbage.c cv_per_page_version.c cv_stats.c cv_init.c cv_meta_data.c cv_merge.c cv_pte.c cv_fork.c cv_close.c cv_revert.c cv_checkpoint.c cv_determinism.c
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
