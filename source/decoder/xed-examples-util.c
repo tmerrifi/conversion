@@ -1475,9 +1475,9 @@ static void printStores(xed_disas_info_t* di,
 
   if (XED_CATEGORY_DATAXFER != category) {
     // we can support computational stores naturally
-    printf("TENTATIVELY SUPPORTED computational store ");
+    //printf("TENTATIVELY SUPPORTED computational store ");
     if (usesImmediate && usesRegister) {
-      printf("disabled register ");
+      //printf("disabled register ");
       usesRegister = 0;
     }
   } else if (!(usesRegister ^ usesImmediate)) {
@@ -1488,6 +1488,11 @@ static void printStores(xed_disas_info_t* di,
     return;
   }
   
+  // TODO: print opcode
+  //xed_iclass_enum_t ic = xed_decoded_inst_get_iclass(xedd);
+  //printf("opcode = %s\n", xed_iclass_enum_t2str(ic));
+  //return;
+
   printf("PC 0x%x; readsFlags %d; writesFlags %d; storeValueReg %s; ", 
          runtime_instruction_address,
          readsFlags, writesFlags,
