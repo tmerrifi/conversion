@@ -26,115 +26,16 @@ const xed_iclass_enum_t OPCODES[] = {
 };
 const int NUM_OPCODES = sizeof(OPCODES) / sizeof(OPCODES[0]);
 
+// NB: use RDI for the src value as it's the 1st arg in x86-64 calling conventions
 const xed_reg_enum_t REGISTERS[] = {
-  XED_REG_AL,
-  XED_REG_CL,
-  XED_REG_DL,
-  XED_REG_BL,
-  //  XED_REG_SPL, // ignore all stores involving the stack pointer
-  XED_REG_BPL,
-  XED_REG_SIL,
-  XED_REG_DIL,
-  XED_REG_R8B,
-  XED_REG_R9B,
-  XED_REG_R10B,
-  XED_REG_R11B,
-  XED_REG_R12B,
-  XED_REG_R13B,
-  XED_REG_R14B,
-  XED_REG_R15B,
-  XED_REG_AH,
-  XED_REG_CH,
-  XED_REG_DH,
-  XED_REG_BH,
-  XED_REG_AX,
-  XED_REG_CX,
-  XED_REG_DX,
-  XED_REG_BX,
-  //  XED_REG_SP, // ignore all stores involving the stack pointer
-  XED_REG_BP,
-  XED_REG_SI,
-  XED_REG_DI,
-  XED_REG_R8W,
-  XED_REG_R9W,
-  XED_REG_R10W,
-  XED_REG_R11W,
-  XED_REG_R12W,
-  XED_REG_R13W,
-  XED_REG_R14W,
-  XED_REG_R15W,
-  XED_REG_EAX,
-  XED_REG_ECX,
-  XED_REG_EDX,
-  XED_REG_EBX,
-  //  XED_REG_ESP, // ignore all stores involving the stack pointer
-  XED_REG_EBP,
-  XED_REG_ESI,
-  XED_REG_EDI,
-  XED_REG_R8D,
-  XED_REG_R9D,
-  XED_REG_R10D,
-  XED_REG_R11D,
-  XED_REG_R12D,
-  XED_REG_R13D,
-  XED_REG_R14D,
-  XED_REG_R15D,
-  XED_REG_RAX,
-  XED_REG_RCX,
-  XED_REG_RDX,
-  XED_REG_RBX,
-  //  XED_REG_RSP, // ignore all stores involving the stack pointer
-  XED_REG_RBP,
-  XED_REG_RSI,
-  XED_REG_RDI,
-  XED_REG_R8,
-  XED_REG_R9,
-  XED_REG_R10,
-  XED_REG_R11,
-  XED_REG_R12,
-  XED_REG_R13,
-  XED_REG_R14,
-  XED_REG_R15,
-  XED_REG_MMX0,
-  XED_REG_MMX1,
-  XED_REG_MMX2,
-  XED_REG_MMX3,
-  XED_REG_MMX4,
-  XED_REG_MMX5,
-  XED_REG_MMX6,
-  XED_REG_MMX7,
-  XED_REG_XMM0,
-  XED_REG_XMM1,
-  XED_REG_XMM2,
-  XED_REG_XMM3,
-  XED_REG_XMM4,
-  XED_REG_XMM5,
-  XED_REG_XMM6,
-  XED_REG_XMM7,
-  XED_REG_XMM8,
-  XED_REG_XMM9,
-  XED_REG_XMM10,
-  XED_REG_XMM11,
-  XED_REG_XMM12,
-  XED_REG_XMM13,
-  XED_REG_XMM14,
-  XED_REG_XMM15 /*, NB: no AVX instructions on our target platform
-  XED_REG_YMM0,
-  XED_REG_YMM1,
-  XED_REG_YMM2,
-  XED_REG_YMM3,
-  XED_REG_YMM4,
-  XED_REG_YMM5,
-  XED_REG_YMM6,
-  XED_REG_YMM7,
-  XED_REG_YMM8,
-  XED_REG_YMM9,
-  XED_REG_YMM10,
-  XED_REG_YMM11,
-  XED_REG_YMM12,
-  XED_REG_YMM13,
-  XED_REG_YMM14,
-  XED_REG_YMM15 */
+  XED_REG_DIL, // low 8b
+  XED_REG_AH, // high 8b
+  XED_REG_DI, // low 16b
+  XED_REG_EDI, // low 32b
+  XED_REG_RDI, // 64b
+  XED_REG_MMX0, // 64b MMX
+  XED_REG_XMM0 // 128b SSE
+  // XED_REG_YMM0, // 256b AVX NB: no AVX instructions on our target platform
 };
 const int NUM_REGISTERS = sizeof(REGISTERS) / sizeof(REGISTERS[0]);
 
@@ -189,6 +90,7 @@ int main(int argc, char** argv) {
     // SET* insns have only FLAGS as a source register
     if (isOpcodeSET(opcode)) {
       xed_encoder_instruction_t xei; 
+      // NB: use RSI for the dst addr as it holds the 2nd arg in x86-64 calling conventions
       xed_encoder_operand_t kwDst = xed_mem_b(XED_REG_RSI, 8);
       xed_inst1(&xei, dstate, opcode, 0, kwDst);
 
@@ -225,14 +127,9 @@ int main(int argc, char** argv) {
 
       const xed_uint32_t srcRegWidthBits = xed_get_register_width_bits64(srcReg);
 
-      // by default, use %rsi to hold destination address
+      // NB: use RSI for the dest addr as it holds the 2nd arg in x86-64 calling conventions
       xed_encoder_operand_t kwDst = xed_mem_b(XED_REG_RSI, srcRegWidthBits);
       string dstAddrReg = "S";
-      // if srcReg is rax, then put address in %rbx instead
-      if (XED_REG_RSI == xed_get_largest_enclosing_register(srcReg)) {
-        kwDst = xed_mem_b(XED_REG_RBX, srcRegWidthBits);
-        dstAddrReg = "b";
-      }
       xed_encoder_operand_t kwSrc = xed_reg(srcReg);
 
       xed_encoder_instruction_t xei; 
