@@ -56,8 +56,8 @@ ifeq ($(COMPILER),gnu)
   OUTOPT=-o 
   COPT=-c
   IOPT=-I
-  CXXFLAGS = -MMD
-  CCFLAGS = -MMD -std=c99
+  CXXFLAGS = -MMD -Wall -std=c++11
+  CCFLAGS = -MMD -Wall -std=c11
 
   #
   # Uncomment these next 2 if you want 32b object and executable 
@@ -108,7 +108,7 @@ XED = xed
 XED_DEMOS_SUFFIXED= $(XED_DEMOS:%=%$(EXEEXT))
 XED_SUFFIXED= $(XED:%=%$(EXEEXT))
 
-XED_TEST_APPS = ${XED_SUFFIXED} ${XED_DEMOS_SUFFIXED} 
+XED_TEST_APPS = ${XED_SUFFIXED} ${XED_DEMOS_SUFFIXED} gkw
 all: ${XED_TEST_APPS}
 demos: ${XED_DEMOS_SUFFIXED}
 cmdline: ${XED_SUFFIXED}
@@ -172,6 +172,14 @@ endif
 
 xed${EXEEXT}: ${XED_OBJ} ${LIBXED}
 	${CXX_LINKER}  ${LDFLAGS}  ${LINKOUT}$@ $^ ${EXTRA_LDLIBS_TARGET}
+
+gkw: gen-kernel-writes-table.o ${LIBXED}
+	${CXX_LINKER}  ${LDFLAGS}  ${LINKOUT}$@ $^ ${EXTRA_LDLIBS_TARGET}
+
+run-gkw: gkw
+	./gkw > bar.c
+	gcc -Wall -std=gnu11 -O3 -fomit-frame-pointer -c bar.c -o bar.o
+
 
 #################################################################
 
