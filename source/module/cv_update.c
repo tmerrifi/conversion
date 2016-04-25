@@ -41,7 +41,7 @@ void __debug_print_dirty_list(struct ksnap_user_data * cv_user){
   printk(KSNAP_LOG_LEVEL "DIRTY LIST FOR %d\n", current->pid);
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
-    printk(KSNAP_LOG_LEVEL "      dirty..... index %lu pfn %lu\n", pte_entry->page_index, pte_entry->pfn);
+    printk(KSNAP_LOG_LEVEL "      dirty..... index %lu pfn\n", pte_entry->page_index);
   }
 }
 
@@ -102,6 +102,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   struct list_head * pos, * pos_outer, * pos_outer_tmp, * ls, * new_list;
   /*for storing pte values from list*/
   struct snapshot_pte_list * tmp_pte_list, * dirty_entry;
+  struct cv_page_entry * page_entry, * dirty_entry_page;
   struct snapshot_version_list * latest_version_entry;
   struct address_space * mapping;
   int gotten_pages = 0;
@@ -199,47 +200,61 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       list_for_each(pos, &latest_version_entry->pte_list->list){
 	//get the pte entry
 	tmp_pte_list = list_entry(pos, struct snapshot_pte_list, list);
-	//is the pte outdated? If so, then no use wasting time updating our page table
-	if (tmp_pte_list->obsolete_version <= target_version_number){
-            cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);
-            CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_SKIP);
-            continue;
-	}
-        dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
-	if (merge && dirty_entry){
-	  //we have to merge our changes with the committed stuff
-            ksnap_merge(pfn_to_page(tmp_pte_list->pfn), 
-                        (uint8_t *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
-                        dirty_entry->ref_page, pfn_to_page(tmp_pte_list->pfn));
+        if (tmp_pte_list->type == CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
+            //*********We are committing a page*************
+            page_entry = cv_list_entry_get_page_entry(tmp_pte_list);
+            //is the pte outdated? If so, then no use wasting time updating our page table
+            if (tmp_pte_list->obsolete_version <= target_version_number){
+                cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);
+                CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_SKIP);
+                continue;
+            }
+            dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
+            if (merge && dirty_entry){
+                //we have to merge our changes with the committed stuff
+                if (dirty_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
+                    dirty_entry_page=cv_list_entry_get_page_entry(dirty_entry);
+                    ksnap_merge(pfn_to_page(page_entry->pfn), 
+                                (uint8_t *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
+                                dirty_entry_page->ref_page, pfn_to_page(page_entry->pfn));
 #ifdef CONV_LOGGING_ON
-          printk(KERN_EMERG "    Update %d for segment %p, merge page index %d\n", current->pid, cv_seg, tmp_pte_list->page_index);
+                    printk(KERN_EMERG "    Update %d for segment %p, merge page index %d\n", current->pid, cv_seg, tmp_pte_list->page_index);
 #endif
-	  cv_stats_inc_merged_pages(&cv_seg->cv_stats);
-	  merge_count++;
-          cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_MERGE);
-          CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_MERGE);
-	}
-        //if we have a partial version, it means that we previously did a partial upate. If so, and this entry's version number
-        //is less than our partial version number, then this update is superfluous
-	else if (!dirty_entry && !(cv_user->partial_version_num >= latest_version_entry->version_num)){
-	  cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
-          cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_UPDATE);
-	  pte_copy_entry (tmp_pte_list->pte, tmp_pte_list->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page, defer_work, cv_user);
+                    cv_stats_inc_merged_pages(&cv_seg->cv_stats);
+                    merge_count++;
+                    cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_MERGE);
+                    CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_MERGE);
+                }
+                else if (dirty_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING){
+                    BUG();
+                }
+            }
+            //if we have a partial version, it means that we previously did a partial upate. If so, and this entry's version number
+            //is less than our partial version number, then this update is superfluous
+            else if (!dirty_entry && !(cv_user->partial_version_num >= latest_version_entry->version_num)){
+                cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
+                cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_UPDATE);
+                pte_copy_entry (page_entry->pte, page_entry->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page, defer_work, cv_user);
 #ifdef CONV_LOGGING_ON
-          printk(KERN_EMERG "    Update %d for segment %p, update page index %d \n", 
-                 current->pid, cv_seg, tmp_pte_list->page_index);
+                printk(KERN_EMERG "    Update %d for segment %p, update page index %d \n", 
+                       current->pid, cv_seg, tmp_pte_list->page_index);
 #endif
-	  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
-          if (__insert_partial_update_page_lookup(&cv_user->partial_update_page_lookup, tmp_pte_list->page_index, 
-                                                     latest_version_entry->version_num, cv_user->version_num)){
-              ++partial_unique_count;
-          }
-          ++gotten_pages;
-          CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_UPDATE);
-	}
+                cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
+                if (__insert_partial_update_page_lookup(&cv_user->partial_update_page_lookup, tmp_pte_list->page_index, 
+                                                        latest_version_entry->version_num, cv_user->version_num)){
+                    ++partial_unique_count;
+                }
+                ++gotten_pages;
+                CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_UPDATE);
+            }
+            else{
+                cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);
+                ++ignored_pages;
+            }
+        }
         else{
-            cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);
-            ++ignored_pages;
+            //LOGGING CODE
+            BUG();
         }
       }
 #ifdef CONV_LOGGING_ON
@@ -251,42 +266,42 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     old_version = cv_user->version_num;
     //done traversing the versions
     if (new_list && !keep_current_version){
-      latest_version_entry = list_entry( new_list, struct snapshot_version_list, list);
-      atomic_inc(&latest_version_entry->ref_c);
-      //only set it to the new list if it's not null
-      vma->snapshot_pte_list = (new_list) ? new_list : vma->snapshot_pte_list;
-      //set the new version
-      ksnap_meta_set_local_version(vma,target_version_number);
-      cv_user->version_num=target_version_number;
-      cv_user->partial_version_num=0;
-      cv_meta_set_partial_version_num(vma, 0);
+        latest_version_entry = list_entry( new_list, struct snapshot_version_list, list);
+        atomic_inc(&latest_version_entry->ref_c);
+        //only set it to the new list if it's not null
+        vma->snapshot_pte_list = (new_list) ? new_list : vma->snapshot_pte_list;
+        //set the new version
+        ksnap_meta_set_local_version(vma,target_version_number);
+        cv_user->version_num=target_version_number;
+        cv_user->partial_version_num=0;
+        cv_meta_set_partial_version_num(vma, 0);
     }
     else if (new_list && keep_current_version){
         cv_user->partial_version_num=target_version_number;
         cv_meta_set_partial_version_num(vma, target_version_number);
     }
-
+    
     //we didn't flush along the way....we need to flush the whole thing
     if (!flush_tlb_per_page){
-      flush_tlb();
+        flush_tlb();
     }
   }
 #ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL "UPDATE for segment %p: pid %d updated to version %llu old version %llu and merged %d pages and updated %d \
+    printk(KSNAP_LOG_LEVEL "UPDATE for segment %p: pid %d updated to version %llu old version %llu and merged %d pages and updated %d \
 pages target_input %lu committed version %llu ignored %d, keep current %d, first_update %d, partial pages %d\n", 
-         cv_seg, current->pid, target_version_number, old_version, merge_count, gotten_pages, 
-         target_version_input, atomic64_read(&cv_seg->committed_version_atomic), ignored_pages, 
-         keep_current_version, first_update_after_partial, cv_meta_get_partial_updated_unique_pages(vma));
+           cv_seg, current->pid, target_version_number, old_version, merge_count, gotten_pages, 
+           target_version_input, atomic64_read(&cv_seg->committed_version_atomic), ignored_pages, 
+           keep_current_version, first_update_after_partial, cv_meta_get_partial_updated_unique_pages(vma));
 
 #endif
 
-  cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
-  cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
-  cv_meta_set_updated_page_count(vma, gotten_pages);
-  cv_meta_set_merged_page_count(vma, merge_count);
-  cv_meta_inc_partial_updated_unique_pages(vma, partial_unique_count);
-
-  return;
+    cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
+    cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
+    cv_meta_set_updated_page_count(vma, gotten_pages);
+    cv_meta_set_merged_page_count(vma, merge_count);
+    cv_meta_inc_partial_updated_unique_pages(vma, partial_unique_count);
+    
+    return;
 }
 
 

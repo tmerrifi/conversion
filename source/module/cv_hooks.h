@@ -1,5 +1,6 @@
 
 struct ksnap;
+struct ksnap_user_data;
 
 typedef enum {CV_HOOKS_COMMIT_ENTRY_SKIP=0, CV_HOOKS_COMMIT_ENTRY_COMMIT=1, CV_HOOKS_COMMIT_ENTRY_MERGE=2} cv_hooks_commit_type_t;
 typedef enum {CV_HOOKS_UPDATE_ENTRY_SKIP=0, CV_HOOKS_UPDATE_ENTRY_UPDATE=1, CV_HOOKS_UPDATE_ENTRY_MERGE=2} cv_hooks_update_type_t;
