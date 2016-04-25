@@ -5,7 +5,7 @@ extern "C" {
 //#include "xed-enc-lang.H"
 #include <iostream>
 #include <string>
-//#include <sstream>
+#include <cstdlib>
 
 #include <boost/algorithm/string.hpp>
 
@@ -14,28 +14,56 @@ using namespace std;
 const char* ASM_NEWLINE = "\\n\\t";
 
 const xed_iclass_enum_t OPCODES[] = { 
-  XED_ICLASS_ADD,
-  XED_ICLASS_AND,
-  XED_ICLASS_MOV,
-  XED_ICLASS_MOVDQA,
-  XED_ICLASS_OR,
-  XED_ICLASS_SETB,
-  XED_ICLASS_SETNZ,
-  XED_ICLASS_SHL,
-  XED_ICLASS_SUB
+  // XED_ICLASS_ADD
+  // XED_ICLASS_AND,
+  // XED_ICLASS_MOV,
+  //XED_ICLASS_MOVD,
+  // XED_ICLASS_MOVDQA,
+  // XED_ICLASS_OR,
+  // XED_ICLASS_SETB,
+  // XED_ICLASS_SETNZ,
+  // XED_ICLASS_SHL,
+  //XED_ICLASS_SUB
+  //XED_ICLASS_MOVUPD,
+  //XED_ICLASS_MOVUPS,
+  //XED_ICLASS_MOVSS
+  //XED_ICLASS_MOVQ
+  //XED_ICLASS_VMOVUPD
+  //XED_ICLASS_VMOVUPS
+  //XED_ICLASS_VMOVSS
+  //XED_ICLASS_VMOVSD
+  //XED_ICLASS_MOVLPS
+  //XED_ICLASS_MOVLPD
+  //XED_ICLASS_VMOVLPS
+  //XED_ICLASS_VMOVLPD
+  // XED_ICLASS_MOVHPS,
+  // XED_ICLASS_MOVHPD,
+  // XED_ICLASS_VMOVHPS,
+  // XED_ICLASS_VMOVHPD
+
+  XED_ICLASS_MOVAPS,
+  XED_ICLASS_VMOVAPS,
+  XED_ICLASS_MOVAPD,
+  XED_ICLASS_VMOVAPD
+
+  //XED_ICLASS_MOVSD // TODO: doesn't generate any valid code for some reason...
 };
 const int NUM_OPCODES = sizeof(OPCODES) / sizeof(OPCODES[0]);
 
-// NB: use RDI for the src value as it's the 1st arg in x86-64 calling conventions
+// NB: use RSI for the src value if possible as it's the 2nd arg in x86-64 calling conventions
 const xed_reg_enum_t REGISTERS[] = {
-  XED_REG_DIL, // low 8b
+  XED_REG_SIL, // low 8b
   XED_REG_AH, // high 8b
-  XED_REG_DI, // low 16b
-  XED_REG_EDI, // low 32b
-  XED_REG_RDI, // 64b
+  XED_REG_SI, // low 16b
+  XED_REG_ESI, // low 32b
+  XED_REG_RSI, // 64b
   XED_REG_MMX0, // 64b MMX
   XED_REG_XMM0 // 128b SSE
-  // XED_REG_YMM0, // 256b AVX NB: no AVX instructions on our target platform
+
+  /* NB: there are no AVX instructions on our target platform (Nehalem). Adding
+     AVX support here would be tricky as gcc doesn't have any built-in 256b
+     integer types, so we'd have to pack up the ymm src register manually. */
+  // XED_REG_YMM0, // 256b AVX 
 };
 const int NUM_REGISTERS = sizeof(REGISTERS) / sizeof(REGISTERS[0]);
 
@@ -90,28 +118,29 @@ int main(int argc, char** argv) {
     // SET* insns have only FLAGS as a source register
     if (isOpcodeSET(opcode)) {
       xed_encoder_instruction_t xei; 
-      // NB: use RSI for the dst addr as it holds the 2nd arg in x86-64 calling conventions
-      xed_encoder_operand_t kwDst = xed_mem_b(XED_REG_RSI, 8);
+      // NB: use RDI for the dst addr as it holds the 1st arg in x86-64 calling conventions
+      xed_encoder_operand_t kwDst = xed_mem_b(XED_REG_RDI, 8);
       xed_inst1(&xei, dstate, opcode, 0, kwDst);
 
       const string funName = makeInsnFunName(opcode, XED_REG_FLAGS); 
-      cout << "void " << funName << "(uint64_t flags, uint64_t dstAddress) {" << endl;
+      cout << "void " << funName << "(uint64_t dstAddress, uint64_t flags) { ";
 
       string insnAsm = "";
       if (!generateInsn(&xei, &dstate, insnAsm)) {
         //cerr << " opcode:" << xed_iclass_enum_t2str(opcode) << endl;
 
         // this insnFun should never get called
-        cout << " assert(0);" << endl << "}" << endl;
+        cout << " assert(0); }" << endl;
 
         continue;
       }
 
-      cout << " __asm__(\"push %%rdi" << ASM_NEWLINE << "\"" << endl;
+      cout << endl;
+      cout << " __asm__(\"push %%rsi" << ASM_NEWLINE << "\"" << endl;
       cout << "         \"popf" << ASM_NEWLINE << "\"" << endl;
       cout << "         \"" << insnAsm << ASM_NEWLINE << "\"" << endl;
       cout << "         : /*no output registers*/" << endl;
-      cout << "         : \"S\"(dstAddress), \"D\"(flags) /*input registers*/" << endl;
+      cout << "         : \"D\"(dstAddress), \"S\"(flags) /*input registers*/" << endl;
       cout << "         : /*no clobbered registers*/" << endl;
       cout << "         );" << endl;
 
@@ -122,14 +151,33 @@ int main(int argc, char** argv) {
 
     // STORES FROM A REGISTER
 
+    bool madeCode = false;
+
     for (int regi = 0; regi < NUM_REGISTERS; regi++) {
       const xed_reg_enum_t srcReg = REGISTERS[regi];
 
-      const xed_uint32_t srcRegWidthBits = xed_get_register_width_bits64(srcReg);
+      xed_uint32_t srcRegWidthBits = xed_get_register_width_bits64(srcReg);
+      if (XED_ICLASS_MOVSS == opcode ||
+          XED_ICLASS_MOVD == opcode ||
+          XED_ICLASS_VMOVSS == opcode) {
+        srcRegWidthBits = 32;
+      } else if (XED_ICLASS_MOVSD == opcode ||
+                 XED_ICLASS_MOVQ == opcode ||
+                 XED_ICLASS_VMOVSD == opcode ||
+                 XED_ICLASS_MOVLPS == opcode ||
+                 XED_ICLASS_VMOVLPS == opcode ||
+                 XED_ICLASS_MOVLPD == opcode ||
+                 XED_ICLASS_VMOVLPD == opcode ||
+                 XED_ICLASS_MOVHPS == opcode ||
+                 XED_ICLASS_MOVHPD == opcode ||
+                 XED_ICLASS_VMOVHPS == opcode ||
+                 XED_ICLASS_VMOVHPD == opcode) {
+        srcRegWidthBits = 64;
+      }
 
-      // NB: use RSI for the dest addr as it holds the 2nd arg in x86-64 calling conventions
-      xed_encoder_operand_t kwDst = xed_mem_b(XED_REG_RSI, srcRegWidthBits);
-      string dstAddrReg = "S";
+      // NB: use RDI for the dest addr as it holds the 1st arg in x86-64 calling conventions
+      xed_encoder_operand_t kwDst = xed_mem_b(XED_REG_RDI, srcRegWidthBits);
+      string dstAddrReg = "D";
       xed_encoder_operand_t kwSrc = xed_reg(srcReg);
 
       xed_encoder_instruction_t xei; 
@@ -137,8 +185,12 @@ int main(int argc, char** argv) {
       // two-operand insn
       xed_inst2(&xei, dstate, opcode, srcRegWidthBits, kwDst, kwSrc); 
 
-      const string funName = makeInsnFunName(opcode, srcReg); 
-      cout << "void " << funName << "(uint64_t srcValue, uint64_t dstAddress) {" << endl;
+      const string funName = makeInsnFunName(opcode, srcReg);
+      if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
+        cout << "void " << funName << "(uint64_t dstAddress, unsigned __int128 srcValue) {" << endl;
+      } else { // includes MM registers
+        cout << "void " << funName << "(uint64_t dstAddress, uint64_t srcValue) {" << endl;
+      }
 
       string insnAsm = "";
       if (!generateInsn(&xei, &dstate, insnAsm)) {
@@ -150,29 +202,38 @@ int main(int argc, char** argv) {
         continue;
       }
 
-      // gcc doesn't have builtin register constraints for r8-r15, so for 
-      // simplicity we always specify our own custom constraints
-      // http://stackoverflow.com/questions/15997759/constraining-r10-register-in-gcc-inline-x86-64-assembly
       string srcRegCanonicalName = string(xed_reg_enum_t2str(srcReg));
       if (xed_get_register_width_bits64(srcReg) < 64) { // canonicalize to 64-bit registers (or xmm, ymm)
         srcRegCanonicalName = string(xed_reg_enum_t2str(xed_get_largest_enclosing_register(srcReg)));
       }
       boost::algorithm::to_lower(srcRegCanonicalName);
 
-      cout << "register uint64_t myReg asm (\"" << srcRegCanonicalName << "\") = srcValue;" << endl;
+      if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
+        srcRegCanonicalName = "x"; // use any xmm register
+        boost::replace_all(insnAsm, "%%xmm0", "%1");
+      } else if (xed_reg_class(srcReg) == XED_REG_CLASS_MMX) {
+        srcRegCanonicalName = "y"; // use any mm register
+        boost::replace_all(insnAsm, "%%mmx0", "%1");
+      }
 
       cout << " __asm__(\"" << insnAsm << ASM_NEWLINE << "\"" << endl;
       cout << "         : /*no output registers*/" << endl;
-      cout << "         : \"" << dstAddrReg << "\"(dstAddress), \"r\"(myReg) /*input registers*/" << endl;
+      cout << "         : \"" << dstAddrReg << "\"(dstAddress), \"" << srcRegCanonicalName << "\"(srcValue) /*input registers*/" << endl;
       cout << "         : /*no clobbered registers*/" << endl;
       cout << "         );" << endl;
 
       cout << "}" << endl << endl;
+      madeCode = true;
       
     }
 
-    // NB: stores from an immediate just use "store (eax), ebx" and put the immediate into ebx
-    // may need to handle various immediate formats, signed vs unsigned, sign extension, etc?
+    if (!madeCode) {
+      cerr << "ERROR: did not generate any code for opcode: " << xed_iclass_enum_t2str(opcode) << endl;
+      exit(1);
+    }
+
+    // NB: stores from an immediate just pass the src value like any other store value
+    // TODO: may need to handle various immediate formats, signed vs unsigned, sign extension, etc in the decoder?
 
   }
   
@@ -183,7 +244,7 @@ int main(int argc, char** argv) {
 void generateLUTs() {
 
   // typedefs
-  cout << endl << "typedef void (*insnFun)(uint64_t srcValue, uint64_t dstAddress);" << endl << endl;
+  cout << endl << "typedef void (*insnFun)(uint64_t dstAddress, uint64_t srcValue);" << endl << endl;
 
   // srcreg2fun tables
   for (int opi = 0; opi < NUM_OPCODES; opi++) {
@@ -270,7 +331,25 @@ bool generateInsn(xed_encoder_instruction_t* xei, xed_state_t* dstate, string& i
   boost::replace_all(insnAsm, "%", "%%");
 
   // translate opcodes that gcc doesn't understand
-  boost::replace_all(insnAsm, "movdqax ", "movdqa ");
+  boost::replace_all(insnAsm, "movdqax ",  "movdqa ");
+  boost::replace_all(insnAsm, "movupdx ",  "movupd ");
+  boost::replace_all(insnAsm, "movupsx ",  "movups ");
+  boost::replace_all(insnAsm, "movssl ",   "movss ");
+  boost::replace_all(insnAsm, "movdl ",    "movd ");
+  boost::replace_all(insnAsm, "movqq ",    "movq ");
+  boost::replace_all(insnAsm, "vmovsdq ",  "vmovsd ");
+  boost::replace_all(insnAsm, "vmovlpsq ", "vmovlps ");
+  boost::replace_all(insnAsm, "vmovlpdq ", "vmovlpd ");
+  boost::replace_all(insnAsm, "vmovhpsq ", "vmovhps ");
+  boost::replace_all(insnAsm, "movhpsq ",  "movhps ");
+  boost::replace_all(insnAsm, "vmovhpdq ", "vmovhpd ");
+  boost::replace_all(insnAsm, "movhpdq ",  "movhpd ");
+  boost::replace_all(insnAsm, "movapsx ",  "movaps ");
+  boost::replace_all(insnAsm, "vmovapsx ", "vmovaps ");
+  boost::replace_all(insnAsm, "movapdx ",  "movapd ");
+  boost::replace_all(insnAsm, "vmovapdx ", "vmovapd ");
+
+  //boost::replace_all(insnAsm, "vmovlpsq ", " ");
 
   return true;
 }
