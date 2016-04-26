@@ -14,12 +14,10 @@ using namespace std;
 const char* ASM_NEWLINE = "\\n\\t";
 
 const xed_iclass_enum_t OPCODES[] = { 
-
-  // TODO: handle insns that set FLAGS: void ADD_RSI(uint64_t dstAddress, uint64_t srcValue, uint64_t* theFlags);
-  // XED_ICLASS_ADD,
-  // XED_ICLASS_AND,
-  // XED_ICLASS_OR,
-  // XED_ICLASS_SUB,
+  XED_ICLASS_ADD,
+  XED_ICLASS_AND,
+  XED_ICLASS_OR,
+  XED_ICLASS_SUB,
   //XED_ICLASS_SAL, // doesn't exist in xed!!
   XED_ICLASS_SAR,
   XED_ICLASS_SHL,
@@ -181,9 +179,69 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    // STORES FROM A REGISTER
-
     bool madeCode = false;
+
+    if (isOpcodeCompute(opcode)) {
+      for (int regi = 0; regi < NUM_REGISTERS; regi++) {
+        xed_reg_enum_t srcReg = REGISTERS[regi];
+        
+        xed_uint32_t srcRegWidthBits = xed_get_register_width_bits64(srcReg);
+      
+        if (XED_REG_SIL == srcReg && isOpcodeShift(opcode)) {
+          // shift insns require the shift amount be placed in CL
+          srcReg = XED_REG_CL;
+          srcRegWidthBits = 8;
+        }
+
+        // NB: use RDI for the dest addr as it holds the 1st arg in x86-64 calling conventions
+        xed_encoder_operand_t kwDst = xed_mem_b(XED_REG_RDI, srcRegWidthBits);
+        xed_encoder_operand_t kwSrc = xed_reg(srcReg);
+        
+        xed_encoder_instruction_t xei; 
+
+        // two-operand insn
+        xed_inst2(&xei, dstate, opcode, srcRegWidthBits, kwDst, kwSrc); 
+
+        const string funName = makeInsnFunName(opcode, srcReg);
+        cout << "void " << funName << "(uint64_t dstAddress, uint64_t srcValue, uint64_t* flags) {" << endl;
+        
+        string insnAsm = "";
+        if (!generateInsn(&xei, &dstate, insnAsm)) {
+          //cerr << " opcode:" << xed_iclass_enum_t2str(opcode) << " srcReg:" << xed_reg_enum_t2str(srcReg) << endl;
+          
+          // this insnFun should never get called
+          cout << " assert(0);" << endl << "}" << endl;
+          
+          continue;
+        }
+        // NB: we don't support compute operations on XMM registers
+        assert(xed_reg_class(srcReg) != XED_REG_CLASS_XMM);
+
+        string srcRegCanonicalName = string(xed_reg_enum_t2str(srcReg));
+        if (xed_get_register_width_bits64(srcReg) < 64) { // canonicalize to 64-bit registers (or xmm, ymm)
+          srcRegCanonicalName = string(xed_reg_enum_t2str(xed_get_largest_enclosing_register(srcReg)));
+        }
+        boost::algorithm::to_lower(srcRegCanonicalName);
+
+        cout << " __asm__(\"push %2" << ASM_NEWLINE << "\"" << endl;
+        cout << "         \"popf" << ASM_NEWLINE << "\"" << endl;
+        cout << "         \"" << insnAsm << ASM_NEWLINE << "\"" << endl;
+        cout << "         \"pushf" << ASM_NEWLINE << "\"" << endl;
+        cout << "         \"pop %0" << ASM_NEWLINE << "\"" << endl;
+        cout << "         : \"=r\"(*flags) /*output registers*/" << endl;
+        cout << "         : \"D\"(dstAddress), \"r\"(*flags), \"" << srcRegCanonicalName << "\"(srcValue) /*input registers*/" << endl;
+        cout << "         : /*no clobbered registers*/" << endl;
+        cout << "         );" << endl;
+        
+        cout << "}" << endl << endl;
+        madeCode = true;
+        
+      } // end register loop
+      
+      continue;
+    } // end if compute insn
+
+    // STORES FROM A REGISTER
 
     for (int regi = 0; regi < NUM_REGISTERS; regi++) {
       xed_reg_enum_t srcReg = REGISTERS[regi];
