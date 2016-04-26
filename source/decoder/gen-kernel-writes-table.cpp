@@ -14,37 +14,47 @@ using namespace std;
 const char* ASM_NEWLINE = "\\n\\t";
 
 const xed_iclass_enum_t OPCODES[] = { 
-  // XED_ICLASS_ADD
-  // XED_ICLASS_AND,
-  // XED_ICLASS_MOV,
-  //XED_ICLASS_MOVD,
-  // XED_ICLASS_MOVDQA,
-  // XED_ICLASS_OR,
-  // XED_ICLASS_SETB,
-  // XED_ICLASS_SETNZ,
-  // XED_ICLASS_SHL,
-  //XED_ICLASS_SUB
-  //XED_ICLASS_MOVUPD,
-  //XED_ICLASS_MOVUPS,
-  //XED_ICLASS_MOVSS
-  //XED_ICLASS_MOVQ
-  //XED_ICLASS_VMOVUPD
-  //XED_ICLASS_VMOVUPS
-  //XED_ICLASS_VMOVSS
-  //XED_ICLASS_VMOVSD
-  //XED_ICLASS_MOVLPS
-  //XED_ICLASS_MOVLPD
-  //XED_ICLASS_VMOVLPS
-  //XED_ICLASS_VMOVLPD
-  // XED_ICLASS_MOVHPS,
-  // XED_ICLASS_MOVHPD,
-  // XED_ICLASS_VMOVHPS,
-  // XED_ICLASS_VMOVHPD
 
+  // TODO: handle insns that set FLAGS: void ADD_RSI(uint64_t dstAddress, uint64_t srcValue, uint64_t* theFlags);
+  // XED_ICLASS_ADD,
+  // XED_ICLASS_AND,
+  // XED_ICLASS_OR,
+  // XED_ICLASS_SUB,
+
+  //XED_ICLASS_SAL, // doesn't exist in xed!!
+  XED_ICLASS_SAR,
+  XED_ICLASS_SHL,
+  XED_ICLASS_SHR,
+
+  XED_ICLASS_SETB,
+  XED_ICLASS_SETNZ,
+
+  XED_ICLASS_MOV,
+  XED_ICLASS_MOVD,
+  XED_ICLASS_MOVSS,
+  XED_ICLASS_MOVQ,
+  XED_ICLASS_MOVUPS,
+  XED_ICLASS_MOVUPD,
+  XED_ICLASS_VMOVUPS,
+  XED_ICLASS_VMOVUPD,
+  XED_ICLASS_VMOVSS,
+  XED_ICLASS_VMOVSD,
+  XED_ICLASS_MOVLPS,
+  XED_ICLASS_MOVLPD,
+  XED_ICLASS_VMOVLPS,
+  XED_ICLASS_VMOVLPD,
+  XED_ICLASS_MOVHPS,
+  XED_ICLASS_MOVHPD,
+  XED_ICLASS_VMOVHPS,
+  XED_ICLASS_VMOVHPD,
   XED_ICLASS_MOVAPS,
-  XED_ICLASS_VMOVAPS,
   XED_ICLASS_MOVAPD,
-  XED_ICLASS_VMOVAPD
+  XED_ICLASS_VMOVAPS,
+  XED_ICLASS_VMOVAPD,
+  XED_ICLASS_MOVDQA,
+  XED_ICLASS_MOVDQU,
+  XED_ICLASS_VMOVDQA,
+  XED_ICLASS_VMOVDQU
 
   //XED_ICLASS_MOVSD // TODO: doesn't generate any valid code for some reason...
 };
@@ -70,14 +80,6 @@ const int NUM_REGISTERS = sizeof(REGISTERS) / sizeof(REGISTERS[0]);
 bool generateInsn(xed_encoder_instruction_t* xei, xed_state_t* dstate, string& insnAsm);
 void generateLUTs();
 
-string makeInsnFunName(xed_iclass_enum_t opcode, xed_reg_enum_t srcReg) {
-  string funName = "";
-  funName += xed_iclass_enum_t2str(opcode);
-  funName += "_";
-  funName += xed_reg_enum_t2str(srcReg);
-  return funName;
-}
-
 bool isOpcodeSET(xed_iclass_enum_t opcode) {
   return (XED_ICLASS_SETB == opcode ||
           XED_ICLASS_SETBE == opcode ||
@@ -95,6 +97,27 @@ bool isOpcodeSET(xed_iclass_enum_t opcode) {
           XED_ICLASS_SETP == opcode ||
           XED_ICLASS_SETS == opcode ||
           XED_ICLASS_SETZ == opcode);
+}
+
+bool isOpcodeShift(xed_iclass_enum_t opcode) {
+  return (XED_ICLASS_SAR == opcode ||
+          XED_ICLASS_SHL == opcode ||
+          XED_ICLASS_SHR == opcode);
+}
+
+string makeInsnFunName(xed_iclass_enum_t opcode, xed_reg_enum_t srcReg) {
+  string funName = "";
+
+  if (isOpcodeSET(opcode)) {
+    srcReg = XED_REG_FLAGS;
+  } else if (XED_REG_SIL == srcReg && isOpcodeShift(opcode)) {
+    srcReg = XED_REG_CL;    
+  }
+
+  funName += xed_iclass_enum_t2str(opcode);
+  funName += "_";
+  funName += xed_reg_enum_t2str(srcReg);
+  return funName;
 }
 
 int main(int argc, char** argv) {
@@ -154,13 +177,16 @@ int main(int argc, char** argv) {
     bool madeCode = false;
 
     for (int regi = 0; regi < NUM_REGISTERS; regi++) {
-      const xed_reg_enum_t srcReg = REGISTERS[regi];
+      xed_reg_enum_t srcReg = REGISTERS[regi];
 
       xed_uint32_t srcRegWidthBits = xed_get_register_width_bits64(srcReg);
+      
       if (XED_ICLASS_MOVSS == opcode ||
           XED_ICLASS_MOVD == opcode ||
           XED_ICLASS_VMOVSS == opcode) {
+        // move one float
         srcRegWidthBits = 32;
+
       } else if (XED_ICLASS_MOVSD == opcode ||
                  XED_ICLASS_MOVQ == opcode ||
                  XED_ICLASS_VMOVSD == opcode ||
@@ -172,7 +198,13 @@ int main(int argc, char** argv) {
                  XED_ICLASS_MOVHPD == opcode ||
                  XED_ICLASS_VMOVHPS == opcode ||
                  XED_ICLASS_VMOVHPD == opcode) {
+        // move two floats or one double
         srcRegWidthBits = 64;
+
+      } else if (XED_REG_SIL == srcReg && isOpcodeShift(opcode)) {
+        // shift insns require the shift amount be placed in CL
+        srcReg = XED_REG_CL;
+        srcRegWidthBits = 8;
       }
 
       // NB: use RDI for the dest addr as it holds the 1st arg in x86-64 calling conventions
@@ -252,16 +284,10 @@ void generateLUTs() {
 
     cout << "insnFun " << xed_iclass_enum_t2str(opcode) << "_Srcreg2FunTable[] = {" << endl;
 
-    if (isOpcodeSET(opcode)) {
-      const string funName = makeInsnFunName(opcode, XED_REG_FLAGS);
+    for (int regi = 0; regi < NUM_REGISTERS; regi++) {
+      const xed_reg_enum_t srcReg = REGISTERS[regi];
+      const string funName = makeInsnFunName(opcode, srcReg);
       cout << " " << funName << "," << endl;
-
-    } else {
-      for (int regi = 0; regi < NUM_REGISTERS; regi++) {
-        const xed_reg_enum_t srcReg = REGISTERS[regi];
-        const string funName = makeInsnFunName(opcode, srcReg);
-        cout << " " << funName << "," << endl;
-      }
     }
 
     cout << " (insnFun) NULL" << endl;
@@ -339,7 +365,9 @@ bool generateInsn(xed_encoder_instruction_t* xei, xed_state_t* dstate, string& i
   boost::replace_all(insnAsm, "movqq ",    "movq ");
   boost::replace_all(insnAsm, "vmovsdq ",  "vmovsd ");
   boost::replace_all(insnAsm, "vmovlpsq ", "vmovlps ");
+  boost::replace_all(insnAsm, "movlpsq ",  "movlps ");
   boost::replace_all(insnAsm, "vmovlpdq ", "vmovlpd ");
+  boost::replace_all(insnAsm, "movlpdq ",  "movlpd ");
   boost::replace_all(insnAsm, "vmovhpsq ", "vmovhps ");
   boost::replace_all(insnAsm, "movhpsq ",  "movhps ");
   boost::replace_all(insnAsm, "vmovhpdq ", "vmovhpd ");
@@ -348,8 +376,8 @@ bool generateInsn(xed_encoder_instruction_t* xei, xed_state_t* dstate, string& i
   boost::replace_all(insnAsm, "vmovapsx ", "vmovaps ");
   boost::replace_all(insnAsm, "movapdx ",  "movapd ");
   boost::replace_all(insnAsm, "vmovapdx ", "vmovapd ");
-
-  //boost::replace_all(insnAsm, "vmovlpsq ", " ");
+  boost::replace_all(insnAsm, "vmovdqux ", "vmovdqu ");
+  boost::replace_all(insnAsm, "movdqux ",  "movdqu ");
 
   return true;
 }
