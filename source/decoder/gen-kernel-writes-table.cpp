@@ -20,7 +20,6 @@ const xed_iclass_enum_t OPCODES[] = {
   // XED_ICLASS_AND,
   // XED_ICLASS_OR,
   // XED_ICLASS_SUB,
-
   //XED_ICLASS_SAL, // doesn't exist in xed!!
   XED_ICLASS_SAR,
   XED_ICLASS_SHL,
@@ -101,6 +100,16 @@ bool isOpcodeSET(xed_iclass_enum_t opcode) {
 
 bool isOpcodeShift(xed_iclass_enum_t opcode) {
   return (XED_ICLASS_SAR == opcode ||
+          XED_ICLASS_SHL == opcode ||
+          XED_ICLASS_SHR == opcode);
+}
+
+bool isOpcodeCompute(xed_iclass_enum_t opcode) {
+  return (XED_ICLASS_ADD == opcode ||
+          XED_ICLASS_AND == opcode ||
+          XED_ICLASS_OR == opcode ||
+          XED_ICLASS_SUB == opcode ||
+          XED_ICLASS_SAR == opcode ||
           XED_ICLASS_SHL == opcode ||
           XED_ICLASS_SHR == opcode);
 }
@@ -276,32 +285,66 @@ int main(int argc, char** argv) {
 void generateLUTs() {
 
   // typedefs
-  cout << endl << "typedef void (*insnFun)(uint64_t dstAddress, uint64_t srcValue);" << endl << endl;
+  cout << endl << "typedef void (*movInsnFun)(uint64_t dstAddress, uint64_t srcValue);" << endl << endl;
+  cout << endl << "typedef void (*wideMovInsnFun)(uint64_t dstAddress, unsigned __int128 srcValue);" << endl << endl;
+  cout << endl << "typedef void (*compInsnFun)(uint64_t dstAddress, uint64_t srcValue, uint64_t* flags);" << endl << endl;
 
-  // srcreg2fun tables
-  for (int opi = 0; opi < NUM_OPCODES; opi++) {
-    const xed_iclass_enum_t opcode = OPCODES[opi];
+  // opcode2fun tables
+  for (int regi = 0; regi < NUM_REGISTERS; regi++) {
+    const xed_reg_enum_t srcReg = REGISTERS[regi];
 
-    cout << "insnFun " << xed_iclass_enum_t2str(opcode) << "_Srcreg2FunTable[] = {" << endl;
+    string funPtrName = "movInsnFun";
+    if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
+      funPtrName = "wideMovInsnFun";
+    }
+    string nullPtr = "(" + funPtrName + ") NULL";
 
-    for (int regi = 0; regi < NUM_REGISTERS; regi++) {
-      const xed_reg_enum_t srcReg = REGISTERS[regi];
-      const string funName = makeInsnFunName(opcode, srcReg);
+    // non-compute insn table
+    cout << funPtrName << " NonComputeOpcode2FunTable_" << xed_reg_enum_t2str(srcReg) << "[] = {" << endl;
+
+    for (int opi = 0; opi < NUM_OPCODES; opi++) {
+      const xed_iclass_enum_t opcode = OPCODES[opi];
+      string funName = makeInsnFunName(opcode, srcReg);
+      if (isOpcodeCompute(opcode)) {
+        funName = nullPtr;
+      }
       cout << " " << funName << "," << endl;
     }
 
-    cout << " (insnFun) NULL" << endl;
+    cout << " " << nullPtr << endl;
     cout << "};" << endl << endl;
-  }
 
-  // opcodeTable
-  cout << "insnFun* OpcodeTable[] = {" << endl;
-  for (int opi = 0; opi < NUM_OPCODES; opi++) {
-    const xed_iclass_enum_t opcode = OPCODES[opi];
-    cout << " " << xed_iclass_enum_t2str(opcode) << "_Srcreg2FunTable," << endl;
-  }
-  cout << " (insnFun*) NULL" << endl;
-  cout << "};" << endl << endl;
+    // compute insn table
+    if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
+      // NB: I don't think x86 has wide computation insn functions
+      continue;
+    }
+    funPtrName = "compInsnFun";
+    nullPtr = "(" + funPtrName + ") NULL";
+    cout << funPtrName << " ComputeOpcode2FunTable_" << xed_reg_enum_t2str(srcReg) << "[] = {" << endl;
+
+    for (int opi = 0; opi < NUM_OPCODES; opi++) {
+      const xed_iclass_enum_t opcode = OPCODES[opi];
+      string funName = makeInsnFunName(opcode, srcReg);
+      if (!isOpcodeCompute(opcode)) {
+        funName = nullPtr;
+      }
+      cout << " " << funName << "," << endl;      
+    }
+
+    cout << " " << nullPtr << endl;
+    cout << "};" << endl << endl;    
+
+  } // loop over registers
+
+  // // opcodeTable
+  // cout << "movInsnFun* OpcodeTable[] = {" << endl;
+  // for (int opi = 0; opi < NUM_OPCODES; opi++) {
+  //   const xed_iclass_enum_t opcode = OPCODES[opi];
+  //   cout << " " << xed_iclass_enum_t2str(opcode) << "_Srcreg2FunTable," << endl;
+  // }
+  // cout << " (movInsnFun*) NULL" << endl;
+  // cout << "};" << endl << endl;
 
 }
 
