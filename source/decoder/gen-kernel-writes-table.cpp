@@ -363,7 +363,8 @@ void generateLUTs() {
     for (int opi = 0; opi < NUM_OPCODES; opi++) {
       const xed_iclass_enum_t opcode = OPCODES[opi];
       string funName = makeInsnFunName(opcode, srcReg);
-      if (isOpcodeCompute(opcode)) {
+      if (isOpcodeCompute(opcode) || 
+          (xed_reg_class(srcReg) == XED_REG_CLASS_XMM && isOpcodeSET(opcode))) {
         funName = nullPtr;
       }
       cout << " " << funName << "," << endl;
@@ -394,15 +395,6 @@ void generateLUTs() {
     cout << "};" << endl << endl;    
 
   } // loop over registers
-
-  // // opcodeTable
-  // cout << "movInsnFun* OpcodeTable[] = {" << endl;
-  // for (int opi = 0; opi < NUM_OPCODES; opi++) {
-  //   const xed_iclass_enum_t opcode = OPCODES[opi];
-  //   cout << " " << xed_iclass_enum_t2str(opcode) << "_Srcreg2FunTable," << endl;
-  // }
-  // cout << " (movInsnFun*) NULL" << endl;
-  // cout << "};" << endl << endl;
 
 }
 
