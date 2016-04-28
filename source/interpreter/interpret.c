@@ -386,6 +386,11 @@ int main(int argc, char** argv) {
     return 2;
   }
 
+  if (opcode < 0 || opcode >= UD_Iaaa) {
+    printf("opcode out-of-bounds: %u\n", opcode);
+    return 2;
+  }
+
   switch (getFunTable(srcOp)) {
   case FUN_SIL: {
     if (isComputeInsn(opcode)) {
@@ -445,10 +450,6 @@ int main(int argc, char** argv) {
     printf("Invalid fun table: %d\n", getFunTable(srcOp));
     return 2;
   }
-
-  /*
-    convert GKW tables to be indexed by udis opcodes
-  */
 
   return 0;
 }
