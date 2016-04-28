@@ -31,6 +31,7 @@ void cv_garbage_final(struct ksnap * cv_seg){
     struct snapshot_pte_list * pte_list_entry;
     struct page * old_page;
     struct cv_page_entry * page_entry;
+    struct cv_logging_entry * logging_entry;
     int counter;
     
     //ok, lets walk the version list, find out of date versions
@@ -45,7 +46,14 @@ void cv_garbage_final(struct ksnap * cv_seg){
                 cv_memory_accounting_dec_pages(cv_seg);
             }
             else{
-                BUG();
+                //handle logging entry
+                logging_entry=cv_list_entry_get_logging_entry(pte_list_entry);
+                if (logging_entry->data_len==PAGE_SIZE){
+                    kfree(logging_entry->data);
+                }
+                else{
+                    //need to free to slab allocator
+                }
             }
             list_del(pte_list_entry_pos);
             kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);

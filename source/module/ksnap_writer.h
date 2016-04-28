@@ -16,4 +16,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
 
 void ksnap_revert_dirty_list(struct vm_area_struct * vma, struct address_space * mapping);
 
+void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte_list * new_dirty_entry, unsigned long index);
+
+
 #endif

@@ -25,8 +25,7 @@
 #include "cv_debugging.h"
 #include "cv_memory_accounting.h"
 
-void __add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte_list * new_dirty_entry, unsigned long index){
-
+void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte_list * new_dirty_entry, unsigned long index){
   if (new_dirty_entry){
     int insert_error = radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
     if (insert_error == -EEXIST){
@@ -64,6 +63,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   }
   dirty_pages_list = cv_user_data->dirty_pages_list;
   struct ksnap * ksnap_segment = ksnap_vma_to_ksnap(vma);
+  printk(KERN_EMERG "page fault: pte %p\n", new_pte);
   /*grab the new page*/
   new_page=pte_page(*new_pte);
   if (new_page!=pte_page(*new_pte)){
@@ -93,7 +93,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       pte_list_entry->wait_revision = 0;
       //grab the inner entry for paging
       cv_page=cv_list_entry_get_page_entry(pte_list_entry);
-      __add_dirty_page_to_lookup(vma,pte_list_entry, new_page->index);
+      conv_add_dirty_page_to_lookup(vma,pte_list_entry, new_page->index);
       INIT_LIST_HEAD(&pte_list_entry->list);
       cv_page->pte = new_pte;
       cv_page->addr = address;
@@ -103,9 +103,9 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       /*now we need to add the pte to the list */
       list_add_tail(&pte_list_entry->list, &dirty_pages_list->list);
       
-      #ifdef CONV_LOGGING_ON
+      //      #ifdef CONV_LOGGING_ON
           printk(KSNAP_LOG_LEVEL " %d added index %lu pfn %lu page %p", current->pid, pte_list_entry->page_index, cv_page->pfn, new_page);
-      #endif
+          //#endif
 
 
       cv_meta_inc_dirty_page_count(vma);

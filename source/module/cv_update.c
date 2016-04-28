@@ -96,6 +96,46 @@ int __flush_tlb_per_page(struct list_head * current_version_list, struct list_he
   return 1;
 }
 
+void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_data * cv_user, struct snapshot_pte_list * entry){
+    struct cv_logging_page_status_entry * logging_status_entry;
+    struct page * new_page, * old_page;
+    pte_t new_pte_entry;
+    uint8_t * local_addr, * kaddr;
+
+    printk(KERN_EMERG "__migrate in update 1, page: %d, pid: %d", new_page, current->pid);
+    struct cv_logging_entry * logging_entry = cv_list_entry_get_logging_entry(entry);
+    //grab the pte for our address
+    pte_t * pte = pte_get_entry_from_address(vma->vm_mm, logging_entry->addr);
+    //get the old page
+    old_page = pte_page(*pte);
+    //next lets get the new page setup
+    //allocate a new user page. Its possible that our current page is local only to us. But if we go that route, we'll
+    //need to block other threads from potentially updating to our page. That's just too much complexity to avoid this one
+    //time cost
+    new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, logging_entry->addr);
+    __SetPageUptodate(new_page);
+    page_add_new_anon_rmap(new_page, vma, logging_entry->addr);
+    printk(KERN_EMERG "__migrate in update 2, page: %d, pid: %d", new_page, current->pid);
+    //now do the Copy
+    local_addr = logging_entry->addr & PAGE_MASK;
+    kaddr = (uint8_t *)kmap_atomic(new_page, KM_USER0);
+    memcpy(kaddr,local_addr,PAGE_SIZE);
+    kunmap_atomic(kaddr, KM_USER0);
+    printk(KERN_EMERG "__migrate in update 3, page: %d, pid: %d", new_page, current->pid);
+    //now update the local logging data structure
+    logging_status_entry = cv_logging_page_status_entry_init(pte, page_to_pfn(new_page));
+    //updating the pte with the new PFN and flush the TLB
+    new_pte_entry = mk_pte(new_page, vma->vm_page_prot);
+    new_pte_entry = pte_wrprotect(new_pte_entry);
+    set_pte(pte, new_pte_entry);
+    __flush_tlb_one(logging_entry->addr);
+    //deal with the old page
+    page_remove_rmap(old_page);
+    put_page(old_page);
+    printk(KERN_EMERG "__migrate in update 4, page: %d, pid: %d", new_page, current->pid);
+}
+
+
 void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint64_t target_version_input, int defer_work){
   //struct vm_area_struct * master_vma;
   /*for iterating through the list*/
@@ -123,7 +163,9 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   struct snapshot_version_list * version_list, * list_to_stop_at;
   uint64_t old_version;
   unsigned int first_update_after_partial;
-
+  struct cv_logging_entry * logging_entry;
+  struct cv_logging_page_status_entry * logging_status_entry;
+  
   cv_stats_function_init();
   
   cv_stats_start(mapping_to_ksnap(mapping), 0, update_latency);
@@ -254,7 +296,33 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
         }
         else{
             //LOGGING CODE
-            BUG();
+            logging_entry = cv_list_entry_get_logging_entry(tmp_pte_list);
+            dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
+            //check to see if the current guy is obsolete
+            if (tmp_pte_list->obsolete_version <= target_version_number){
+                continue;
+            }
+            //don't do partial updates
+            else if (partial_update){
+                continue;
+            }
+            else if (dirty_entry){
+                BUG();
+            }
+            else{
+                //ok do the update
+                logging_status_entry=cv_logging_page_status_lookup(cv_user, tmp_pte_list->page_index);
+                if (!logging_status_entry){
+                    //we need to migrate...luckily its not dirty
+                    __migrate_page_to_logging(vma, cv_user, tmp_pte_list);
+                    logging_status_entry=cv_logging_page_status_lookup(cv_user, tmp_pte_list->page_index);
+                    BUG_ON(logging_status_entry==NULL);
+                }
+                //copy the data
+                memcpy(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
+                       logging_entry->data,
+                       logging_entry->data_len);                
+            }
         }
       }
 #ifdef CONV_LOGGING_ON

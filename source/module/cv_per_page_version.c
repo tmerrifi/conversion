@@ -106,6 +106,8 @@ void cv_per_page_version_update_actual_version(struct cv_per_page_version * ppv,
   ppv->entries[index].actual_version=version;
 }
 
+/*****LOGGING FUNCTIONS************/
+
 //sliding window of checks on whether we would have benefited from logging
 void cv_per_page_update_logging_diff_bitmap(struct cv_per_page_version * ppv, uint32_t page_index, int should_have_done_logging){
     ppv->entries[page_index].logging_diff_bitmap=((ppv->entries[page_index].logging_diff_bitmap<<1)|((should_have_done_logging) ? 1 : 0));
@@ -113,8 +115,77 @@ void cv_per_page_update_logging_diff_bitmap(struct cv_per_page_version * ppv, ui
 
 void cv_per_page_switch_to_logging(struct cv_per_page_version * ppv, uint32_t page_index){
     ppv->entries[page_index].type=DIRTY_LIST_ENTRY_TYPE_LOGGING;
+    //set up the per page logging struture
+    struct cv_per_page_logging_entry * pp_logging_entry = kmalloc(sizeof(struct cv_per_page_logging_entry), GFP_KERNEL);
+    memset(pp_logging_entry, 0, sizeof(struct cv_per_page_logging_entry));
+    printk(KERN_EMERG "set logging entry....%p\n", pp_logging_entry);
+    ppv->entries[page_index].logging_entry = pp_logging_entry;
 }
 
 int cv_per_page_is_logging_page(struct cv_per_page_version * ppv, uint32_t page_index){
     return ppv->entries[page_index].type==DIRTY_LIST_ENTRY_TYPE_LOGGING;
 }
+
+uint8_t cv_per_page_get_logging_diff_bitmap(struct cv_per_page_version * ppv, uint32_t page_index){
+    return ppv->entries[page_index].logging_diff_bitmap;
+}
+
+void cv_per_page_version_update_logging_entry(struct cv_per_page_version * ppv,
+                                              uint32_t page_index,
+                                              struct snapshot_pte_list * entry,
+                                              uint64_t version_num,
+                                              uint32_t line_index){
+    struct cv_logging_entry * logging_entry = &entry->logging_entry;
+    struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
+    if (cv_logging_is_full_page(logging_entry)){
+        pp_logging_entry->page_entry=entry;
+        pp_logging_entry->page_version=version_num;
+    }
+    else{
+        pp_logging_entry->lines[line_index].version=version_num;
+        pp_logging_entry->lines[line_index].line_entry=entry;
+    }
+    pp_logging_entry->max_version=version_num;
+}
+
+struct snapshot_pte_list * cv_per_page_version_get_logging_entry(struct cv_per_page_version * ppv, uint32_t page_index, uint32_t line_index, uint64_t * version_num){
+    //grab both the line version and the page level version
+    struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
+    printk(KERN_EMERG "get logging entry....%p\n", pp_logging_entry);
+    
+    if (pp_logging_entry==NULL){
+        return NULL;
+    }
+    else if (pp_logging_entry->page_version > pp_logging_entry->lines[line_index].version){
+        //the page level is the latest
+        *version_num = pp_logging_entry->page_version;
+        return pp_logging_entry->page_entry;
+    }
+    else{
+        //returning the line entry
+        *version_num = pp_logging_entry->lines[line_index].version;
+        return pp_logging_entry->lines[line_index].line_entry;
+    }
+}
+
+struct snapshot_pte_list * cv_per_page_version_get_logging_line_entry(struct cv_per_page_version * ppv, uint32_t page_index,
+                                                                      uint32_t line_index){
+    struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
+    if (pp_logging_entry==NULL){
+        return NULL;
+    }
+    else{
+        return pp_logging_entry->lines[line_index].line_entry;
+    }
+}
+
+struct snapshot_pte_list * cv_per_page_version_get_logging_page_entry(struct cv_per_page_version * ppv, uint32_t page_index){
+    struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
+    if (pp_logging_entry==NULL){
+        return NULL;
+    }
+    else{
+        return pp_logging_entry->page_entry;
+    }
+}
+

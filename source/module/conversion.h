@@ -9,12 +9,14 @@
 
 #include "cv_meta_data.h"
 #include "cv_stats.h"
+#include "cv_logging.h"
 #include "cv_per_page_version.h"
 #include "cv_garbage.h"
 #include "cv_hooks.h"
 #include "cv_event.h"
 #include "cv_profiling.h"
 #include "cv_defer_work.h"
+
 
 #define SNAPSHOT_PREFIX "snapshot"
 #define SNAPSHOT_DEBUG Y
@@ -79,9 +81,13 @@
 
 #define LOGGING_SIZE_BYTES (64*8) //one cache line
 
+
+
 struct cv_logging_entry{
-    unsigned long addr;
-    uint8_t data[LOGGING_SIZE_BYTES];
+    uint8_t * data;
+    unsigned long addr; //cache line addr
+    uint32_t line_index;
+    unsigned long data_len;
 };
 
 struct cv_page_entry{
@@ -98,19 +104,6 @@ typedef enum{ CV_DIRTY_LIST_ENTRY_TYPE_PAGING=0, CV_DIRTY_LIST_ENTRY_TYPE_LOGGIN
 of pte values that have changed. A subscriber traverses the pte_list for each version that has changed
 since the last snapshot and then changes it's page table to use the pte's in the list.*/
 struct snapshot_pte_list{
-    /*struct list_head list;
-    pte_t * pte;	
-    unsigned long addr;
-    unsigned long pfn;
-    unsigned long page_index;
-    struct page * ref_page;
-    struct page * local_checkpoint_page;
-    uint64_t wait_revision;
-    uint64_t obsolete_version;
-    uint8_t checkpoint;
-    struct mm_struct * mm; //use to do memory accounting*/
-
-
     dirty_list_entry_type type;
     struct list_head list;
     unsigned long page_index;
@@ -145,7 +138,10 @@ struct snapshot_version_list{
   uint32_t num_of_entries; // how many entries are in this version?
 };
 
-
+struct cv_logging_page_status_entry{
+    unsigned long pfn;
+    pte_t * pte;
+};
 
 struct ksnap{
     struct snapshot_version_list * snapshot_pte_list;	/*TODO: change to list_head if that's what we want this to be....*/
@@ -183,9 +179,14 @@ struct ksnap{
     struct timespec start_time;
     atomic_t pages_allocated;
     atomic_t max_pages;
-    struct semaphore sem_gc; /*  */
+    struct semaphore sem_gc;
+    /*LOGGING FIELDS*/
     uint64_t logging_stats_opcode[256];
     uint64_t logging_stats_opcode_two[256];
+    struct radix_tree_root logging_entry_lookup;
+    atomic_t logging_pages_count;
+    /***DONE WITH LOGGING***/
+    
 };
 
 struct ksnap_user_data{
@@ -217,10 +218,13 @@ struct ksnap_user_data{
     struct cv_profiling_ops profiling_info;
     struct cv_defer_work defer_work;
     struct kmem_cache * deferred_work_mem_cache;
-    int committed_non_logging_entries; //the entries we commit at the page level, used to determine when to test a page for logging
+    uint64_t committed_non_logging_entries; //the entries we commit at the page level, used to determine when to test a page for logging
 #ifdef CV_DETERMINISM
     uint32_t clock_tick_buffer; //keeps clock ticks buffered for some time
 #endif //CV_DETERMINISM
+    /********LOGGING STUFF********/
+    struct radix_tree_root logging_page_status;
+    /******************************/
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/

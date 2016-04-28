@@ -14,4 +14,6 @@ int pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 
 void do_deferred_work(struct vm_area_struct * vma);
 
+void allocate_and_insert_new_page(struct vm_area_struct * vma, unsigned long addr);
+
 #endif

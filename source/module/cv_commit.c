@@ -33,7 +33,24 @@
 #include "cv_debugging.h"
 #include "cv_dirty.h"
 #include "cv_event.h"
+#include "cv_logging.h"
 
+void __remove_old_logging_page(struct ksnap * cv_seg, struct snapshot_pte_list * entry, uint64_t page_index, uint64_t our_version_number){
+    struct snapshot_pte_list * old_entry;
+    old_entry=cv_per_page_version_get_logging_page_entry(cv_seg->ppv, page_index);
+    if (old_entry!=NULL){
+        old_entry->obsolete_version=our_version_number;
+    }
+}
+
+
+void __remove_old_logging_line(struct ksnap * cv_seg, struct snapshot_pte_list * entry, uint64_t page_index, uint64_t line_index, uint64_t our_version_number){
+    struct snapshot_pte_list * old_entry;
+    old_entry=cv_per_page_version_get_logging_line_entry(cv_seg->ppv, page_index, line_index);
+    if (old_entry!=NULL){
+        old_entry->obsolete_version=our_version_number;
+    }
+}
 
 //remove the old page from the page cache, handle its LRU stuff, etc...
 int __remove_old_page(struct address_space * mapping, struct vm_area_struct * vma, 
@@ -50,14 +67,6 @@ int __remove_old_page(struct address_space * mapping, struct vm_area_struct * vm
     }
     old_entry->obsolete_version=our_version;
     return 1;
-    /*else if (old_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
-        page_entry=cv_list_entry_get_page_entry(old_entry);
-        page_entry->obsolete_version=our_version;
-        return 1;
-    }
-    else{
-        BUG();
-        }*/
 }
 
 void __update_page_mapping(struct address_space * mapping, struct vm_area_struct * vma, 
@@ -72,6 +81,80 @@ void __update_page_mapping(struct address_space * mapping, struct vm_area_struct
     cv_per_page_version_update_version_entry(cv_seg->ppv, version_list_entry);
     get_page(page);
     return;
+}
+
+uint8_t * __compute_local_addr_for_diff(struct vm_area_struct * vma, unsigned long pfn, unsigned long page_index, int checkpointed){
+    uint8_t * local_addr;
+    if (checkpointed){
+        //we do this because we modify our page and the current version is write-protected
+        local_addr=(uint8_t *)pfn_to_kaddr(pfn);
+    }
+    else{
+        local_addr=(uint8_t *)((page_index << PAGE_SHIFT) + vma->vm_start);
+    }
+    return local_addr;
+}
+
+void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct snapshot_pte_list * entry,
+                             struct vm_area_struct * vma,
+                             struct ksnap * cv_seg, struct ksnap_user_data * cv_user, uint64_t our_version_number){
+    struct snapshot_pte_list * latest_entry;
+    struct cv_logging_entry * latest_logging_entry;
+    struct cv_logging_page_status_entry * logging_page_status;
+    
+    char * latest, * local, * ref;
+    uint64_t latest_version_num;
+    pte_t pte_temp;
+
+    latest_entry = cv_per_page_version_get_logging_entry(cv_seg->ppv, entry->page_index, logging_entry->line_index, &latest_version_num);
+    if (latest_entry && latest_version_num > our_version_number){
+        printk(KERN_EMERG "committing logging page, pid: %d, page index: %d, latest version %lu\n",
+               current->pid, latest_entry->page_index, latest_version_num);
+        if (cv_logging_is_full_page(logging_entry)){
+            //DO THIS LATER- need to traverse all of the lines and merge :(
+            BUG();
+        }
+        else{
+            //we are committing a small (cache line) entry
+            //grab the logging entry that is committed (latest)
+            latest_logging_entry = cv_list_entry_get_logging_entry(latest_entry);
+            if (cv_logging_is_full_page(latest_logging_entry)){
+                //its a full page, need to index into it to merge
+                latest = latest_logging_entry->data + (logging_entry->line_index*CV_LOGGING_LOG_SIZE);
+            }
+            else{
+                //its a line
+                latest = latest_logging_entry->data;
+            }
+            //do the merge
+            cv_three_way_merge((uint8_t *)logging_entry->addr, logging_entry->data, latest, CV_LOGGING_MERGE_WORDS);
+            //memcpy our local data into the committed entry data
+            memcpy(logging_entry->data, (uint8_t *)logging_entry->addr, logging_entry->data_len);
+            printk(KERN_EMERG "merged logging page, pid: %d, page index: %d\n",
+                   current->pid, latest_entry->page_index);
+        }
+    }
+    //update the ppv with our version
+    cv_per_page_version_update_logging_entry(cv_seg->ppv, entry->page_index, entry, our_version_number, logging_entry->line_index);
+
+    if (cv_logging_is_full_page(logging_entry)){
+        //FULL PAGE
+        logging_page_status = cv_logging_page_status_lookup(cv_user, entry->page_index);
+        //need to write protect again
+        pte_temp = pte_wrprotect(*logging_page_status->pte);	
+        //set it back
+        set_pte(logging_page_status->pte, pte_temp);
+        //flush the tlb entry
+        __flush_tlb_one(logging_entry->addr);
+        printk(KERN_EMERG "done committing and write protecting page, pid: %d, page index: %d\n",
+               current->pid, latest_entry->page_index);
+        __remove_old_logging_page(cv_seg, entry, entry->page_index, our_version_number);
+    }
+    else{
+        __remove_old_logging_line(cv_seg, entry, entry->page_index, logging_entry->line_index, our_version_number);
+    }
+    printk(KERN_EMERG "done committing, pid: %d, page index: %d\n",
+           current->pid, latest_entry->page_index);
 }
 
 void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_struct * vma,
@@ -102,12 +185,14 @@ void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_st
                                                                                        page_index));
   
   if (committed_entry && pfn_to_page(committed_entry->pfn) != version_list_entry->ref_page){
-      if (checkpointed){
+      local_addr=__compute_local_addr_for_diff(vma, version_list_entry->pfn, page_index, checkpointed);
+      /*if (checkpointed){
+          //we do this because we modify our page and the current version is write-protected
           local_addr=(uint8_t *)pfn_to_kaddr(version_list_entry->pfn);
       }
       else{
           local_addr=(uint8_t *)((page_index << PAGE_SHIFT) + vma->vm_start);
-      }
+          }*/
       
       ksnap_merge(pfn_to_page(committed_entry->pfn),
                   local_addr,
@@ -142,6 +227,108 @@ void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_st
   }
 }
 
+void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
+                                       struct ksnap_user_data * cv_user,
+                                       struct ksnap * cv_seg,
+                                       struct snapshot_pte_list * pte_list_entry,
+                                       uint64_t our_version_number){
+    uint8_t * local_addr;
+    pte_t page_table_e;
+
+    printk(KERN_EMERG "migrating to logging 1, pid: %d, page index: %d\n", current->pid, pte_list_entry->page_index);
+    
+    struct cv_page_entry * page_entry = cv_list_entry_get_page_entry(pte_list_entry);
+    //do this before we blow away the data
+    struct cv_logging_page_status_entry * logging_entry = cv_logging_page_status_entry_init(page_entry->pte,
+                                                                                            page_entry->pfn);
+    //compute the local addr of our page
+    local_addr=__compute_local_addr_for_diff(vma, page_entry->pfn,
+                                             pte_list_entry->page_index,
+                                             pte_list_entry->checkpoint);
+
+    printk(KERN_EMERG "migrating to logging 2, pid: %d, page index: %d, logging entry pte: %p\n",
+           current->pid, pte_list_entry->page_index,logging_entry->pte);
+
+    
+    //switch the pte_list_entry to logging type
+    pte_list_entry->type=CV_DIRTY_LIST_ENTRY_TYPE_LOGGING;
+    //allocate some memory
+    pte_list_entry->logging_entry.data = (uint8_t *)kmalloc(PAGE_SIZE, GFP_KERNEL);
+    pte_list_entry->logging_entry.data_len = PAGE_SIZE;
+    pte_list_entry->logging_entry.addr = local_addr;
+    printk(KERN_EMERG "migrating to logging 3, pid: %d, page index: %d, memcpy to %p, src %p\n",
+           current->pid, pte_list_entry->page_index, pte_list_entry->logging_entry.data, local_addr);
+
+    //do the copy
+    memcpy(pte_list_entry->logging_entry.data, local_addr, PAGE_SIZE);
+
+    printk(KERN_EMERG "migrating to logging 4, pid: %d, page index: %d\n", current->pid, pte_list_entry->page_index);
+
+    //mark the page as "logging" in the per_page data structure
+    if (!cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index)){
+        cv_per_page_switch_to_logging(cv_seg->ppv, pte_list_entry->page_index);
+    }
+
+    cv_per_page_version_update_logging_entry(cv_seg->ppv, pte_list_entry->page_index,
+                                             pte_list_entry, our_version_number, 0);
+    
+    //incrememnt the totoal number of logging pages
+    atomic_inc(&cv_seg->logging_pages_count);
+    //insert this page into our local logging ds
+    if (cv_logging_page_status_insert(cv_user, logging_entry, pte_list_entry->page_index)<0){
+        BUG();
+    }
+    printk(KERN_EMERG "migrating to logging 5, pid: %d, page index: %d, pte: %p, page entry pte: %p\n",
+           current->pid, pte_list_entry->page_index, logging_entry->pte, page_entry->pte);
+    
+    //need to write protect the page
+    //get the pre-existing pte value and clear the pte pointer
+    page_table_e = ptep_get_and_clear(vma->vm_mm, local_addr, logging_entry->pte);
+    //we need to write protect the owner's pte again
+    page_table_e = pte_wrprotect(page_table_e);	
+    //set it back
+    set_pte(logging_entry->pte, page_table_e);
+
+    printk(KERN_EMERG "done migrating to logging, pid: %d, page index: %d\n", current->pid, pte_list_entry->page_index);
+}
+
+int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
+                                          struct snapshot_pte_list * pte_list_entry){
+    uint8_t * local_addr;
+    struct ksnap_user_data * cv_user;
+    struct ksnap * cv_seg;
+    struct cv_page_entry * page_entry = cv_list_entry_get_page_entry(pte_list_entry);
+    int diff=0;
+    int result=0;
+    cv_user=ksnap_vma_to_userdata(vma);
+    cv_seg=ksnap_vma_to_ksnap(vma);
+        
+    //don't want to do this too often - its kinda expensive!
+    if (!cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index) &&
+        cv_user->committed_non_logging_entries++ % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES == 0){
+        printk(KERN_EMERG "doing a logging migration check...pid: %d\n", current->pid);
+        page_entry = cv_list_entry_get_page_entry(pte_list_entry);
+        //first get the address of our page
+        local_addr=__compute_local_addr_for_diff(vma, page_entry->pfn, pte_list_entry->page_index, pte_list_entry->checkpoint);
+        //now do a diff to see how many 64bit words changed
+        if ((diff=cv_logging_diff_64(local_addr, page_entry->ref_page))<=CV_LOGGING_DIFF_THRESHOLD_64){
+            printk(KERN_EMERG "doing a logging migration check...diff %d...pid: %d...bitmap %lu\n", diff,current->pid,
+                   cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index) & 0xFUL);
+            cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 1);
+            //should we switch over to logging?
+            if (cv_logging_should_switch(cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index))){
+                printk(KERN_EMERG "migration check...time to switch pid: %d, page index: %d\n",
+                       current->pid, pte_list_entry->page_index);
+                result=1;
+            }
+        }
+        else{
+            cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 0);
+        }
+    }
+
+    return result;
+}
 
 /*This is the main commit function. */
 void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
@@ -154,7 +341,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   uint64_t our_version_number;
   struct list_head * pos, * tmp_pos, * version_pos;  //pointers for iterating
   uint64_t max_version_number; //after we commit, others may have beat us to the punch...this is used when we iterate through the list to find out
-
+  int should_migrate;
   int committed_pages=0;
  
   if (vma==NULL || vma->vm_file==NULL || vma->vm_file->f_mapping==NULL){
@@ -222,11 +409,17 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
       pte_entry = list_entry(pos, struct snapshot_pte_list, list);
       if (pte_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
+          //check and see if we want to make this a logging page.
+          //We do this before we commit, because merging will mess up the diffing.
+          should_migrate=cv_commit_do_logging_migration_check(vma, pte_entry);
           //do page commit here
           cv_commit_page(cv_list_entry_get_page_entry(pte_entry), vma, our_version_number, pte_entry->page_index, pte_entry->checkpoint);
           //removing from the dirty list
           list_del(pos);
           list_add(pos, &our_version_entry->pte_list->list);
+          if (should_migrate || cv_per_page_is_logging_page(cv_seg->ppv, pte_entry->page_index)){
+              cv_commit_migrate_page_to_logging(vma, cv_user, cv_seg, pte_entry, our_version_number);
+          }
           cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
           barrier();
           ++committed_pages;
@@ -234,22 +427,47 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
       }
       else{
           //do logging stuff in here!
-          BUG();
+          cv_commit_logging_entry(cv_list_entry_get_logging_entry(pte_entry), pte_entry, vma,
+                                  cv_seg, cv_user, our_version_number);
+          cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
+          list_del(pos);
+          list_add(pos, &our_version_entry->pte_list->list);
+          conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
+          ++committed_pages;
       }
   }
 
   //now we need to commit the stuff in the 
   while(!list_empty(&wait_list->list)){
       if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv))){
-          //grab the currently committed entry
-          cv_commit_page(cv_list_entry_get_page_entry(pte_entry), vma, our_version_number, pte_entry->page_index, pte_entry->checkpoint);
-          //remove from the waitlist
-          list_del(&pte_entry->list);
-          list_add(&pte_entry->list, &our_version_entry->pte_list->list);
-          cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
-          barrier();
-          ++committed_pages;
-          conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
+          if (pte_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
+
+              //check and see if we want to make this a logging page.
+              //We do this before we commit, because merging will mess up the diffing.
+              should_migrate=cv_commit_do_logging_migration_check(vma, pte_entry);
+              //grab the currently committed entry
+              cv_commit_page(cv_list_entry_get_page_entry(pte_entry), vma, our_version_number, pte_entry->page_index, pte_entry->checkpoint);
+              //remove from the waitlist
+              list_del(&pte_entry->list);
+              list_add(&pte_entry->list, &our_version_entry->pte_list->list);
+              if (should_migrate){
+                  cv_commit_migrate_page_to_logging(vma, cv_user, cv_seg, pte_entry, our_version_number);
+              }
+              cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
+              barrier();
+              ++committed_pages;
+              conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
+          }
+          else{
+              //do logging stuff in here!
+              cv_commit_logging_entry(cv_list_entry_get_logging_entry(pte_entry), pte_entry, vma,
+                                      cv_seg, cv_user, our_version_number);
+              cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
+              list_del(pos);
+              list_add(pos, &our_version_entry->pte_list->list);
+              conv_dirty_delete_lookup(cv_user, pte_entry->page_index);
+              ++committed_pages;
+          }
       }
   }
   //cv_stats_end(cv_seg, cv_user, 6, commit_waitlist_latency);      

@@ -181,8 +181,8 @@ void conv_cow_user_page(struct page * new_page, struct page * old_page,
     
 }    
 
-void logging_on_fault (struct vm_area_struct * vma, unsigned long faulting_addr, unsigned long instruction_addr){
-    cv_logging_instruction_stats(ksnap_vma_to_ksnap(vma), ksnap_vma_to_userdata(vma), instruction_addr);
+int logging_on_fault (struct vm_area_struct * vma, unsigned long faulting_addr, struct pt_regs * regs){
+    return cv_logging_fault(vma, ksnap_vma_to_ksnap(vma), ksnap_vma_to_userdata(vma), regs, faulting_addr);
 }
 
 int init_module(void)
