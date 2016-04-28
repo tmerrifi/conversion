@@ -314,8 +314,8 @@ unsigned getNumOperands(ud_t* dis) {
 
 int main(int argc, char** argv) {
 
-  //uint8_t INPUT_BYTES[] = {0x40, 0x00, 0x37}; // add %sil,(%rdi)
-  uint8_t INPUT_BYTES[] = {0x88, 0x27}; // mov %ah,(%rdi)
+  uint8_t INPUT_BYTES[] = {0x40, 0x00, 0x37}; // add %sil,(%rdi)
+  //uint8_t INPUT_BYTES[] = {0x88, 0x27}; // mov %ah,(%rdi)
 
   ud_t dis;
     
@@ -347,12 +347,12 @@ int main(int argc, char** argv) {
 
   // state used to decide which interpreter function to call
 
-  uint64_t dummy; // for testing
+  uint64_t dummy, dummyflags = 0x202; // for testing
 
   void* dstAddress = &dummy; // TODO: get this from interrupt handler
   uint64_t srcValue = 0;
   unsigned __int128 srcValue128b = 0;
-  uint64_t* flags = &dummy; // TODO: point into user context
+  uint64_t* flags = &dummyflags; // TODO: point into user context
   ud_mnemonic_code_t opcode = 0;
 
 
