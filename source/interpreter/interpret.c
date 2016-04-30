@@ -294,7 +294,7 @@ ud_type_t getCanonicalRegister(ud_type_t reg) {
   }
 }
 
-uint8_t isComputeInsn(ud_mnemonic_code_t opcode) {
+uint8_t insnWritesFlags(ud_mnemonic_code_t opcode) {
   return (UD_Iadd == opcode ||
           UD_Iand == opcode ||
           UD_Ior  == opcode ||
@@ -302,6 +302,25 @@ uint8_t isComputeInsn(ud_mnemonic_code_t opcode) {
           UD_Isar == opcode ||
           UD_Ishl == opcode ||
           UD_Ishr == opcode); 
+}
+
+uint8_t isOpcodeSET(ud_mnemonic_code_t opcode) {
+  return (UD_Iseta == opcode ||
+          UD_Isetae == opcode ||
+          UD_Isetb == opcode ||
+          UD_Isetbe == opcode ||
+          UD_Isetg == opcode ||
+          UD_Isetge == opcode ||
+          UD_Isetl == opcode ||
+          UD_Isetle == opcode ||
+          UD_Isetno == opcode ||
+          UD_Isetnp == opcode ||
+          UD_Isetns == opcode ||
+          UD_Isetnz == opcode ||
+          UD_Iseto == opcode ||
+          UD_Isetp == opcode ||
+          UD_Isets == opcode ||
+          UD_Isetz == opcode);
 }
 
 unsigned getNumOperands(ud_t* dis) {
@@ -314,8 +333,9 @@ unsigned getNumOperands(ud_t* dis) {
 
 int main(int argc, char** argv) {
 
-  uint8_t INPUT_BYTES[] = {0x40, 0x00, 0x37}; // add %sil,(%rdi)
+  //uint8_t INPUT_BYTES[] = {0x40, 0x00, 0x37}; // add %sil,(%rdi)
   //uint8_t INPUT_BYTES[] = {0x88, 0x27}; // mov %ah,(%rdi)
+  uint8_t INPUT_BYTES[] = {0x0f, 0x92, 0x07}; // setb (%rdi)
 
   ud_t dis;
     
@@ -337,12 +357,6 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  // TODO: remove this once we handle SET insns
-  if (numOperands != 2) {
-    printf("can't handle %u operands\n", numOperands);
-    return 1;
-  }
-
   printf("\t%s\n", ud_insn_asm(&dis));
 
   // state used to decide which interpreter function to call
@@ -353,14 +367,25 @@ int main(int argc, char** argv) {
   uint64_t srcValue = 0;
   unsigned __int128 srcValue128b = 0;
   uint64_t* flags = &dummyflags; // TODO: point into user context
-  ud_mnemonic_code_t opcode = 0;
+  ud_mnemonic_code_t opcode = dis.mnemonic;
 
+  if (1 == numOperands) {
+    if (isOpcodeSET(opcode)) {
+      if (opcode < 0 || opcode >= UD_Iaaa) {
+        printf("opcode out-of-bounds: %u\n", opcode);
+        return 2;
+      }
+      IgnoreFlagsOpcode2FunTable_SIL[opcode](dstAddress, *flags);
+      return 0;
+    } else {
+      printf("Can't handle 1-operand insn\n");
+      return 2;
+    }
+  }
 
-  // get srcValue. Assume it's operand 1  
+  // get srcValue which is operand 1
   const struct ud_operand* srcOp = ud_insn_opr(&dis, 1);
   assert(NULL != srcOp);
-
-  opcode = dis.mnemonic;
 
   if (UD_OP_IMM == srcOp->type) {
     switch (srcOp->size) {
@@ -393,56 +418,56 @@ int main(int argc, char** argv) {
 
   switch (getFunTable(srcOp)) {
   case FUN_SIL: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_SIL[opcode](dstAddress, srcValue, flags);
+    if (insnWritesFlags(opcode)) {
+      WriteFlagsOpcode2FunTable_SIL[opcode](dstAddress, srcValue, flags);
     } else {
-      NonComputeOpcode2FunTable_SIL[opcode](dstAddress, srcValue);
+      IgnoreFlagsOpcode2FunTable_SIL[opcode](dstAddress, srcValue);
     }
     break;
   }
   case FUN_AH: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_AH[opcode](dstAddress, srcValue, flags);
+    if (insnWritesFlags(opcode)) {
+      WriteFlagsOpcode2FunTable_AH[opcode](dstAddress, srcValue, flags);
     } else {
-      NonComputeOpcode2FunTable_AH[opcode](dstAddress, srcValue);
+      IgnoreFlagsOpcode2FunTable_AH[opcode](dstAddress, srcValue);
     }
     break;
   }
   case FUN_SI: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_SI[opcode](dstAddress, srcValue, flags);
+    if (insnWritesFlags(opcode)) {
+      WriteFlagsOpcode2FunTable_SI[opcode](dstAddress, srcValue, flags);
     } else {
-      NonComputeOpcode2FunTable_SI[opcode](dstAddress, srcValue);
+      IgnoreFlagsOpcode2FunTable_SI[opcode](dstAddress, srcValue);
     }
     break;
   }
   case FUN_ESI: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_ESI[opcode](dstAddress, srcValue, flags);
+    if (insnWritesFlags(opcode)) {
+      WriteFlagsOpcode2FunTable_ESI[opcode](dstAddress, srcValue, flags);
     } else {
-      NonComputeOpcode2FunTable_ESI[opcode](dstAddress, srcValue);
+      IgnoreFlagsOpcode2FunTable_ESI[opcode](dstAddress, srcValue);
     }
     break;
   }
   case FUN_RSI: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_RSI[opcode](dstAddress, srcValue, flags);
+    if (insnWritesFlags(opcode)) {
+      WriteFlagsOpcode2FunTable_RSI[opcode](dstAddress, srcValue, flags);
     } else {
-      NonComputeOpcode2FunTable_RSI[opcode](dstAddress, srcValue);
+      IgnoreFlagsOpcode2FunTable_RSI[opcode](dstAddress, srcValue);
     }
     break;
   }
   case FUN_MMX0: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_MMX0[opcode](dstAddress, srcValue, flags);
+    if (insnWritesFlags(opcode)) {
+      WriteFlagsOpcode2FunTable_MMX0[opcode](dstAddress, srcValue, flags);
     } else {
-      NonComputeOpcode2FunTable_MMX0[opcode](dstAddress, srcValue);
+      IgnoreFlagsOpcode2FunTable_MMX0[opcode](dstAddress, srcValue);
     }
     break;
   }
   case FUN_XMM0: {
-    assert(!isComputeInsn(opcode));
-    NonComputeOpcode2FunTable_XMM0[opcode](dstAddress, srcValue);
+    assert(!insnWritesFlags(opcode));
+    IgnoreFlagsOpcode2FunTable_XMM0[opcode](dstAddress, srcValue);
     break;
   }
   default:
