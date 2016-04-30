@@ -18,7 +18,6 @@ const xed_iclass_enum_t OPCODES[] = {
   XED_ICLASS_AND,
   XED_ICLASS_OR,
   XED_ICLASS_SUB,
-  //XED_ICLASS_SAL, // doesn't exist in xed!!
   XED_ICLASS_SAR,
   XED_ICLASS_SHL,
   XED_ICLASS_SHR,
@@ -52,9 +51,9 @@ const xed_iclass_enum_t OPCODES[] = {
   XED_ICLASS_MOVDQU,
   XED_ICLASS_VMOVDQA,
   XED_ICLASS_VMOVDQU
-
-  //XED_ICLASS_MOVSD // TODO: doesn't generate any valid code for some reason...
 };
+  //XED_ICLASS_MOVSD // TODO: doesn't generate any valid code for some reason...
+  //XED_ICLASS_SAL, // doesn't exist in xed or udis86!
 const int NUM_OPCODES = sizeof(OPCODES) / sizeof(OPCODES[0]);
 
 // NB: use RSI for the src value if possible as it's the 2nd arg in x86-64 calling conventions
@@ -102,7 +101,7 @@ bool isOpcodeShift(xed_iclass_enum_t opcode) {
           XED_ICLASS_SHR == opcode);
 }
 
-bool isOpcodeCompute(xed_iclass_enum_t opcode) {
+bool opcodeWritesFlags(xed_iclass_enum_t opcode) {
   return (XED_ICLASS_ADD == opcode ||
           XED_ICLASS_AND == opcode ||
           XED_ICLASS_OR == opcode ||
@@ -138,6 +137,7 @@ int main(int argc, char** argv) {
   //dstate.mmode=XED_MACHINE_MODE_LEGACY_32;
   //dstate.stack_addr_width=XED_ADDRESS_WIDTH_32b;
 
+  cout << "// AUTO-GENERATED FILE - DO NOT EDIT!!" << endl << endl;
   cout << "#include <stdlib.h>" << endl;
   cout << "#include <stdint.h>" << endl;
   cout << "#include <assert.h>" << endl << endl;
@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
       xed_inst1(&xei, dstate, opcode, 0, kwDst);
 
       const string funName = makeInsnFunName(opcode, XED_REG_FLAGS); 
-      cout << "void " << funName << "(uint64_t dstAddress, uint64_t flags) { ";
+      cout << "void " << funName << "(void* dstAddress, uint64_t flags) { ";
 
       string insnAsm = "";
       if (!generateInsn(&xei, &dstate, insnAsm)) {
@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
 
     bool madeCode = false;
 
-    if (isOpcodeCompute(opcode)) {
+    if (opcodeWritesFlags(opcode)) {
       for (int regi = 0; regi < NUM_REGISTERS; regi++) {
         xed_reg_enum_t srcReg = REGISTERS[regi];
         
@@ -203,7 +203,7 @@ int main(int argc, char** argv) {
         xed_inst2(&xei, dstate, opcode, srcRegWidthBits, kwDst, kwSrc); 
 
         const string funName = makeInsnFunName(opcode, srcReg);
-        cout << "void " << funName << "(uint64_t dstAddress, uint64_t srcValue, uint64_t* flags) {" << endl;
+        cout << "void " << funName << "(void* dstAddress, uint64_t srcValue, uint64_t* flags) {" << endl;
         
         string insnAsm = "";
         if (!generateInsn(&xei, &dstate, insnAsm)) {
@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
           
           continue;
         }
-        // NB: we don't support compute operations on XMM registers
+        // NB: we don't support FLAGS-using insns with XMM registers
         assert(xed_reg_class(srcReg) != XED_REG_CLASS_XMM);
 
         string srcRegCanonicalName = string(xed_reg_enum_t2str(srcReg));
@@ -239,7 +239,7 @@ int main(int argc, char** argv) {
       } // end register loop
       
       continue;
-    } // end if compute insn
+    } // end if insn sets FLAGS
 
     // STORES FROM A REGISTER
 
@@ -286,9 +286,9 @@ int main(int argc, char** argv) {
 
       const string funName = makeInsnFunName(opcode, srcReg);
       if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
-        cout << "void " << funName << "(uint64_t dstAddress, unsigned __int128 srcValue) {" << endl;
+        cout << "void " << funName << "(void* dstAddress, unsigned __int128 srcValue) {" << endl;
       } else { // includes MM registers
-        cout << "void " << funName << "(uint64_t dstAddress, uint64_t srcValue) {" << endl;
+        cout << "void " << funName << "(void* dstAddress, uint64_t srcValue) {" << endl;
       }
 
       string insnAsm = "";
@@ -308,18 +308,49 @@ int main(int argc, char** argv) {
       boost::algorithm::to_lower(srcRegCanonicalName);
 
       if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
-        srcRegCanonicalName = "x"; // use any xmm register
         boost::replace_all(insnAsm, "%%xmm0", "%1");
-      } else if (xed_reg_class(srcReg) == XED_REG_CLASS_MMX) {
-        srcRegCanonicalName = "y"; // use any mm register
-        boost::replace_all(insnAsm, "%%mmx0", "%1");
-      }
 
-      cout << " __asm__(\"" << insnAsm << ASM_NEWLINE << "\"" << endl;
-      cout << "         : /*no output registers*/" << endl;
-      cout << "         : \"" << dstAddrReg << "\"(dstAddress), \"" << srcRegCanonicalName << "\"(srcValue) /*input registers*/" << endl;
-      cout << "         : /*no clobbered registers*/" << endl;
-      cout << "         );" << endl;
+        // save the value of xmm0 (onto the stack) as we're about to overwrite it
+        // TODO: tried to find a way to save xmm0 into GPRs but couldn't figure it out
+        cout << "unsigned __int128 tmp;" << endl;
+        cout << "__asm__(\"movdqa %%xmm0, %0" << ASM_NEWLINE << "\"" << endl;;
+        cout << "        : \"=m\"(tmp) : :);" << endl;
+        // perform the store from xmm0
+        cout << " __asm__(\"" << insnAsm << ASM_NEWLINE << "\"" << endl;
+        cout << "         : /*no output registers*/" << endl;
+        cout << "         : \"" << dstAddrReg << "\"(dstAddress), \"Yz\"(srcValue) /*input registers*/" << endl;
+        cout << "         : /*no clobbered registers*/" << endl;
+        cout << "         );" << endl;
+        // restore xmm0
+        cout << "__asm__(\"movdqa %0, %%xmm0" << ASM_NEWLINE << "\"" << endl;
+        cout << "        : : \"m\"(tmp) :);" << endl;
+
+      } else if (xed_reg_class(srcReg) == XED_REG_CLASS_MMX) {
+        boost::replace_all(insnAsm, "%%mmx0", "%1");
+
+        // save the value of mm0 (into a GPR) as we're about to overwrite it
+        cout << "uint64_t tmp;" << endl;
+        cout << "__asm__(\"movq %%mm0, %0" << ASM_NEWLINE << "\"" << endl;
+        cout << "       : \"=r\"(tmp) : :);" << endl;
+        // perform the store from mm0
+        cout << "register uint64_t myMM0 asm (\"mm0\") = srcValue;" << endl;
+        cout << " __asm__(\"" << insnAsm << ASM_NEWLINE << "\"" << endl;
+        cout << "         : /*no output registers*/" << endl;
+        cout << "         : \"" << dstAddrReg << "\"(dstAddress), \"y\"(myMM0) /*input registers*/" << endl;
+        cout << "         : /*no clobbered registers*/" << endl;
+        cout << "         );" << endl;
+        // restore mm0
+        cout << "__asm__(\"movq %0, %%mm0" << ASM_NEWLINE << "\"" << endl;
+        cout << "        : : \"r\"(tmp) :);" << endl;
+        
+
+      } else {
+        cout << " __asm__(\"" << insnAsm << ASM_NEWLINE << "\"" << endl;
+        cout << "         : /*no output registers*/" << endl;
+        cout << "         : \"" << dstAddrReg << "\"(dstAddress), \"" << srcRegCanonicalName << "\"(srcValue) /*input registers*/" << endl;
+        cout << "         : /*no clobbered registers*/" << endl;
+        cout << "         );" << endl;
+      }
 
       cout << "}" << endl << endl;
       madeCode = true;
@@ -343,9 +374,9 @@ int main(int argc, char** argv) {
 void generateLUTs() {
 
   // typedefs
-  cout << endl << "typedef void (*movInsnFun)(uint64_t dstAddress, uint64_t srcValue);" << endl << endl;
-  cout << endl << "typedef void (*wideMovInsnFun)(uint64_t dstAddress, unsigned __int128 srcValue);" << endl << endl;
-  cout << endl << "typedef void (*compInsnFun)(uint64_t dstAddress, uint64_t srcValue, uint64_t* flags);" << endl << endl;
+  cout << endl << "typedef void (*movInsnFun)(void* dstAddress, uint64_t srcValue);" << endl << endl;
+  cout << endl << "typedef void (*wideMovInsnFun)(void* dstAddress, unsigned __int128 srcValue);" << endl << endl;
+  cout << endl << "typedef void (*writeFlagsInsnFun)(void* dstAddress, uint64_t srcValue, uint64_t* flags);" << endl << endl;
 
   // opcode2fun tables
   for (int regi = 0; regi < NUM_REGISTERS; regi++) {
@@ -357,13 +388,13 @@ void generateLUTs() {
     }
     string nullPtr = "(" + funPtrName + ") NULL";
 
-    // non-compute insn table
-    cout << funPtrName << " NonComputeOpcode2FunTable_" << xed_reg_enum_t2str(srcReg) << "[] = {" << endl;
+    // ignore-FLAGS insn table
+    cout << funPtrName << " IgnoreFlagsOpcode2FunTable_" << xed_reg_enum_t2str(srcReg) << "[] = {" << endl;
 
     for (int opi = 0; opi < NUM_OPCODES; opi++) {
       const xed_iclass_enum_t opcode = OPCODES[opi];
       string funName = makeInsnFunName(opcode, srcReg);
-      if (isOpcodeCompute(opcode) || 
+      if (opcodeWritesFlags(opcode) || 
           (xed_reg_class(srcReg) == XED_REG_CLASS_XMM && isOpcodeSET(opcode))) {
         funName = nullPtr;
       }
@@ -373,19 +404,19 @@ void generateLUTs() {
     cout << " " << nullPtr << endl;
     cout << "};" << endl << endl;
 
-    // compute insn table
+    // set-FLAGS insn table
     if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
-      // NB: I don't think x86 has wide computation insn functions
+      // NB: I don't think x86 has wide insn functions that read/write FLAGS
       continue;
     }
-    funPtrName = "compInsnFun";
+    funPtrName = "writeFlagsInsnFun";
     nullPtr = "(" + funPtrName + ") NULL";
-    cout << funPtrName << " ComputeOpcode2FunTable_" << xed_reg_enum_t2str(srcReg) << "[] = {" << endl;
+    cout << funPtrName << " WriteFlagsOpcode2FunTable_" << xed_reg_enum_t2str(srcReg) << "[] = {" << endl;
 
     for (int opi = 0; opi < NUM_OPCODES; opi++) {
       const xed_iclass_enum_t opcode = OPCODES[opi];
       string funName = makeInsnFunName(opcode, srcReg);
-      if (!isOpcodeCompute(opcode)) {
+      if (!opcodeWritesFlags(opcode)) {
         funName = nullPtr;
       }
       cout << " " << funName << "," << endl;      
@@ -426,17 +457,27 @@ bool generateInsn(xed_encoder_instruction_t* xei, xed_state_t* dstate, string& i
   //cout << " ";
 
   // re-decode the insn so we can print it out
-  xed_decoded_inst_t redd;
-  xed_decoded_inst_zero(&redd);
-  xed_decoded_inst_zero_set_mode(&redd, dstate);
-  xed_error = xed_decode(&redd, ibytes, olen);
+  xed_decoded_inst_t redec;
+  xed_decoded_inst_zero(&redec);
+  xed_decoded_inst_zero_set_mode(&redec, dstate);
+  xed_error = xed_decode(&redec, ibytes, olen);
   if (XED_ERROR_NONE != xed_error) {
     cerr <<  "ERROR decoding kernel write insn: " << xed_error_enum_t2str(xed_error) << endl;
     return false;
   }
+
+  // verify that we have identified all the insns that read/write FLAGS
+  const xed_simple_flag_t* flagsUsage = xed_decoded_inst_get_rflags_info(&redec);
+  if (opcodeWritesFlags(xed_decoded_inst_get_iclass(&redec))) {
+    assert(flagsUsage != NULL);
+    assert(flagsUsage->may_write || flagsUsage->must_write);
+  } else if (!isOpcodeSET(xed_decoded_inst_get_iclass(&redec))) {
+    // SET* insns read flags; everything else should completely ignore FLAGS
+    assert(flagsUsage == NULL);
+  }
   
   char outbuf[256];
-  xed_bool_t formatOk = xed_format_context(XED_SYNTAX_ATT, &redd, outbuf, 256, 0/*PC*/, NULL, NULL);
+  xed_bool_t formatOk = xed_format_context(XED_SYNTAX_ATT, &redec, outbuf, 256, 0/*PC*/, NULL, NULL);
   if (!formatOk) {
     cerr << "ERROR disassembling kernel write insn" << endl;
     return false;
