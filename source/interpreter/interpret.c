@@ -3,11 +3,40 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
-#include <linux/ptrace.h>
 
 #include "udis86.h"
 
 #include "bar.c"
+
+#ifndef __KERNEL__
+struct pt_regs {
+  unsigned long r15;
+  unsigned long r14;
+  unsigned long r13;
+  unsigned long r12;
+  unsigned long bp;
+  unsigned long bx;
+  /* arguments: non interrupts/non tracing syscalls only save up to here*/
+  unsigned long r11;
+  unsigned long r10;
+  unsigned long r9;
+  unsigned long r8;
+  unsigned long ax;
+  unsigned long cx;
+  unsigned long dx;
+  unsigned long si;
+  unsigned long di;
+  unsigned long orig_ax;
+  /* end of arguments */
+  /* cpu exception frame or undefined */
+  unsigned long ip;
+  unsigned long cs;
+  unsigned long flags;
+  unsigned long sp;
+  unsigned long ss;
+  /* top of stack page */
+};
+#endif
 
 typedef enum fun_table_kind {
   FUN_NONE,
@@ -367,7 +396,7 @@ int interpret(uint8_t* bytes, uint32_t bytesLength, void* dstAddress, struct pt_
   // state used to decide which interpreter function to call
 
   uint64_t srcValue = 0;
-  uint64_t* flags = &(context->eflags);
+  uint64_t* flags = &(context->flags);
   ud_mnemonic_code_t opcode = dis.mnemonic;
 
   if (1 == numOperands) {
@@ -407,28 +436,28 @@ int interpret(uint8_t* bytes, uint32_t bytesLength, void* dstAddress, struct pt_
       // read src reg from the user context
       switch (canonSrcReg) {
       case UD_R_RAX:
-        srcValue = context->rax;
+        srcValue = context->ax;
         break;
       case UD_R_RCX:
-        srcValue = context->rcx;
+        srcValue = context->cx;
         break;
       case UD_R_RDX:
-        srcValue = context->rdx;
+        srcValue = context->dx;
         break;
       case UD_R_RBX:
-        srcValue = context->rbx;
+        srcValue = context->bx;
         break;
       case UD_R_RSP:
-        srcValue = context->rsp;
+        srcValue = context->sp;
         break;
       case UD_R_RBP:
-        srcValue = context->rbp;
+        srcValue = context->bp;
         break;
       case UD_R_RSI:
-        srcValue = context->rsi;
+        srcValue = context->si;
         break;
       case UD_R_RDI:
-        srcValue = context->rdi;
+        srcValue = context->di;
         break;
       case UD_R_R8:
         srcValue = context->r8;
@@ -550,7 +579,7 @@ int main(int argc, char** argv) {
   struct pt_regs regs;
 
   for (int i = 0; i < sizeof(INPUT_BYTES) / sizeof(INPUT_BYTES[0]); i++) {
-    regs.eflags = 0x202;
+    regs.flags = 0x202;
     int ok = interpret(INPUT_BYTES[i], sizeof(INPUT_BYTES[0]), &dummy, &regs);
     assert(ok);
   }
