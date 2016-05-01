@@ -108,6 +108,14 @@ const xed_reg_enum_t REGISTERS[] = {
 };
 const int NUM_REGISTERS = sizeof(REGISTERS) / sizeof(REGISTERS[0]);
 
+const int FIRST_SIMD_REGISTER_INDEX() {
+  for (int i = 0; i < NUM_REGISTERS; i++) {
+    if (XED_REG_MMX0 == REGISTERS[i]) return i;
+  }
+  assert(false);
+}
+
+
 bool generateInsn(xed_encoder_instruction_t* xei, xed_state_t* dstate, string& insnAsm);
 void generateLUTs();
 
@@ -445,7 +453,7 @@ void generateLUTs() {
 
     cout << funPtrName << " SIMDReg2FunTable_" << xed_iclass_enum_t2str(opcode) << "[] = {" << endl;
 
-    for (int regi = 0; regi < NUM_REGISTERS; regi++) {
+    for (int regi = FIRST_SIMD_REGISTER_INDEX(); regi < NUM_REGISTERS; regi++) {
       const xed_reg_enum_t srcReg = REGISTERS[regi];
       string funName = makeInsnFunName(opcode, srcReg);
       
