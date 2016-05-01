@@ -401,8 +401,8 @@ int interpret(uint8_t* bytes, uint32_t bytesLength, void* dstAddress, struct pt_
 
   if (1 == numOperands) {
     if (isOpcodeSET(opcode)) {
-      if (opcode < 0 || opcode >= UD_Iaaa) {
-        printf("opcode out-of-bounds: %u\n", opcode);
+      if (opcode < 0 || opcode > CV_LAST_VALID_OPCODE) {
+        printf("single-operand opcode out of bounds %u", opcode);
         return 0;
       }
       NoWriteFlagsOpcode2FunTable_SIL[opcode](dstAddress, *flags);
@@ -484,12 +484,14 @@ int interpret(uint8_t* bytes, uint32_t bytesLength, void* dstAddress, struct pt_
         srcValue = context->r15;
         break;
       default:
+        printf("Invalid GPR source register %u", canonSrcReg);
         return 0;
       }
 
     } else if (isSIMDreg(canonSrcReg)) {
       // SIMD regs don't need to be read from context; they're already in the register file
     } else {
+      printf("Invalid source register %u", canonSrcReg);
       return 0;
     }
 
@@ -535,12 +537,21 @@ int interpret(uint8_t* bytes, uint32_t bytesLength, void* dstAddress, struct pt_
   case FUN_MMX0: 
   case FUN_XMM0: {
     simdMovInsnFun* regTable = SIMDOpcode2RegTable[opcode];
-    if (NULL == regTable) return 0;
+    if (NULL == regTable) {
+      printf("Invalid SIMD opcode %u", opcode);
+      return 0;
+    }
     ud_type_t srcReg = getCanonicalRegister(srcOp->base);
-    if (srcReg < UD_R_MM0 || srcReg > UD_R_XMM15) return 0;
+    if (srcReg < UD_R_MM0 || srcReg > UD_R_XMM15) {
+      printf("Invalid SIMD src register %u", srcReg);
+      return 0;
+    }
     unsigned index = srcReg - UD_R_MM0; // TODO: HORRIBLE HACK!!
     simdMovInsnFun fun = regTable[index];
-    if (NULL == fun) return 0;
+    if (NULL == fun) {
+      printf("No function to interpret SIMD src register %u", index);
+      return 0;
+    }
     fun(dstAddress);
     return 1;
   }
@@ -550,13 +561,23 @@ int interpret(uint8_t* bytes, uint32_t bytesLength, void* dstAddress, struct pt_
   }
 
   // non-SIMD insn
-  if (opcode < 0 || opcode > CV_LAST_GPR_OPCODE) return 0;
+  if (opcode < 0 || opcode > CV_LAST_GPR_OPCODE) {
+    printf("OOB GPR opcode %u", opcode);
+    return 0;
+  }
 
   if (insnWritesFlags(opcode)) {
-    if (NULL == flagsFun) return 0;
+    if (NULL == flagsFun) {
+      printf("No function to interpret flag-writing opcode %u", opcode);
+      return 0;
+    }
     flagsFun(dstAddress, srcValue, flags);
+
   } else {
-    if (NULL == movFun) return 0;
+    if (NULL == movFun) {
+      printf("No function to interpret non-flag-writing opcode %u", opcode);
+      return 0;
+    }
     movFun(dstAddress, srcValue);
   }
 
