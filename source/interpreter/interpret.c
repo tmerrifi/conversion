@@ -416,45 +416,33 @@ int main(int argc, char** argv) {
     return 2;
   }
 
+  movInsnFun movfun = NULL;
+  writeFlagsInsnFun flagsFun = NULL;
+
   switch (getFunTable(srcOp)) {
   case FUN_SIL: {
-    if (insnWritesFlags(opcode)) {
-      WriteFlagsOpcode2FunTable_SIL[opcode](dstAddress, srcValue, flags);
-    } else {
-      NoWriteFlagsOpcode2FunTable_SIL[opcode](dstAddress, srcValue);
-    }
+    movFun = NoWriteFlagsOpcode2FunTable_SIL[opcode];
+    flagsFun = WriteFlagsOpcode2FunTable_SIL[opcode];
     break;
   }
   case FUN_AH: {
-    if (insnWritesFlags(opcode)) {
-      WriteFlagsOpcode2FunTable_AH[opcode](dstAddress, srcValue, flags);
-    } else {
-      NoWriteFlagsOpcode2FunTable_AH[opcode](dstAddress, srcValue);
-    }
+    movFun = NoWriteFlagsOpcode2FunTable_AH[opcode];
+    flagsFun = WriteFlagsOpcode2FunTable_AH[opcode];
     break;
   }
   case FUN_SI: {
-    if (insnWritesFlags(opcode)) {
-      WriteFlagsOpcode2FunTable_SI[opcode](dstAddress, srcValue, flags);
-    } else {
-      NoWriteFlagsOpcode2FunTable_SI[opcode](dstAddress, srcValue);
-    }
+    movFun = NoWriteFlagsOpcode2FunTable_SI[opcode];
+    flagsFun = WriteFlagsOpcode2FunTable_SI[opcode];
     break;
   }
   case FUN_ESI: {
-    if (insnWritesFlags(opcode)) {
-      WriteFlagsOpcode2FunTable_ESI[opcode](dstAddress, srcValue, flags);
-    } else {
-      NoWriteFlagsOpcode2FunTable_ESI[opcode](dstAddress, srcValue);
-    }
+    movFun = NoWriteFlagsOpcode2FunTable_ESI[opcode];
+    flagsFun = WriteFlagsOpcode2FunTable_ESI[opcode];
     break;
   }
   case FUN_RSI: {
-    if (insnWritesFlags(opcode)) {
-      WriteFlagsOpcode2FunTable_RSI[opcode](dstAddress, srcValue, flags);
-    } else {
-      NoWriteFlagsOpcode2FunTable_RSI[opcode](dstAddress, srcValue);
-    }
+    movFun = NoWriteFlagsOpcode2FunTable_RSI[opcode];
+    flagsFun = WriteFlagsOpcode2FunTable_RSI[opcode];
     break;
   }
   case FUN_MMX0: 
@@ -462,17 +450,29 @@ int main(int argc, char** argv) {
     if (opcode < 0 || opcode >= UD_Iaaa) return 2;
     simdMovInsnFun* regTable = SIMDOpcode2RegTable[opcode];
     if (NULL == regTable) return 2;
-    unsigned index = getCanonicalRegister(srcOp->base) - UD_R_MM0; // HORRIBLE HACK!
-    if (index < 0 || index > UD_R_XMM15) return 2;
+    ud_type_t srcReg = getCanonicalRegister(srcOp->base);
+    if (index < UD_R_MM0 || index > UD_R_XMM15) return 2;
+    unsigned index = srcReg - UD_R_MM0; // HORRIBLE HACK!!
     simdMovInsnFun fun = regTable[index];
     if (NULL == fun) return 2;
     fun(dstAddress);
-    break;
+    return 0;
   }
   default:
     // TODO: fail over to CoW
     printf("Invalid fun table: %d\n", getFunTable(srcOp));
     return 2;
+  }
+
+  // non-SIMD insn
+  if (opcode < 0 || opcode >= UD_Imovd) return 2; // TODO: HORRIBLE HACK!!
+
+  if (insnWritesFlags(opcode)) {
+    if (NULL == flagsFun) return 2;
+    flagsFun(dstAddress, srcValue, flags);
+  } else {
+    if (NULL == movFun) return 2;
+    movFun(dstAddress, srcValue);
   }
 
   return 0;
