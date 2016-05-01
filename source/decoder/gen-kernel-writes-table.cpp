@@ -73,10 +73,10 @@ const xed_iclass_enum_t SIMD_OPCODES[] = {
   //XED_ICLASS_MOVSD // TODO: doesn't generate any valid code for some reason...
 const int NUM_SIMD_OPCODES = sizeof(SIMD_OPCODES) / sizeof(SIMD_OPCODES[0]);
 
-// NB: use RSI for the src value if possible as it's the 2nd arg in x86-64 calling conventions
+// NB: use RSI for the src value when possible as it's the 2nd arg in x86-64 calling conventions
 const xed_reg_enum_t REGISTERS[] = {
   XED_REG_SIL, // low 8b
-  XED_REG_AH, // high 8b
+  XED_REG_AH, // high 8b, there's no "SH" register so have to use AH instead
   XED_REG_SI, // low 16b
   XED_REG_ESI, // low 32b
   XED_REG_RSI, // 64b
@@ -109,9 +109,8 @@ const xed_reg_enum_t REGISTERS[] = {
   XED_REG_XMM14,
   XED_REG_XMM15
 
-  /* NB: there are no AVX instructions on our target platform (Nehalem). Adding
-     AVX support here would be tricky as gcc doesn't have any built-in 256b
-     integer types, so we'd have to pack up the ymm src register manually. */
+  /* NB: there are no AVX instructions on our target platform (Nehalem), so we
+     leave them out for now. */
   // XED_REG_YMM0, // 256b AVX 
 };
 const int NUM_REGISTERS = sizeof(REGISTERS) / sizeof(REGISTERS[0]);
