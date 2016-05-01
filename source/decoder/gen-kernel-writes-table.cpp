@@ -3,6 +3,7 @@ extern "C" {
 #include "xed-examples-util.h"
 }
 //#include "xed-enc-lang.H"
+#include <unordered_map>
 #include <iostream>
 #include <string>
 #include <cstdlib>
@@ -14,6 +15,11 @@ using namespace std;
 const char* ASM_NEWLINE = "\\n\\t";
 
 const xed_iclass_enum_t OPCODES[] = { 
+  XED_ICLASS_SETB,
+  XED_ICLASS_SETNZ,
+
+  XED_ICLASS_MOV,
+
   XED_ICLASS_ADD,
   XED_ICLASS_AND,
   XED_ICLASS_OR,
@@ -22,10 +28,6 @@ const xed_iclass_enum_t OPCODES[] = {
   XED_ICLASS_SHL,
   XED_ICLASS_SHR,
 
-  XED_ICLASS_SETB,
-  XED_ICLASS_SETNZ,
-
-  XED_ICLASS_MOV,
   XED_ICLASS_MOVD,
   XED_ICLASS_MOVSS,
   XED_ICLASS_MOVQ,
@@ -54,7 +56,14 @@ const xed_iclass_enum_t OPCODES[] = {
 };
   //XED_ICLASS_MOVSD // TODO: doesn't generate any valid code for some reason...
   //XED_ICLASS_SAL, // doesn't exist in xed or udis86!
+
 const int NUM_OPCODES = sizeof(OPCODES) / sizeof(OPCODES[0]);
+const int FIRST_SIMD_OPCODE_INDEX() {
+  for (int i = 0; i < NUM_OPCODES; i++) {
+    if (XED_ICLASS_MOVD == OPCODES[i]) return i;
+  }
+  assert(false);
+}
 
 // NB: use RSI for the src value if possible as it's the 2nd arg in x86-64 calling conventions
 const xed_reg_enum_t REGISTERS[] = {
@@ -63,8 +72,34 @@ const xed_reg_enum_t REGISTERS[] = {
   XED_REG_SI, // low 16b
   XED_REG_ESI, // low 32b
   XED_REG_RSI, // 64b
-  XED_REG_MMX0, // 64b MMX
-  XED_REG_XMM0 // 128b SSE
+
+  // 64b MMX
+  XED_REG_MMX0, 
+  XED_REG_MMX1, 
+  XED_REG_MMX2, 
+  XED_REG_MMX3, 
+  XED_REG_MMX4, 
+  XED_REG_MMX5, 
+  XED_REG_MMX6,
+  XED_REG_MMX7,  
+
+  // 128b SSE
+  XED_REG_XMM0,
+  XED_REG_XMM1,
+  XED_REG_XMM2,
+  XED_REG_XMM3,
+  XED_REG_XMM4,
+  XED_REG_XMM5,
+  XED_REG_XMM6,
+  XED_REG_XMM7,
+  XED_REG_XMM8,
+  XED_REG_XMM9,
+  XED_REG_XMM10,
+  XED_REG_XMM11,
+  XED_REG_XMM12,
+  XED_REG_XMM13,
+  XED_REG_XMM14,
+  XED_REG_XMM15
 
   /* NB: there are no AVX instructions on our target platform (Nehalem). Adding
      AVX support here would be tricky as gcc doesn't have any built-in 256b
@@ -126,6 +161,8 @@ string makeInsnFunName(xed_iclass_enum_t opcode, xed_reg_enum_t srcReg) {
   return funName;
 }
 
+unordered_map<string,int> AllFunctions;
+
 int main(int argc, char** argv) {
 
   xed_tables_init();
@@ -140,7 +177,6 @@ int main(int argc, char** argv) {
   cout << "// AUTO-GENERATED FILE - DO NOT EDIT!!" << endl << endl;
   cout << "#include <stdlib.h>" << endl;
   cout << "#include <stdint.h>" << endl;
-  cout << "#include <assert.h>" << endl << endl;
 
   for (int opi = 0; opi < NUM_OPCODES; opi++) {
     const xed_iclass_enum_t opcode = OPCODES[opi];
@@ -154,15 +190,16 @@ int main(int argc, char** argv) {
 
       const string funName = makeInsnFunName(opcode, XED_REG_FLAGS); 
       cout << "void " << funName << "(void* dstAddress, uint64_t flags) { ";
+      AllFunctions.insert( {{funName,1}} );
 
       string insnAsm = "";
       if (!generateInsn(&xei, &dstate, insnAsm)) {
-        //cerr << " opcode:" << xed_iclass_enum_t2str(opcode) << endl;
+        cerr << " ERROR generating code for SET opcode:" << xed_iclass_enum_t2str(opcode) << endl;
 
         // this insnFun should never get called
-        cout << " assert(0); }" << endl;
-
-        continue;
+        //cout << " assert(0); }" << endl;
+        assert(false);
+        return 1;
       }
 
       cout << endl;
@@ -184,7 +221,7 @@ int main(int argc, char** argv) {
     if (opcodeWritesFlags(opcode)) {
       for (int regi = 0; regi < NUM_REGISTERS; regi++) {
         xed_reg_enum_t srcReg = REGISTERS[regi];
-        
+
         xed_uint32_t srcRegWidthBits = xed_get_register_width_bits64(srcReg);
       
         if (XED_REG_SIL == srcReg && isOpcodeShift(opcode)) {
@@ -201,21 +238,19 @@ int main(int argc, char** argv) {
 
         // two-operand insn
         xed_inst2(&xei, dstate, opcode, srcRegWidthBits, kwDst, kwSrc); 
-
-        const string funName = makeInsnFunName(opcode, srcReg);
-        cout << "void " << funName << "(void* dstAddress, uint64_t srcValue, uint64_t* flags) {" << endl;
         
         string insnAsm = "";
         if (!generateInsn(&xei, &dstate, insnAsm)) {
           //cerr << " opcode:" << xed_iclass_enum_t2str(opcode) << " srcReg:" << xed_reg_enum_t2str(srcReg) << endl;
-          
-          // this insnFun should never get called
-          cout << " assert(0);" << endl << "}" << endl;
-          
           continue;
         }
-        // NB: we don't support FLAGS-using insns with XMM registers
-        assert(xed_reg_class(srcReg) != XED_REG_CLASS_XMM);
+        // NB: we don't support FLAGS-using insns with SIMD registers, and I don't believe there are any
+        assert(xed_reg_class(srcReg) != XED_REG_CLASS_MMX &&
+               xed_reg_class(srcReg) != XED_REG_CLASS_XMM);
+
+        const string funName = makeInsnFunName(opcode, srcReg);
+        cout << "void " << funName << "(void* dstAddress, uint64_t srcValue, uint64_t* flags) {" << endl;
+        AllFunctions.insert( {{funName,1}} );
 
         string srcRegCanonicalName = string(xed_reg_enum_t2str(srcReg));
         if (xed_get_register_width_bits64(srcReg) < 64) { // canonicalize to 64-bit registers (or xmm, ymm)
@@ -284,22 +319,22 @@ int main(int argc, char** argv) {
       // two-operand insn
       xed_inst2(&xei, dstate, opcode, srcRegWidthBits, kwDst, kwSrc); 
 
-      const string funName = makeInsnFunName(opcode, srcReg);
-      if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
-        cout << "void " << funName << "(void* dstAddress, unsigned __int128 srcValue) {" << endl;
-      } else { // includes MM registers
-        cout << "void " << funName << "(void* dstAddress, uint64_t srcValue) {" << endl;
-      }
-
       string insnAsm = "";
       if (!generateInsn(&xei, &dstate, insnAsm)) {
         //cerr << " opcode:" << xed_iclass_enum_t2str(opcode) << " srcReg:" << xed_reg_enum_t2str(srcReg) << endl;
-
-        // this insnFun should never get called
-        cout << " assert(0);" << endl << "}" << endl;
-
         continue;
       }
+
+      const string funName = makeInsnFunName(opcode, srcReg);
+      if (xed_reg_class(srcReg) == XED_REG_CLASS_MMX ||
+          xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
+        // MMX/XMM registers aren't clobbered by the kernel, so the value to be
+        // stored is still present in the source register
+        cout << "void " << funName << "(void* dstAddress) {" << endl;
+      } else { // GPRs
+        cout << "void " << funName << "(void* dstAddress, uint64_t srcValue) {" << endl;
+      }
+      AllFunctions.insert( {{funName,1}} );
 
       string srcRegCanonicalName = string(xed_reg_enum_t2str(srcReg));
       if (xed_get_register_width_bits64(srcReg) < 64) { // canonicalize to 64-bit registers (or xmm, ymm)
@@ -307,42 +342,14 @@ int main(int argc, char** argv) {
       }
       boost::algorithm::to_lower(srcRegCanonicalName);
 
-      if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
-        boost::replace_all(insnAsm, "%%xmm0", "%1");
-
-        // save the value of xmm0 (onto the stack) as we're about to overwrite it
-        // TODO: tried to find a way to save xmm0 into GPRs but couldn't figure it out
-        cout << "unsigned __int128 tmp;" << endl;
-        cout << "__asm__(\"movdqa %%xmm0, %0" << ASM_NEWLINE << "\"" << endl;;
-        cout << "        : \"=m\"(tmp) : :);" << endl;
-        // perform the store from xmm0
+      if (xed_reg_class(srcReg) == XED_REG_CLASS_MMX ||
+          xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
+        // perform the store
         cout << " __asm__(\"" << insnAsm << ASM_NEWLINE << "\"" << endl;
         cout << "         : /*no output registers*/" << endl;
-        cout << "         : \"" << dstAddrReg << "\"(dstAddress), \"Yz\"(srcValue) /*input registers*/" << endl;
+        cout << "         : \"" << dstAddrReg << "\"(dstAddress) /*input registers*/" << endl;
         cout << "         : /*no clobbered registers*/" << endl;
         cout << "         );" << endl;
-        // restore xmm0
-        cout << "__asm__(\"movdqa %0, %%xmm0" << ASM_NEWLINE << "\"" << endl;
-        cout << "        : : \"m\"(tmp) :);" << endl;
-
-      } else if (xed_reg_class(srcReg) == XED_REG_CLASS_MMX) {
-        boost::replace_all(insnAsm, "%%mmx0", "%1");
-
-        // save the value of mm0 (into a GPR) as we're about to overwrite it
-        cout << "uint64_t tmp;" << endl;
-        cout << "__asm__(\"movq %%mm0, %0" << ASM_NEWLINE << "\"" << endl;
-        cout << "       : \"=r\"(tmp) : :);" << endl;
-        // perform the store from mm0
-        cout << "register uint64_t myMM0 asm (\"mm0\") = srcValue;" << endl;
-        cout << " __asm__(\"" << insnAsm << ASM_NEWLINE << "\"" << endl;
-        cout << "         : /*no output registers*/" << endl;
-        cout << "         : \"" << dstAddrReg << "\"(dstAddress), \"y\"(myMM0) /*input registers*/" << endl;
-        cout << "         : /*no clobbered registers*/" << endl;
-        cout << "         );" << endl;
-        // restore mm0
-        cout << "__asm__(\"movq %0, %%mm0" << ASM_NEWLINE << "\"" << endl;
-        cout << "        : : \"r\"(tmp) :);" << endl;
-        
 
       } else {
         cout << " __asm__(\"" << insnAsm << ASM_NEWLINE << "\"" << endl;
@@ -375,27 +382,32 @@ void generateLUTs() {
 
   // typedefs
   cout << endl << "typedef void (*movInsnFun)(void* dstAddress, uint64_t srcValue);" << endl << endl;
-  cout << endl << "typedef void (*wideMovInsnFun)(void* dstAddress, unsigned __int128 srcValue);" << endl << endl;
+  cout << endl << "typedef void (*simdMovInsnFun)(void* dstAddress);" << endl << endl;
   cout << endl << "typedef void (*writeFlagsInsnFun)(void* dstAddress, uint64_t srcValue, uint64_t* flags);" << endl << endl;
 
-  // opcode2fun tables
+  const string nullPtr = "NULL";
+
+  // GPR opcode2fun tables
   for (int regi = 0; regi < NUM_REGISTERS; regi++) {
     const xed_reg_enum_t srcReg = REGISTERS[regi];
 
-    string funPtrName = "movInsnFun";
-    if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
-      funPtrName = "wideMovInsnFun";
+    if (xed_reg_class(srcReg) == XED_REG_CLASS_MMX ||
+        xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
+      continue;
     }
-    string nullPtr = "(" + funPtrName + ") NULL";
 
-    // ignore-FLAGS insn table
-    cout << funPtrName << " IgnoreFlagsOpcode2FunTable_" << xed_reg_enum_t2str(srcReg) << "[] = {" << endl;
+    string funPtrName = "movInsnFun";
 
-    for (int opi = 0; opi < NUM_OPCODES; opi++) {
+    // no-write-FLAGS insn table
+
+    cout << funPtrName << " NoWriteFlagsOpcode2FunTable_" << xed_reg_enum_t2str(srcReg) << "[] = {" << endl;
+
+    for (int opi = 0; opi < FIRST_SIMD_OPCODE_INDEX(); opi++) {
       const xed_iclass_enum_t opcode = OPCODES[opi];
       string funName = makeInsnFunName(opcode, srcReg);
       if (opcodeWritesFlags(opcode) || 
-          (xed_reg_class(srcReg) == XED_REG_CLASS_XMM && isOpcodeSET(opcode))) {
+          (xed_reg_class(srcReg) == XED_REG_CLASS_XMM && isOpcodeSET(opcode)) ||
+          AllFunctions.count(funName) == 0) {
         funName = nullPtr;
       }
       cout << " " << funName << "," << endl;
@@ -404,19 +416,15 @@ void generateLUTs() {
     cout << " " << nullPtr << endl;
     cout << "};" << endl << endl;
 
-    // set-FLAGS insn table
-    if (xed_reg_class(srcReg) == XED_REG_CLASS_XMM) {
-      // NB: I don't think x86 has wide insn functions that read/write FLAGS
-      continue;
-    }
+    // write-FLAGS insn table
+
     funPtrName = "writeFlagsInsnFun";
-    nullPtr = "(" + funPtrName + ") NULL";
     cout << funPtrName << " WriteFlagsOpcode2FunTable_" << xed_reg_enum_t2str(srcReg) << "[] = {" << endl;
 
-    for (int opi = 0; opi < NUM_OPCODES; opi++) {
+    for (int opi = 0; opi < FIRST_SIMD_OPCODE_INDEX(); opi++) {
       const xed_iclass_enum_t opcode = OPCODES[opi];
       string funName = makeInsnFunName(opcode, srcReg);
-      if (!opcodeWritesFlags(opcode)) {
+      if (!opcodeWritesFlags(opcode) || AllFunctions.count(funName) == 0) {
         funName = nullPtr;
       }
       cout << " " << funName << "," << endl;      
@@ -425,7 +433,50 @@ void generateLUTs() {
     cout << " " << nullPtr << endl;
     cout << "};" << endl << endl;    
 
-  } // loop over registers
+  } // loop over GPRs
+
+
+  // SIMD reg2fun tables
+
+  const string funPtrName = "simdMovInsnFun";
+
+  for (int opi = FIRST_SIMD_OPCODE_INDEX(); opi < NUM_OPCODES; opi++) {
+    const xed_iclass_enum_t opcode = OPCODES[opi];
+
+    cout << funPtrName << " SIMDReg2FunTable_" << xed_iclass_enum_t2str(opcode) << "[] = {" << endl;
+
+    for (int regi = 0; regi < NUM_REGISTERS; regi++) {
+      const xed_reg_enum_t srcReg = REGISTERS[regi];
+      string funName = makeInsnFunName(opcode, srcReg);
+      
+      if ((xed_reg_class(srcReg) != XED_REG_CLASS_MMX &&
+           xed_reg_class(srcReg) != XED_REG_CLASS_XMM) ||
+          AllFunctions.count(funName) == 0) {
+        funName = nullPtr;
+      }
+      cout << " " << funName << "," << endl;
+    }
+
+    cout << " " << nullPtr << endl;
+    cout << "};" << endl << endl;
+  }
+
+  // SIMD opcode2reg tables
+
+  cout << funPtrName << "* SIMDOpcode2RegTable[] = {" << endl;
+  
+  for (int opi = 0; opi < NUM_OPCODES; opi++) {
+    const xed_iclass_enum_t opcode = OPCODES[opi];
+
+    string tableName = string("SIMDReg2FunTable_") + xed_iclass_enum_t2str(opcode);
+    if (opi < FIRST_SIMD_OPCODE_INDEX()) {
+      tableName = nullPtr;
+    }
+    cout << " " << tableName << "," << endl;
+  }
+  
+  cout << " " << nullPtr << endl;
+  cout << "};" << endl << endl;
 
 }
 
@@ -489,6 +540,8 @@ bool generateInsn(xed_encoder_instruction_t* xei, xed_state_t* dstate, string& i
 
   // hard-coded register names must be prefixed with %%
   boost::replace_all(insnAsm, "%", "%%");
+  // gcc uses mm0, mm1, etc. for the MMX registers
+  boost::replace_all(insnAsm, "%%mmx", "%%mm");
 
   // translate opcodes that gcc doesn't understand
   boost::replace_all(insnAsm, "movdqax ",  "movdqa ");
