@@ -333,6 +333,8 @@ unsigned getNumOperands(ud_t* dis) {
 
 int main(int argc, char** argv) {
 
+  verifyOpcodesAndRegisters();
+
   //uint8_t INPUT_BYTES[] = {0x40, 0x00, 0x37}; // add %sil,(%rdi)
   //uint8_t INPUT_BYTES[] = {0x88, 0x27}; // mov %ah,(%rdi)
   uint8_t INPUT_BYTES[] = {0x0f, 0x92, 0x07}; // setb (%rdi)
@@ -411,12 +413,12 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  if (opcode < 0 || opcode >= UD_Iaaa) {
+  if (opcode < 0 || opcode > CV_LAST_VALID_OPCODE) {
     printf("opcode out-of-bounds: %u\n", opcode);
     return 2;
   }
 
-  movInsnFun movfun = NULL;
+  movInsnFun movFun = NULL;
   writeFlagsInsnFun flagsFun = NULL;
 
   switch (getFunTable(srcOp)) {
@@ -447,12 +449,11 @@ int main(int argc, char** argv) {
   }
   case FUN_MMX0: 
   case FUN_XMM0: {
-    if (opcode < 0 || opcode >= UD_Iaaa) return 2;
     simdMovInsnFun* regTable = SIMDOpcode2RegTable[opcode];
     if (NULL == regTable) return 2;
     ud_type_t srcReg = getCanonicalRegister(srcOp->base);
-    if (index < UD_R_MM0 || index > UD_R_XMM15) return 2;
-    unsigned index = srcReg - UD_R_MM0; // HORRIBLE HACK!!
+    if (srcReg < UD_R_MM0 || srcReg > UD_R_XMM15) return 2;
+    unsigned index = srcReg - UD_R_MM0; // TODO: HORRIBLE HACK!!
     simdMovInsnFun fun = regTable[index];
     if (NULL == fun) return 2;
     fun(dstAddress);
@@ -465,7 +466,7 @@ int main(int argc, char** argv) {
   }
 
   // non-SIMD insn
-  if (opcode < 0 || opcode >= UD_Imovd) return 2; // TODO: HORRIBLE HACK!!
+  if (opcode < 0 || opcode > CV_LAST_GPR_OPCODE) return 2;
 
   if (insnWritesFlags(opcode)) {
     if (NULL == flagsFun) return 2;
