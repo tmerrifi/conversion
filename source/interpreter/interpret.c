@@ -375,7 +375,7 @@ int main(int argc, char** argv) {
         printf("opcode out-of-bounds: %u\n", opcode);
         return 2;
       }
-      IgnoreFlagsOpcode2FunTable_SIL[opcode](dstAddress, *flags);
+      NoWriteFlagsOpcode2FunTable_SIL[opcode](dstAddress, *flags);
       return 0;
     } else {
       printf("Can't handle 1-operand insn\n");
@@ -421,7 +421,7 @@ int main(int argc, char** argv) {
     if (insnWritesFlags(opcode)) {
       WriteFlagsOpcode2FunTable_SIL[opcode](dstAddress, srcValue, flags);
     } else {
-      IgnoreFlagsOpcode2FunTable_SIL[opcode](dstAddress, srcValue);
+      NoWriteFlagsOpcode2FunTable_SIL[opcode](dstAddress, srcValue);
     }
     break;
   }
@@ -429,7 +429,7 @@ int main(int argc, char** argv) {
     if (insnWritesFlags(opcode)) {
       WriteFlagsOpcode2FunTable_AH[opcode](dstAddress, srcValue, flags);
     } else {
-      IgnoreFlagsOpcode2FunTable_AH[opcode](dstAddress, srcValue);
+      NoWriteFlagsOpcode2FunTable_AH[opcode](dstAddress, srcValue);
     }
     break;
   }
@@ -437,7 +437,7 @@ int main(int argc, char** argv) {
     if (insnWritesFlags(opcode)) {
       WriteFlagsOpcode2FunTable_SI[opcode](dstAddress, srcValue, flags);
     } else {
-      IgnoreFlagsOpcode2FunTable_SI[opcode](dstAddress, srcValue);
+      NoWriteFlagsOpcode2FunTable_SI[opcode](dstAddress, srcValue);
     }
     break;
   }
@@ -445,7 +445,7 @@ int main(int argc, char** argv) {
     if (insnWritesFlags(opcode)) {
       WriteFlagsOpcode2FunTable_ESI[opcode](dstAddress, srcValue, flags);
     } else {
-      IgnoreFlagsOpcode2FunTable_ESI[opcode](dstAddress, srcValue);
+      NoWriteFlagsOpcode2FunTable_ESI[opcode](dstAddress, srcValue);
     }
     break;
   }
@@ -453,21 +453,20 @@ int main(int argc, char** argv) {
     if (insnWritesFlags(opcode)) {
       WriteFlagsOpcode2FunTable_RSI[opcode](dstAddress, srcValue, flags);
     } else {
-      IgnoreFlagsOpcode2FunTable_RSI[opcode](dstAddress, srcValue);
+      NoWriteFlagsOpcode2FunTable_RSI[opcode](dstAddress, srcValue);
     }
     break;
   }
-  case FUN_MMX0: {
-    if (insnWritesFlags(opcode)) {
-      WriteFlagsOpcode2FunTable_MMX0[opcode](dstAddress, srcValue, flags);
-    } else {
-      IgnoreFlagsOpcode2FunTable_MMX0[opcode](dstAddress, srcValue);
-    }
-    break;
-  }
+  case FUN_MMX0: 
   case FUN_XMM0: {
-    assert(!insnWritesFlags(opcode));
-    IgnoreFlagsOpcode2FunTable_XMM0[opcode](dstAddress, srcValue);
+    if (opcode < 0 || opcode >= UD_Iaaa) return 2;
+    simdMovInsnFun* regTable = SIMDOpcode2RegTable[opcode];
+    if (NULL == regTable) return 2;
+    unsigned index = getCanonicalRegister(srcOp->base) - UD_R_MM0; // HORRIBLE HACK!
+    if (index < 0 || index > UD_R_XMM15) return 2;
+    simdMovInsnFun fun = regTable[index];
+    if (NULL == fun) return 2;
+    fun(dstAddress);
     break;
   }
   default:
