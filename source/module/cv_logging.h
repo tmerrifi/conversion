@@ -60,6 +60,8 @@ struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * 
 
 void cv_merge_line(uint8_t * local, uint8_t * ref, uint8_t * latest);
 
-#define cv_logging_page_status_to_kaddr(e) (pfn_to_kaddr(e->pfn))
+#define cv_logging_page_status_to_kaddr(e,li) ((uint8_t *)pfn_to_kaddr(e->pfn) + li )
+
+uint8_t * cv_logging_allocate_data_entry(int data_len, struct ksnap * cv_seg);
 
 #endif

@@ -1,9 +1,8 @@
 // AUTO-GENERATED FILE - DO NOT EDIT!!
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <assert.h>
-#include <udis86.h>
+//#include <stdlib.h>
+//#include <stdint.h>
+//#include <assert.h>
 
 #define CV_LAST_GPR_OPCODE 9
 #define CV_LAST_SIMD_OPCODE 34
