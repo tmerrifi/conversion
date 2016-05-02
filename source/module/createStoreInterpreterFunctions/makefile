@@ -173,12 +173,12 @@ endif
 xed${EXEEXT}: ${XED_OBJ} ${LIBXED}
 	${CXX_LINKER}  ${LDFLAGS}  ${LINKOUT}$@ $^ ${EXTRA_LDLIBS_TARGET}
 
-gkw: gen-kernel-writes-table.o ${LIBXED}
+csi: create-store-interpreter-functions.o ${LIBXED}
 	${CXX_LINKER}  ${LDFLAGS}  ${LINKOUT}$@ $^ ${EXTRA_LDLIBS_TARGET}
 
-run-gkw: gkw
+run-csi: csi
 	./gkw > cv_store_interpreter_functions.c
-	gcc -I../udis86/ -Wall -std=gnu11 -O3 -fomit-frame-pointer -c cv_store_interpreter_functions.c -o bar.o
+	gcc -I../udis86/ -Wall -std=gnu11 -O3 -fomit-frame-pointer -c cv_store_interpreter_functions.c -o cv_store_interpreter_functions.o
 
 
 #################################################################
