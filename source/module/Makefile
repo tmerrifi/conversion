@@ -12,10 +12,23 @@ ksnapmod-y += libudis86/decode.o libudis86/itab.o libudis86/syn-att.o libudis86/
 #-DCV_PROFILING_ON - Keeps track of information about each commit and then can be printed to the log from userspace
 #-DCV_DETERMINISM - Used with consequence to support deterministic execution
 
-KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement #-DCV_DETERMINISM -DCV_HOOKS
+KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement -IcreateStoreInterpreterFunctions #-DCV_DETERMINISM -DCV_HOOKS
 
 all: cv_main.c ksnap_writer.c ksnap_version_list.c cv_commit.c cv_update.c cv_garbage.c cv_per_page_version.c cv_stats.c cv_init.c cv_meta_data.c cv_merge.c cv_pte.c cv_fork.c cv_close.c cv_revert.c cv_checkpoint.c cv_determinism.c
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+
+
+# rules to build a userspace standalone store interpreter for testing
+
+# TODO: clean this up and use proper globs for libudis86 files, here and for the kernel module (above)
+si: cv_store_interpreter.c createStoreInterpreterFunctions/cv_store_interpreter_functions.c
+	gcc -std=c99 -O0 -g -Wall -DTEST_INTERPRETER -I. -Ilibudis86 -IcreateStoreInterpreterFunctions $< libudis86/decode.c libudis86/itab.c libudis86/syn-att.c libudis86/syn.c libudis86/syn-intel.c libudis86/udis86.c -o $@
+
+si-run: si
+	./$<
+
+si-clean:
+	rm -f si

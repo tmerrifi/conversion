@@ -1,21 +1,17 @@
 
-//#include <stdlib.h>
-//#include <stdio.h>
-//#include <stdint.h>
-//#include <assert.h>
-
-#ifdef __KERNEL__
-#include "libudis86/extern.h"
-#include "linux/ptrace.h"
-#else
-#include <udis86.h>
+#ifdef TEST_INTERPRETER
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <assert.h>
 #endif
 
-#include "cv_store_interpreter_functions.h"
+#include "libudis86/extern.h"
 
-#include "cv_store_interpreter_functions.c"
-
-#ifndef __KERNEL__
+#ifdef __KERNEL__
+#include "linux/ptrace.h"
+#else
+// the kernel version of pt_regs has fields named differently than userland version, so we replicate the kernel version here
 struct pt_regs {
   unsigned long r15;
   unsigned long r14;
@@ -44,6 +40,10 @@ struct pt_regs {
   /* top of stack page */
 };
 #endif
+
+#include "cv_store_interpreter_functions.h"
+
+#include "cv_store_interpreter_functions.c"
 
 typedef enum fun_table_kind {
   FUN_NONE,
@@ -406,7 +406,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     return 0;
   }
 
-  printf("\t%s\n", ud_insn_asm(&dis));
+  //printf("\t%s\n", ud_insn_asm(&dis));
 
   // state used to decide which interpreter function to call
 
@@ -633,19 +633,19 @@ int main(int argc, char** argv) {
     int ok = interpret(TEST_INSNS[i].bytes, MAX_INSN_BYTES, &dummy, &regs);
     totalTests++;
     if (!ok) {
-      printf("FAILURE couldn't interpret test insn %u, expected opcode %u\n", i, TEST_INSNS[i].expectedOpcode);
+      printf("FAILURE couldn't interpret test insn #%u (%s), expected opcode %u\n", i, TEST_INSNS[i].disasm, TEST_INSNS[i].expectedOpcode);
       continue;
     }
     if (TEST_INSNS[i].expectedOpcode != IdentifiedOpcode) {
-      printf("FAILURE wrong opcode identified for test insn %u, expected opcode %u but got %u\n", 
-             i, TEST_INSNS[i].expectedOpcode, IdentifiedOpcode);
+      printf("FAILURE wrong opcode identified for test insn #%u (%s), expected opcode %u but got %u\n", 
+             i, TEST_INSNS[i].disasm, TEST_INSNS[i].expectedOpcode, IdentifiedOpcode);
       continue;
     }
     testsPassed++;
   }
 
   testsFailed = totalTests - testsPassed;
-  printf("Ran %u total tests, %u passed and %u failed.\n", totalTests, testsPassed, testsFailed);
+  printf("Ran %u tests: %u passed and %u failed.\n", totalTests, testsPassed, testsFailed);
 #endif
 
   return 0;
