@@ -28,6 +28,7 @@
 #include "extern.h"
 #include "decode.h"
 
+#define HAVE_STRING_H 1
 #if !defined(__UD_STANDALONE__)
 # if HAVE_STRING_H
 #  include <string.h>
