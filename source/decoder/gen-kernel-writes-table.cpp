@@ -209,10 +209,9 @@ int main(int argc, char** argv) {
   //dstate.stack_addr_width=XED_ADDRESS_WIDTH_32b;
 
   cout << "// AUTO-GENERATED FILE - DO NOT EDIT!!" << endl << endl;
-  cout << "#include <stdlib.h>" << endl;
   cout << "#include <stdint.h>" << endl;
   cout << "#include <assert.h>" << endl;
-  cout << "#include <udis86.h>" << endl << endl;
+  cout << "#include \"libudis86/extern.h\"" << endl << endl;
 
   cout << "#define CV_LAST_GPR_OPCODE " << (NUM_GPR_OPCODES - 1) << endl;
   cout << "#define CV_LAST_SIMD_OPCODE " << (NUM_GPR_OPCODES + NUM_SIMD_OPCODES - 1) << endl;
@@ -289,7 +288,7 @@ int main(int argc, char** argv) {
                xed_reg_class(srcReg) != XED_REG_CLASS_XMM);
 
         const string funName = makeInsnFunName(opcode, srcReg);
-        cout << "void " << funName << "(void* dstAddress, uint64_t srcValue, uint64_t* flags) {" << endl;
+        cout << "void " << funName << "(void* dstAddress, uint64_t srcValue, unsigned long * flags) {" << endl;
         AllFunctions.insert( {{funName,1}} );
 
         string srcRegCanonicalName = string(xed_reg_enum_t2str(srcReg));
@@ -456,7 +455,7 @@ void generateLUTs() {
   // typedefs
   cout << endl << "typedef void (*movInsnFun)(void* dstAddress, uint64_t srcValue);" << endl << endl;
   cout << endl << "typedef void (*simdMovInsnFun)(void* dstAddress);" << endl << endl;
-  cout << endl << "typedef void (*writeFlagsInsnFun)(void* dstAddress, uint64_t srcValue, uint64_t* flags);" << endl << endl;
+  cout << endl << "typedef void (*writeFlagsInsnFun)(void* dstAddress, uint64_t srcValue, unsigned long* flags);" << endl << endl;
 
   const string nullPtr = "NULL";
 
