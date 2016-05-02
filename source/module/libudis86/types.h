@@ -101,13 +101,13 @@ enum ud_type
   UD_R_DR8, UD_R_DR9, UD_R_DR10,  UD_R_DR11,
   UD_R_DR12,  UD_R_DR13,  UD_R_DR14,  UD_R_DR15,
 
-  /* mmx registers */
-  UD_R_MM0, UD_R_MM1, UD_R_MM2, UD_R_MM3,
-  UD_R_MM4, UD_R_MM5, UD_R_MM6, UD_R_MM7,
-
   /* x87 registers */
   UD_R_ST0, UD_R_ST1, UD_R_ST2, UD_R_ST3,
   UD_R_ST4, UD_R_ST5, UD_R_ST6, UD_R_ST7, 
+
+  /* mmx registers */
+  UD_R_MM0, UD_R_MM1, UD_R_MM2, UD_R_MM3,
+  UD_R_MM4, UD_R_MM5, UD_R_MM6, UD_R_MM7,
 
   /* extended multimedia registers */
   UD_R_XMM0,  UD_R_XMM1,  UD_R_XMM2,  UD_R_XMM3,
