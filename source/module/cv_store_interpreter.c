@@ -60,6 +60,7 @@ fun_table_kind_t getFunTable(const ud_operand_t* src) {
   switch (src->type) {
 
     // for immediates, pick the right size and use the regular src-register fun table
+  case UD_OP_CONST: // intentional fall-through
   case UD_OP_IMM: {
     switch (src->size) {
     case  8: return FUN_SIL; 
@@ -415,6 +416,11 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   uint64_t* flags = &(context->flags);
   ud_mnemonic_code_t opcode = dis.mnemonic;
 
+  if (insnWritesFlags(opcode)) {
+    // TODO: can't calculate bytes written for these insns based on "src" register, as it's the width of the memory operation that counts
+    return 0;
+  }
+
 #ifdef TEST_INTERPRETER
   IdentifiedOpcode = opcode;
 #endif
@@ -437,7 +443,11 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   const struct ud_operand* srcOp = ud_insn_opr(&dis, 1);
   assert(NULL != srcOp);
 
-  if (UD_OP_IMM == srcOp->type) {
+  if (UD_OP_CONST == srcOp->type) {
+    // from decode.c:763
+    srcValue = srcOp->lval.udword;
+
+  } else if (UD_OP_IMM == srcOp->type) {
     switch (srcOp->size) {
       // NB: code copied from https://github.com/vmt/udis86/blob/master/libudis86/decode.c#L472
       // 8-bit immediates are signed while others are unsigned?
@@ -611,11 +621,12 @@ int main(int argc, char** argv) {
 
   verifyOpcodesAndRegisters();
 
-  uint8_t INPUT_BYTES[4][4] = {
-    {0x0f, 0x92, 0x07, 0x90}, // setb (%rdi) 3B
-    {0x88, 0x27, 0x90, 0x90}, // mov %ah,(%rdi) 2B
-    {0x40, 0x00, 0x37, 0x90}, // add %sil,(%rdi) 3B
-    {0x66, 0x0f, 0x7e, 0x07}  // movd %xmm0,(%rdi) 4B
+  uint8_t INPUT_BYTES[1][4] = {
+    {0x67,0xd0,0x3f,0x0} // sarb $0x1, (%edi)
+    /* {0x0f, 0x92, 0x07, 0x90}, // setb (%rdi) 3B */
+    /* {0x88, 0x27, 0x90, 0x90}, // mov %ah,(%rdi) 2B */
+    /* {0x40, 0x00, 0x37, 0x90}, // add %sil,(%rdi) 3B */
+    /* {0x66, 0x0f, 0x7e, 0x07}  // movd %xmm0,(%rdi) 4B */
   };
 
   unsigned __int128 dummy; // for testing
@@ -624,8 +635,8 @@ int main(int argc, char** argv) {
 
   for (int i = 0; i < sizeof(INPUT_BYTES) / sizeof(INPUT_BYTES[0]); i++) {
     regs.flags = 0x202;
-    int ok = interpret(INPUT_BYTES[i], sizeof(INPUT_BYTES[0]), &dummy, &regs);
-    assert(ok);
+    int bw = interpret(INPUT_BYTES[i], sizeof(INPUT_BYTES[0]), &dummy, &regs);
+    assert(1 == bw);
   }
 
 #ifdef TEST_INTERPRETER
