@@ -664,12 +664,25 @@ void generateTests() {
     const xed_iclass_enum_t opcode = GPR_OPCODES[opi];
 
     for (unsigned dsti = XED_REG_AX; dsti <= XED_REG_BH; dsti++) {
+      const xed_reg_enum_t dstReg = static_cast<xed_reg_enum_t>(dsti);
       for (unsigned srci = XED_REG_AX; srci <= XED_REG_BH; srci++) {
-        const xed_reg_enum_t dstReg = static_cast<xed_reg_enum_t>(dsti);
         const xed_reg_enum_t srcReg = static_cast<xed_reg_enum_t>(srci);
         const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(srcReg));
         const xed_encoder_operand_t srcOp = xed_reg(srcReg);
         numTestInsns += generateTestInsn(opcode, dstOp, srcOp, xed_get_register_width_bits64(srcReg));
+
+        // base+displacement destination
+      }
+
+      // immediate src, base+displacement destination
+      for (unsigned immWidthBits = 8; immWidthBits <= 32; immWidthBits <<= 1) {
+        const xed_encoder_operand_t srcOp = xed_imm0(rand() % (1 << immWidthBits), immWidthBits);
+        xed_encoder_operand_t dstOp = xed_mem_b(dstReg, immWidthBits);
+        numTestInsns += generateTestInsn(opcode, dstOp, srcOp, immWidthBits);
+
+        xed_enc_displacement_t disp = xed_disp(rand() % (1 << immWidthBits), immWidthBits);
+        dstOp = xed_mem_bd(dstReg, disp, immWidthBits);
+        numTestInsns += generateTestInsn(opcode, dstOp, srcOp, immWidthBits);
       }
     }
 
