@@ -37,7 +37,6 @@ const xed_iclass_enum_t GPR_OPCODES[] = {
   XED_ICLASS_SHL,
   XED_ICLASS_SHR
 };
-  //XED_ICLASS_SAL, // exists in Intel manual but doesn't exist in xed or udis86...
 
 const int NUM_GPR_OPCODES = sizeof(GPR_OPCODES) / sizeof(GPR_OPCODES[0]);
 
