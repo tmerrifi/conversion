@@ -81,6 +81,9 @@
 
 #define LOGGING_SIZE_BYTES (64*8) //one cache line
 
+struct cv_logging_data_entry{
+    uint8_t data[LOGGING_SIZE_BYTES];
+};
 
 
 struct cv_logging_entry{
@@ -88,6 +91,8 @@ struct cv_logging_entry{
     unsigned long addr; //cache line addr
     uint32_t line_index;
     unsigned long data_len;
+    uint8_t * local_checkpoint_data;
+    uint8_t dirty; //used by checkpoint to make sure we don't checkpoint the same data twice
 };
 
 struct cv_page_entry{
@@ -185,6 +190,7 @@ struct ksnap{
     uint64_t logging_stats_opcode_two[256];
     struct radix_tree_root logging_entry_lookup;
     atomic_t logging_pages_count;
+    struct kmem_cache * logging_data_entry_mem_cache;
     /***DONE WITH LOGGING***/
     
 };
@@ -274,6 +280,9 @@ void conv_checkpoint(struct vm_area_struct * vma);
 
 #define conv_set_checkpoint_page(entry, page)        \
     entry->local_checkpoint_page=page;
+
+#define conv_is_checkpointed_logging_entry(entry) \
+    (entry->local_checkpoint_data!=NULL)
 
 
 #endif

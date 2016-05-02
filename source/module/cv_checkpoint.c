@@ -35,6 +35,21 @@ int __checkpoint_page(struct cv_page_entry * page_entry, struct snapshot_pte_lis
     }
 }
 
+int __checkpoint_logging(struct cv_logging_entry * logging_entry, struct snapshot_pte_list * entry,
+                  struct vm_area_struct * vma){
+    if (cv_logging_is_dirty(logging_entry)){
+        //just write over the old data
+        if (!entry->local_checkpoint_data){
+            entry->local_checkpoint_data=cv_logging_allocate_data_entry(logging_entry->data_len);
+        }
+        memcpy(logging_entry->local_checkpoint_data, (uint8_t *)logging_entry->addr, logging_entry->data_len);
+        cv_logging_clear_dirty(logging_entry);
+        return 1;
+    }
+    else{
+        return 0;
+    }
+}
 
 void conv_checkpoint(struct vm_area_struct * vma){
     struct list_head * pos;
@@ -46,11 +61,15 @@ void conv_checkpoint(struct vm_area_struct * vma){
     list_for_each(pos, &cv_user->dirty_pages_list->list){
         entry = list_entry(pos, struct snapshot_pte_list, list);
         if (entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING &&
-            __checkpoint_page(cv_list_entry_get_page_entry(entry),entry,vma)){
+            __checkpoint_page(cv_list_entry_get_page_entry(entry),
+                              entry,
+                              vma)){
             checkpointed_counter++;
         }
         else if (entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING){
-            BUG();
+            __checkpoint_logging(cv_list_entry_get_logging_entry(entry),
+                                 entry,
+                                 vma);
         }
     }
     if (checkpointed_counter>0){

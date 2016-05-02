@@ -300,16 +300,22 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
             dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
             //check to see if the current guy is obsolete
             if (tmp_pte_list->obsolete_version <= target_version_number){
+                printk(KERN_EMERG "UPDATE of logging page SKIP 1 ...%d %d %lu %lu",
+                       current->pid, tmp_pte_list->page_index,
+                       tmp_pte_list->obsolete_version, target_version_number);
                 continue;
             }
             //don't do partial updates
             else if (partial_update){
+                printk(KERN_EMERG "UPDATE of logging page SKIP 2 ...%d %d",
+                       current->pid, tmp_pte_list->page_index);
                 continue;
             }
             else if (dirty_entry){
                 BUG();
             }
             else{
+                printk(KERN_EMERG "UPDATE of logging page...%d %d", current->pid, tmp_pte_list->page_index);
                 //ok do the update
                 logging_status_entry=cv_logging_page_status_lookup(cv_user, tmp_pte_list->page_index);
                 if (!logging_status_entry){

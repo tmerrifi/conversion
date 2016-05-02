@@ -159,6 +159,7 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   memset(ksnap_data->logging_stats_opcode_two, 0, 256*sizeof(uint64_t));
   atomic_set(&ksnap_data->logging_pages_count, 0);
   INIT_RADIX_TREE(&ksnap_data->logging_entry_lookup, GFP_KERNEL);
+  ksnap_data->logging_data_entry_mem_cache=KMEM_CACHE(cv_logging_data_entry,0);
   //***********************************
   
 #ifdef CV_DETERMINISM
