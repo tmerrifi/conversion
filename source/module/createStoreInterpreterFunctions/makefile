@@ -108,7 +108,7 @@ XED = xed
 XED_DEMOS_SUFFIXED= $(XED_DEMOS:%=%$(EXEEXT))
 XED_SUFFIXED= $(XED:%=%$(EXEEXT))
 
-XED_TEST_APPS = ${XED_SUFFIXED} ${XED_DEMOS_SUFFIXED} gkw
+XED_TEST_APPS = ${XED_SUFFIXED} ${XED_DEMOS_SUFFIXED} csi
 all: ${XED_TEST_APPS}
 demos: ${XED_DEMOS_SUFFIXED}
 cmdline: ${XED_SUFFIXED}
@@ -177,8 +177,8 @@ csi: create-store-interpreter-functions.o ${LIBXED}
 	${CXX_LINKER}  ${LDFLAGS}  ${LINKOUT}$@ $^ ${EXTRA_LDLIBS_TARGET}
 
 run-csi: csi
-	./gkw > cv_store_interpreter_functions.c
-	gcc -I../udis86/ -Wall -std=gnu11 -O3 -fomit-frame-pointer -c cv_store_interpreter_functions.c -o cv_store_interpreter_functions.o
+	./$< > cv_store_interpreter_functions.c
+	gcc -I.. -DTEST_INTERPRETER -Wall -std=gnu11 -O3 -fomit-frame-pointer -c cv_store_interpreter_functions.c -o foo.o
 
 
 #################################################################

@@ -218,9 +218,11 @@ int main(int argc, char** argv) {
   //dstate.stack_addr_width=XED_ADDRESS_WIDTH_32b;
 
   cout << "// AUTO-GENERATED FILE - DO NOT EDIT!!" << endl << endl;
+  cout << "#ifdef TEST_INTERPRETER" << endl;
   cout << "#include <stdint.h>" << endl;
   cout << "#include <assert.h>" << endl;
   cout << "#include \"libudis86/extern.h\"" << endl << endl;
+  cout << "#endif" << endl;
 
   cout << "#define CV_LAST_GPR_OPCODE " << (NUM_GPR_OPCODES - 1) << endl;
   cout << "#define CV_LAST_SIMD_OPCODE " << (NUM_GPR_OPCODES + NUM_SIMD_OPCODES - 1) << endl;
@@ -649,6 +651,8 @@ unsigned generateTestInsn(const xed_iclass_enum_t opcode, const xed_encoder_oper
 
 void generateTests() {
 
+  cout << "#ifdef TEST_INTERPRETER" << endl;
+
   cout << "struct test_insn { const uint8_t bytes[" << XED_MAX_INSTRUCTION_BYTES << "]; const ud_mnemonic_code_t expectedOpcode; const char* disasm; };" << endl;
   cout << "struct test_insn TEST_INSNS[] = {" << endl;
 
@@ -684,6 +688,8 @@ void generateTests() {
   cout << "};" << endl;
   cout << "#define NUM_TEST_INSNS " << numTestInsns << endl;
   cout << "#define MAX_INSN_BYTES " << XED_MAX_INSTRUCTION_BYTES << endl << endl;
+
+  cout << "#endif" << endl;
 
 }
 
