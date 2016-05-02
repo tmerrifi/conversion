@@ -380,7 +380,8 @@ unsigned getNumOperands(ud_t* dis) {
 ud_mnemonic_code_t IdentifiedOpcode = UD_Inone;
 #endif
 
-/* return 1 if successful, 0 otherwise */
+/* Perform the store (pointed to by bytes). Returns the number of bytes written
+   by the store. If 0, the store could not be performed. */
 int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress, struct pt_regs* context) {
 #ifdef TEST_INTERPRETER
   IdentifiedOpcode = UD_Inone;
@@ -425,7 +426,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
         return 0;
       }
       NoWriteFlagsOpcode2FunTable_SIL[opcode](dstAddress, *flags);
-      return 1;
+      return 1; // SET insns always write 1 byte
     } else {
       printf("Can't handle 1-operand insn\n");
       return 0;
@@ -524,6 +525,8 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     return 0;
   }
 
+  const unsigned srcWidthBytes = srcOp->size / 8; // convert bits => bytes
+
   movInsnFun movFun = NULL;
   writeFlagsInsnFun flagsFun = NULL;
 
@@ -572,7 +575,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
       return 0;
     }
     fun(dstAddress);
-    return 1;
+    return srcWidthBytes;
   }
   default:
     printf("Invalid fun table: %d\n", getFunTable(srcOp));
@@ -600,7 +603,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     movFun(dstAddress, srcValue);
   }
 
-  return 1;
+  return srcWidthBytes;
 }
 
 #ifndef __KERNEL__
@@ -615,7 +618,7 @@ int main(int argc, char** argv) {
     {0x66, 0x0f, 0x7e, 0x07}  // movd %xmm0,(%rdi) 4B
   };
 
-  uint64_t dummy; // for testing
+  unsigned __int128 dummy; // for testing
   
   struct pt_regs regs;
 
@@ -630,9 +633,9 @@ int main(int argc, char** argv) {
 
   for (unsigned i = 0; i < NUM_TEST_INSNS; i++) {
     regs.flags = 0x202;
-    int ok = interpret(TEST_INSNS[i].bytes, MAX_INSN_BYTES, &dummy, &regs);
+    int bytesWritten = interpret(TEST_INSNS[i].bytes, MAX_INSN_BYTES, &dummy, &regs);
     totalTests++;
-    if (!ok) {
+    if (0 == bytesWritten) {
       printf("FAILURE couldn't interpret test insn #%u (%s), expected opcode %u\n", i, TEST_INSNS[i].disasm, TEST_INSNS[i].expectedOpcode);
       continue;
     }
@@ -641,6 +644,12 @@ int main(int argc, char** argv) {
              i, TEST_INSNS[i].disasm, TEST_INSNS[i].expectedOpcode, IdentifiedOpcode);
       continue;
     }
+    if (TEST_INSNS[i].srcWidthBytes != bytesWritten) {
+      printf("FAILURE wrong opcode identified for test insn #%u (%s), expected %u bytes written but actually wrote %u\n", 
+             i, TEST_INSNS[i].disasm, TEST_INSNS[i].srcWidthBytes, bytesWritten);
+      continue;
+    }
+
     testsPassed++;
   }
 
