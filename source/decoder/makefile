@@ -177,8 +177,8 @@ gkw: gen-kernel-writes-table.o ${LIBXED}
 	${CXX_LINKER}  ${LDFLAGS}  ${LINKOUT}$@ $^ ${EXTRA_LDLIBS_TARGET}
 
 run-gkw: gkw
-	./gkw > bar.c
-	gcc -I../udis86/ -Wall -std=gnu11 -O3 -fomit-frame-pointer -c bar.c -o bar.o
+	./gkw > cv_store_interpreter_functions.c
+	gcc -I../udis86/ -Wall -std=gnu11 -O3 -fomit-frame-pointer -c cv_store_interpreter_functions.c -o bar.o
 
 
 #################################################################
