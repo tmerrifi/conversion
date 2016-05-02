@@ -56,6 +56,29 @@ int __revert_page(struct cv_page_entry * page_entry, struct snapshot_pte_list * 
     }
 }
 
+void __revert_logging(struct cv_logging_entry * logging_entry,
+                      struct snapshot_pte_list * entry,
+                      struct ksnap_user_data * cv_user){
+    
+    struct cv_logging_page_status_entry * logging_entry_status;
+    
+    if (!conv_is_checkpointed_logging_entry(logging_entry) || cv_logging_is_dirty(entry)){
+        logging_entry_status = cv_logging_page_status_lookup(cv_user, entry->page_index);
+        if (conv_is_checkpointed_logging_entry(logging_entry)){
+            //roll back to the checkpoint
+            memcpy(cv_logging_page_status_to_kaddr(logging_entry_status, logging_entry->line_index),
+                   logging_entry->local_checkpoint_data,
+                   logging_entry->data_len);
+        }
+        else{
+            //roll back to the old stuff
+            memcpy(cv_logging_page_status_to_kaddr(logging_entry_status, logging_entry->line_index),
+                   logging_entry->data,
+                   logging_entry->data_len);
+        }
+    }
+}
+
 //revert the current working set
 void conv_revert(struct vm_area_struct * vma){
     struct list_head * pos, * tmp_pos;
@@ -67,11 +90,17 @@ void conv_revert(struct vm_area_struct * vma){
     list_for_each_safe(pos, tmp_pos, &cv_user->dirty_pages_list->list){
         entry = list_entry(pos, struct snapshot_pte_list, list);
         if (entry->type == CV_DIRTY_LIST_ENTRY_TYPE_PAGING &&
-            __revert_page(cv_list_entry_get_page_entry(entry),entry,entry->page_index,pos,cv_user,vma)){
+            __revert_page(cv_list_entry_get_page_entry(entry),
+                          entry,
+                          entry->page_index,
+                          pos,
+                          cv_user,vma)){
             revert_counter++;
         }
         else if (entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING){
-            BUG();
+            __revert_logging(cv_list_entry_get_logging_entry(entry),
+                             entry,
+                             cv_user);
         }
     }
     

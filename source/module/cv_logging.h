@@ -30,6 +30,13 @@ struct cv_logging_page_status_entry;
 
 #define cv_logging_line_start(addr) (addr & CV_LOGGING_LOG_MASK )
 
+#define cv_logging_set_dirty(e) (e->dirty=1)
+
+#define cv_logging_clear_dirty(e) (e->dirty=0)
+
+#define cv_logging_is_dirty(e) (e->dirty==1)
+
+
 int cv_logging_diff_64(uint8_t * local, struct page * ref_page);
 
 void cv_merge_lines(uint8_t * local, uint8_t * latest, uint8_t * ref);
@@ -53,5 +60,6 @@ struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * 
 
 void cv_merge_line(uint8_t * local, uint8_t * ref, uint8_t * latest);
 
+#define cv_logging_page_status_to_kaddr(e) (pfn_to_kaddr(e->pfn))
 
 #endif

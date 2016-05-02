@@ -51,6 +51,15 @@ int cv_logging_diff_64(uint8_t * local, struct page * ref_page){
   return total;
 }
 
+uint8_t * cv_logging_allocate_data_entry(int data_len){
+    if (data_len==PAGE_SIZE){
+        return (uint8_t *)kmalloc(PAGE_SIZE, GFP_KERNEL);
+    }
+    else{
+        return (uint8_t *)kmem_cache_alloc(cv_seg->logging_data_entry_mem_cache, GFP_KERNEL);
+    }
+}
+
 void cv_logging_print_stats(struct ksnap * cv_seg){
     int i=0;
 
@@ -113,10 +122,12 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma, struct cv_logging_en
                                unsigned long faulting_addr, pte_t * pte){
     pte_t page_table_e;
     
-    logging_entry->data=(uint8_t *)kmalloc(PAGE_SIZE, GFP_KERNEL);
+    logging_entry->data=cv_logging_allocate_data_entry(PAGE_SIZE);
     logging_entry->addr=(faulting_addr & PAGE_MASK);
     logging_entry->data_len=PAGE_SIZE;
     logging_entry->line_index=0;
+    cv_logging_set_dirty(logging_entry);
+    
     //now do the copy
     memcpy(logging_entry->data, (uint8_t *)logging_entry->addr, PAGE_SIZE);
     printk(KERN_EMERG "about to set PTE entry %lu %lu for page\n", page_table_e, *pte); 
@@ -135,8 +146,8 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     struct snapshot_pte_list * dirty_list_entry;
     uint32_t page_index = (faulting_addr - vma->vm_start)/PAGE_SIZE;
     struct cv_logging_page_status_entry * logging_status_entry = cv_logging_page_status_lookup(cv_user, page_index);
-    printk(KERN_EMERG "logging fault, pid: %d, page index: %d\n",
-           current->pid, page_index);
+    printk(KERN_EMERG "logging fault, pid: %d, page index: %d, data %d\n",
+           current->pid, page_index, *((int *)faulting_addr));
     
     if (logging_status_entry){
         //we've got a local logging entry, so we can proceed from here...

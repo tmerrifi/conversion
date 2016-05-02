@@ -33,12 +33,12 @@ void cv_merge_free(){
   kfree(cv_merge_empty_page);
 }
 
-void cv_three_way_merge(uint8_t * local, uint8_t * ref, uint8_t * latest, int words_to_merge){
+void cv_three_way_merge(uint8_t * local, uint8_t * ref, uint8_t * latest, int words_to_merge_64bit){
     int i=0;
     int j=0;
     
     //now do the diff
-    for (;i<words_to_merge;++i,j+=sizeof(uint64_t)){
+    for (;i<words_to_merge_64bit;++i,j+=sizeof(uint64_t)){
         if (((uint64_t *)latest)[i]!=((uint64_t *)ref)[i]){
             //the committed page is different than what our snapshot looked like at the beginning. If we didn't touch this
             //portion of memory, than we can copy the whole thing over.

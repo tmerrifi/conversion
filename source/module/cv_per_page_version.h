@@ -66,6 +66,8 @@ uint8_t cv_per_page_get_logging_diff_bitmap(struct cv_per_page_version * ppv, ui
 /*****LOGGING FUNCTIONS***********************/
 
 
+#define cv_per_page_version_get_logging_line_entry_version(ppv,page_index,line_index) (ppv->entries[page_index].logging_entry->lines[line_index].version)
+
 void cv_per_page_version_update_logging_entry(struct cv_per_page_version * ppv,
                                               uint32_t page_index,
                                               struct snapshot_pte_list * entry,
