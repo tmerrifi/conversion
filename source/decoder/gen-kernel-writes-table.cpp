@@ -209,10 +209,9 @@ int main(int argc, char** argv) {
   //dstate.stack_addr_width=XED_ADDRESS_WIDTH_32b;
 
   cout << "// AUTO-GENERATED FILE - DO NOT EDIT!!" << endl << endl;
-  cout << "#include <stdlib.h>" << endl;
   cout << "#include <stdint.h>" << endl;
   cout << "#include <assert.h>" << endl;
-  cout << "#include <udis86.h>" << endl << endl;
+  cout << "#include \"libudis86/extern.h\"" << endl << endl;
 
   cout << "#define CV_LAST_GPR_OPCODE " << (NUM_GPR_OPCODES - 1) << endl;
   cout << "#define CV_LAST_SIMD_OPCODE " << (NUM_GPR_OPCODES + NUM_SIMD_OPCODES - 1) << endl;
