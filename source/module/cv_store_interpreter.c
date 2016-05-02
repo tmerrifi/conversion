@@ -1,10 +1,17 @@
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <assert.h>
+//#include <stdlib.h>
+//#include <stdio.h>
+//#include <stdint.h>
+//#include <assert.h>
 
-#include "udis86.h"
+#ifdef __KERNEL__
+#include "libudis86/extern.h"
+#include "linux/ptrace.h"
+#else
+#include <udis86.h>
+#endif
+
+#include "cv_store_interpreter_functions.h"
 
 #include "cv_store_interpreter_functions.c"
 
@@ -596,6 +603,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   return 1;
 }
 
+#ifndef __KERNEL__
 int main(int argc, char** argv) {
 
   verifyOpcodesAndRegisters();
@@ -642,3 +650,4 @@ int main(int argc, char** argv) {
 
   return 0;
 }
+#endif

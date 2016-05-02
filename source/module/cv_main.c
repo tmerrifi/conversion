@@ -33,6 +33,7 @@
 #include "cv_commit.h"
 #include "cv_update.h"
 #include "cv_logging.h"
+#include "cv_store_interpreter_functions.h"
 
 MODULE_LICENSE("GPL");
 
@@ -187,24 +188,26 @@ int logging_on_fault (struct vm_area_struct * vma, unsigned long faulting_addr, 
 
 int init_module(void)
 {
-  mmap_snapshot_instance.ksnap_open = ksnap_open;
-  mmap_snapshot_instance.ksnap_close = cv_close;
-  mmap_snapshot_instance.ksnap_tracking_on = ksnap_tracking_on;
-  mmap_snapshot_instance.is_snapshot = is_snapshot;
-  mmap_snapshot_instance.snapshot_msync = cv_msync;			//TODO: this function name in the struct should change
-  mmap_snapshot_instance.init_snapshot = NULL;
-  mmap_snapshot_instance.logging_on_fault = logging_on_fault;
-  
-  mmap_snapshot_instance.do_snapshot_add_pte = cv_page_fault;
-  mmap_snapshot_instance.ksnap_userdata_copy = ksnap_userdata_copy;
-  mmap_snapshot_instance.snap_sequence_number=random32()%10000;
-  mmap_snapshot_instance.conversion_thread_status=conversion_thread_status;
-  //mmap_snapshot_instance.conv_cow_user_page=conv_cow_user_page;
-  
-  register_die_notifier(&nmi_snap_nb);
-  ksnap_merge_init();
-  printk(KSNAP_LOG_LEVEL "vfork!! %d\n", __NR_vfork);
-  return 0;
+    verifyOpcodesAndRegisters();
+    
+    mmap_snapshot_instance.ksnap_open = ksnap_open;
+    mmap_snapshot_instance.ksnap_close = cv_close;
+    mmap_snapshot_instance.ksnap_tracking_on = ksnap_tracking_on;
+    mmap_snapshot_instance.is_snapshot = is_snapshot;
+    mmap_snapshot_instance.snapshot_msync = cv_msync;			//TODO: this function name in the struct should change
+    mmap_snapshot_instance.init_snapshot = NULL;
+    mmap_snapshot_instance.logging_on_fault = logging_on_fault;
+    
+    mmap_snapshot_instance.do_snapshot_add_pte = cv_page_fault;
+    mmap_snapshot_instance.ksnap_userdata_copy = ksnap_userdata_copy;
+    mmap_snapshot_instance.snap_sequence_number=random32()%10000;
+    mmap_snapshot_instance.conversion_thread_status=conversion_thread_status;
+    //mmap_snapshot_instance.conv_cow_user_page=conv_cow_user_page;
+    
+    register_die_notifier(&nmi_snap_nb);
+    ksnap_merge_init();
+    printk(KSNAP_LOG_LEVEL "vfork!! %d\n", __NR_vfork);
+    return 0;
 }
 
 void cleanup_module(void)

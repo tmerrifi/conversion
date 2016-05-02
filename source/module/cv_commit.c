@@ -113,7 +113,7 @@ void __merge_full_page_with_cache_lines(struct cv_logging_entry * logging_entry,
             struct cv_logging_entry * latest_logging_entry =  cv_per_page_version_get_logging_line_entry(cv_seg->ppv, entry->page_index,
                                                                                                    logging_entry->line_index);
             //whelp...gotta merge
-            cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status),
+            cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status, logging_entry->line_index),
                                logging_entry->data,
                                latest_logging_entry->data,
                                CV_LOGGING_MERGE_WORDS);
@@ -150,7 +150,7 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                 printk(KERN_EMERG "merged logging (full) page, pid: %d, page index: %d\n",
                    current->pid, latest_entry->page_index);
                 //do the merge with the latest version
-                cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status),
+                cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status, logging_entry->line_index),
                                    logging_entry->data,
                                    latest_logging_entry->data,
                                    PAGE_SIZE);
@@ -178,7 +178,7 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                 latest = latest_logging_entry->data;
             }
             //do the merge
-            cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status),
+            cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index),
                                logging_entry->data,
                                latest,
                                CV_LOGGING_MERGE_WORDS);

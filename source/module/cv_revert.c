@@ -62,7 +62,7 @@ void __revert_logging(struct cv_logging_entry * logging_entry,
     
     struct cv_logging_page_status_entry * logging_entry_status;
     
-    if (!conv_is_checkpointed_logging_entry(logging_entry) || cv_logging_is_dirty(entry)){
+    if (!conv_is_checkpointed_logging_entry(logging_entry) || cv_logging_is_dirty(logging_entry)){
         logging_entry_status = cv_logging_page_status_lookup(cv_user, entry->page_index);
         if (conv_is_checkpointed_logging_entry(logging_entry)){
             //roll back to the checkpoint

@@ -19,6 +19,7 @@
 #include "libudis86/extern.h"
 #include "cv_decode.h"
 #include "ksnap_writer.h"
+#include "cv_store_interpreter_functions.h"
 
 int cv_logging_diff_64(uint8_t * local, struct page * ref_page){
   uint8_t * ref;
@@ -51,7 +52,7 @@ int cv_logging_diff_64(uint8_t * local, struct page * ref_page){
   return total;
 }
 
-uint8_t * cv_logging_allocate_data_entry(int data_len){
+uint8_t * cv_logging_allocate_data_entry(int data_len, struct ksnap * cv_seg){
     if (data_len==PAGE_SIZE){
         return (uint8_t *)kmalloc(PAGE_SIZE, GFP_KERNEL);
     }
@@ -121,8 +122,10 @@ void cv_merge_line(uint8_t * local, uint8_t * ref, uint8_t * latest){
 void cv_logging_cow_page_fault(struct vm_area_struct * vma, struct cv_logging_entry * logging_entry,
                                unsigned long faulting_addr, pte_t * pte){
     pte_t page_table_e;
+
+    struct ksnap * cv_seg=NULL;
     
-    logging_entry->data=cv_logging_allocate_data_entry(PAGE_SIZE);
+    logging_entry->data=cv_logging_allocate_data_entry(PAGE_SIZE, cv_seg);
     logging_entry->addr=(faulting_addr & PAGE_MASK);
     logging_entry->data_len=PAGE_SIZE;
     logging_entry->line_index=0;
@@ -138,6 +141,12 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma, struct cv_logging_en
     set_pte(pte, pte_mkwrite(page_table_e));
     __flush_tlb_one(logging_entry->addr);
     printk(KERN_EMERG "set PTE entry %lx %lx for page\n", page_table_e, *pte); 
+}
+
+void cv_logging_store_interpreter_fault(unsigned long faulting_addr, struct pt_regs * regs){
+    if (!interpret(regs->ip, 15, faulting_addr, regs)){
+        //fallback to CoW
+    }
 }
 
 int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct ksnap_user_data * cv_user,
