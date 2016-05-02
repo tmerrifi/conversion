@@ -50,27 +50,30 @@ const xed_iclass_enum_t SIMD_OPCODES[] = {
   XED_ICLASS_MOVQ,
   XED_ICLASS_MOVUPS,
   XED_ICLASS_MOVUPD,
+  XED_ICLASS_MOVLPS,
+  XED_ICLASS_MOVLPD,
+  XED_ICLASS_MOVHPS,
+  XED_ICLASS_MOVHPD,
+  XED_ICLASS_MOVAPS,
+  XED_ICLASS_MOVAPD,
+  XED_ICLASS_MOVDQA,
+  XED_ICLASS_MOVDQU
+};
+/* these are AVX opcodes, which our machines can't execute
   XED_ICLASS_VMOVUPS,
   XED_ICLASS_VMOVUPD,
   XED_ICLASS_VMOVSS,
   XED_ICLASS_VMOVSD,
-  XED_ICLASS_MOVLPS,
-  XED_ICLASS_MOVLPD,
   XED_ICLASS_VMOVLPS,
   XED_ICLASS_VMOVLPD,
-  XED_ICLASS_MOVHPS,
-  XED_ICLASS_MOVHPD,
   XED_ICLASS_VMOVHPS,
   XED_ICLASS_VMOVHPD,
-  XED_ICLASS_MOVAPS,
-  XED_ICLASS_MOVAPD,
   XED_ICLASS_VMOVAPS,
   XED_ICLASS_VMOVAPD,
-  XED_ICLASS_MOVDQA,
-  XED_ICLASS_MOVDQU,
   XED_ICLASS_VMOVDQA,
   XED_ICLASS_VMOVDQU
-};
+*/
+
   //XED_ICLASS_MOVSD // TODO: doesn't generate any valid code for some reason...
 const int NUM_SIMD_OPCODES = sizeof(SIMD_OPCODES) / sizeof(SIMD_OPCODES[0]);
 
@@ -643,6 +646,7 @@ unsigned generateTestInsn(const xed_iclass_enum_t opcode, const xed_encoder_oper
   }
   cout << " }, " << dec;
   cout << ".expectedOpcode = " << udis86MnemonicNameOfXedIclass(opcode) << ", ";
+  cout << ".srcWidthBytes = " << srcRegWidthBits/8 << ", ";
   cout << ".disasm = \"" << insnAsm << "\"";
   cout << " }," << endl; // end struct
 
@@ -653,7 +657,7 @@ void generateTests() {
 
   cout << "#ifdef TEST_INTERPRETER" << endl;
 
-  cout << "struct test_insn { const uint8_t bytes[" << XED_MAX_INSTRUCTION_BYTES << "]; const ud_mnemonic_code_t expectedOpcode; const char* disasm; };" << endl;
+  cout << "struct test_insn { const uint8_t bytes[" << XED_MAX_INSTRUCTION_BYTES << "]; const ud_mnemonic_code_t expectedOpcode; const uint8_t srcWidthBytes; const char* disasm; };" << endl;
   cout << "struct test_insn TEST_INSNS[] = {" << endl;
 
   unsigned numTestInsns = 0;
@@ -664,7 +668,7 @@ void generateTests() {
       for (unsigned srci = XED_REG_AX; srci <= XED_REG_BH; srci++) {
         const xed_reg_enum_t dstReg = static_cast<xed_reg_enum_t>(dsti);
         const xed_reg_enum_t srcReg = static_cast<xed_reg_enum_t>(srci);
-        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(dstReg));
+        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(srcReg));
         const xed_encoder_operand_t srcOp = xed_reg(srcReg);
         numTestInsns += generateTestInsn(opcode, dstOp, srcOp, xed_get_register_width_bits64(srcReg));
       }
@@ -678,7 +682,14 @@ void generateTests() {
       for (unsigned srci = XED_REG_MMX0; srci <= XED_REG_MMX7; srci++) {
         const xed_reg_enum_t dstReg = static_cast<xed_reg_enum_t>(dsti);
         const xed_reg_enum_t srcReg = static_cast<xed_reg_enum_t>(srci);
-        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(dstReg));
+        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(srcReg));
+        const xed_encoder_operand_t srcOp = xed_reg(srcReg);
+        numTestInsns += generateTestInsn(opcode, dstOp, srcOp, xed_get_register_width_bits64(srcReg));
+      }
+      for (unsigned srci = XED_REG_XMM0; srci <= XED_REG_XMM15; srci++) {
+        const xed_reg_enum_t dstReg = static_cast<xed_reg_enum_t>(dsti);
+        const xed_reg_enum_t srcReg = static_cast<xed_reg_enum_t>(srci);
+        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(srcReg));
         const xed_encoder_operand_t srcOp = xed_reg(srcReg);
         numTestInsns += generateTestInsn(opcode, dstOp, srcOp, xed_get_register_width_bits64(srcReg));
       }
