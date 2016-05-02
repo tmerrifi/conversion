@@ -5,6 +5,7 @@ extern "C" {
 //#include "xed-enc-lang.H"
 #include <unordered_map>
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <cstdlib>
 
@@ -14,7 +15,7 @@ using namespace std;
 
 const char* ASM_NEWLINE = "\\n\\t";
 
-/* NB: GPR_OPCODES and SIMD_OPCODES are "parsed" by the udis86.h build scripts
+/* NB: GPR_OPCODES and SIMD_OPCODES are "parsed" by the udis86 build scripts
    to ensure that udis86's opcode ordering is identical to the ordering below
    (for these opcodes). No comments are permitted in these arrays as they will
    confuse this (very stupid) parser.
@@ -126,6 +127,7 @@ const int FIRST_SIMD_REGISTER_INDEX() {
 bool generateInsn(xed_encoder_instruction_t* xei, xed_state_t* dstate, string& insnAsm);
 void generateLUTs();
 void generateVerify();
+void generateTests();
 
 bool isOpcodeSET(xed_iclass_enum_t opcode) {
   return (XED_ICLASS_SETB == opcode ||
@@ -182,6 +184,13 @@ unordered_map<string,int> AllFunctions;
 bool isGprOpcode(xed_iclass_enum_t opcode) {
   return (opcodeWritesFlags(opcode) || isOpcodeSET(opcode) || XED_ICLASS_MOV == opcode);
 }
+
+string udis86MnemonicNameOfXedIclass(xed_iclass_enum_t opcode) {
+    string op = xed_iclass_enum_t2str(opcode);
+    boost::algorithm::to_lower(op);
+    return "UD_I" + op;
+}
+
 
 void verify() {
   // ensure that opcode arrays have the expected contents
@@ -447,6 +456,7 @@ int main(int argc, char** argv) {
   
   generateLUTs();
   generateVerify();
+  generateTests();
 
 }
 
@@ -558,16 +568,12 @@ void generateVerify() {
   int x = 0;
   for (int i = 0; i < NUM_GPR_OPCODES; i++, x++) {
     const xed_iclass_enum_t opcode = GPR_OPCODES[i];
-    string op = xed_iclass_enum_t2str(opcode);
-    boost::algorithm::to_lower(op);
-    op = "UD_I" + op;
+    string op = udis86MnemonicNameOfXedIclass(opcode);
     cout << " assert(" << x << " == " << op << ");" << endl;
   }
   for (int i = 0; i < NUM_SIMD_OPCODES; i++, x++) {
     const xed_iclass_enum_t opcode = SIMD_OPCODES[i];
-    string op = xed_iclass_enum_t2str(opcode);
-    boost::algorithm::to_lower(op);
-    op = "UD_I" + op;
+    string op = udis86MnemonicNameOfXedIclass(opcode);
     cout << " assert(" << x << " == " << op << ");" << endl;
   }
 
@@ -581,6 +587,104 @@ void generateVerify() {
   }
 
   cout << "}" << endl;
+}
+
+unsigned generateTestInsn(const xed_iclass_enum_t opcode, const xed_encoder_operand_t dstOp, 
+                          const xed_encoder_operand_t srcOp, const uint32_t srcRegWidthBits) {
+  xed_state_t dstate;
+  xed_state_zero(&dstate);
+  dstate.mmode = XED_MACHINE_MODE_LONG_64;
+  dstate.stack_addr_width = XED_ADDRESS_WIDTH_64b;
+  
+  xed_encoder_instruction_t xei; 
+  
+  // two-operand insn
+  xed_inst2(&xei, dstate, opcode, srcRegWidthBits, dstOp, srcOp);
+  
+  xed_error_enum_t xed_error = XED_ERROR_NONE;
+  xed_encoder_request_t enc_req;
+
+  xed_encoder_request_zero_set_mode(&enc_req, &dstate);
+  xed_bool_t convert_ok = xed_convert_to_encoder_request(&enc_req, &xei);
+  if (!convert_ok) {
+    return 0;
+  }
+
+  xed_uint8_t ibytes[XED_MAX_INSTRUCTION_BYTES];
+  const unsigned ilen = XED_MAX_INSTRUCTION_BYTES;
+  unsigned olen = 0;
+  xed_error = xed_encode(&enc_req, ibytes, ilen, &olen);
+  if (XED_ERROR_NONE != xed_error || 0 == olen) {
+    return 0;
+  }
+
+ // re-decode the insn so we can print it out
+  xed_decoded_inst_t redec;
+  xed_decoded_inst_zero(&redec);
+  xed_decoded_inst_zero_set_mode(&redec, &dstate);
+  xed_error = xed_decode(&redec, ibytes, olen);
+  if (XED_ERROR_NONE != xed_error) {
+    return 0;
+  }
+
+  char outbuf[256];
+  xed_bool_t formatOk = xed_format_context(XED_SYNTAX_ATT, &redec, outbuf, 256, 0/*PC*/, NULL, NULL);
+  if (!formatOk) {
+    return 0;
+  }
+  string insnAsm = string(outbuf);
+
+  cout << " { " ; // start struct
+  cout << ".bytes = { " << hex; // bytes array
+  for (unsigned i = 0; i < olen; i++) {
+    cout << "0x" << setw(2) << setfill('0') << int(ibytes[i]) << ",";
+  }
+  cout << " }, " << dec;
+  cout << ".expectedOpcode = " << udis86MnemonicNameOfXedIclass(opcode) << ", ";
+  cout << ".disasm = \"" << insnAsm << "\"";
+  cout << " }," << endl; // end struct
+
+  return 1;
+}
+
+void generateTests() {
+
+  cout << "struct test_insn { const uint8_t bytes[" << XED_MAX_INSTRUCTION_BYTES << "]; const ud_mnemonic_code_t expectedOpcode; const char* disasm; };" << endl;
+  cout << "struct test_insn TEST_INSNS[] = {" << endl;
+
+  unsigned numTestInsns = 0;
+  for (int opi = 0; opi < NUM_GPR_OPCODES; opi++) {
+    const xed_iclass_enum_t opcode = GPR_OPCODES[opi];
+
+    for (unsigned dsti = XED_REG_AX; dsti <= XED_REG_BH; dsti++) {
+      for (unsigned srci = XED_REG_AX; srci <= XED_REG_BH; srci++) {
+        const xed_reg_enum_t dstReg = static_cast<xed_reg_enum_t>(dsti);
+        const xed_reg_enum_t srcReg = static_cast<xed_reg_enum_t>(srci);
+        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(dstReg));
+        const xed_encoder_operand_t srcOp = xed_reg(srcReg);
+        numTestInsns += generateTestInsn(opcode, dstOp, srcOp, xed_get_register_width_bits64(srcReg));
+      }
+    }
+
+  }
+  for (int opi = 0; opi < NUM_SIMD_OPCODES; opi++) {
+    const xed_iclass_enum_t opcode = SIMD_OPCODES[opi];
+
+    for (unsigned dsti = XED_REG_AX; dsti <= XED_REG_BH; dsti++) {
+      for (unsigned srci = XED_REG_MMX0; srci <= XED_REG_MMX7; srci++) {
+        const xed_reg_enum_t dstReg = static_cast<xed_reg_enum_t>(dsti);
+        const xed_reg_enum_t srcReg = static_cast<xed_reg_enum_t>(srci);
+        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(dstReg));
+        const xed_encoder_operand_t srcOp = xed_reg(srcReg);
+        numTestInsns += generateTestInsn(opcode, dstOp, srcOp, xed_get_register_width_bits64(srcReg));
+      }
+    }
+  }
+
+  cout << "};" << endl;
+  cout << "#define NUM_TEST_INSNS " << numTestInsns << endl;
+  cout << "#define MAX_INSN_BYTES " << XED_MAX_INSTRUCTION_BYTES << endl << endl;
+
 }
 
 bool generateInsn(xed_encoder_instruction_t* xei, xed_state_t* dstate, string& insnAsm) {
