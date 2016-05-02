@@ -178,7 +178,7 @@ gkw: gen-kernel-writes-table.o ${LIBXED}
 
 run-gkw: gkw
 	./gkw > bar.c
-	gcc -Wall -std=gnu11 -O3 -fomit-frame-pointer -c bar.c -o bar.o
+	gcc -I../udis86/ -Wall -std=gnu11 -O3 -fomit-frame-pointer -c bar.c -o bar.o
 
 
 #################################################################

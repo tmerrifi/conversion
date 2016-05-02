@@ -8,6 +8,36 @@
 
 #include "bar.c"
 
+#ifndef __KERNEL__
+struct pt_regs {
+  unsigned long r15;
+  unsigned long r14;
+  unsigned long r13;
+  unsigned long r12;
+  unsigned long bp;
+  unsigned long bx;
+  /* arguments: non interrupts/non tracing syscalls only save up to here*/
+  unsigned long r11;
+  unsigned long r10;
+  unsigned long r9;
+  unsigned long r8;
+  unsigned long ax;
+  unsigned long cx;
+  unsigned long dx;
+  unsigned long si;
+  unsigned long di;
+  unsigned long orig_ax;
+  /* end of arguments */
+  /* cpu exception frame or undefined */
+  unsigned long ip;
+  unsigned long cs;
+  unsigned long flags;
+  unsigned long sp;
+  unsigned long ss;
+  /* top of stack page */
+};
+#endif
+
 typedef enum fun_table_kind {
   FUN_NONE,
   FUN_SIL, // low 8b
@@ -294,7 +324,15 @@ ud_type_t getCanonicalRegister(ud_type_t reg) {
   }
 }
 
-uint8_t isComputeInsn(ud_mnemonic_code_t opcode) {
+uint8_t isGPR(ud_type_t reg) {
+  return (reg > UD_NONE && reg <= UD_R_R15);
+}
+
+uint8_t isSIMDreg(ud_type_t reg) {
+  return (reg >= UD_R_MM0  && reg <= UD_R_XMM15);
+}
+
+uint8_t insnWritesFlags(ud_mnemonic_code_t opcode) {
   return (UD_Iadd == opcode ||
           UD_Iand == opcode ||
           UD_Ior  == opcode ||
@@ -302,6 +340,25 @@ uint8_t isComputeInsn(ud_mnemonic_code_t opcode) {
           UD_Isar == opcode ||
           UD_Ishl == opcode ||
           UD_Ishr == opcode); 
+}
+
+uint8_t isOpcodeSET(ud_mnemonic_code_t opcode) {
+  return (UD_Iseta == opcode ||
+          UD_Isetae == opcode ||
+          UD_Isetb == opcode ||
+          UD_Isetbe == opcode ||
+          UD_Isetg == opcode ||
+          UD_Isetge == opcode ||
+          UD_Isetl == opcode ||
+          UD_Isetle == opcode ||
+          UD_Isetno == opcode ||
+          UD_Isetnp == opcode ||
+          UD_Isetns == opcode ||
+          UD_Isetnz == opcode ||
+          UD_Iseto == opcode ||
+          UD_Isetp == opcode ||
+          UD_Isets == opcode ||
+          UD_Isetz == opcode);
 }
 
 unsigned getNumOperands(ud_t* dis) {
@@ -312,15 +369,12 @@ unsigned getNumOperands(ud_t* dis) {
   return i;
 }
 
-int main(int argc, char** argv) {
-
-  uint8_t INPUT_BYTES[] = {0x40, 0x00, 0x37}; // add %sil,(%rdi)
-  //uint8_t INPUT_BYTES[] = {0x88, 0x27}; // mov %ah,(%rdi)
-
+/* return 1 if successful, 0 otherwise */
+int interpret(uint8_t* bytes, uint32_t bytesLength, void* dstAddress, struct pt_regs* context) {
   ud_t dis;
     
   ud_init(&dis);
-  ud_set_input_buffer(&dis, INPUT_BYTES, sizeof(INPUT_BYTES));
+  ud_set_input_buffer(&dis, bytes, bytesLength);
   ud_set_mode(&dis, 64);
   ud_set_vendor(&dis, UD_VENDOR_INTEL);
   ud_set_syntax(&dis, UD_SYN_INTEL);
@@ -328,39 +382,40 @@ int main(int argc, char** argv) {
   unsigned lengthInBytes = ud_disassemble(&dis);
   if (0 == lengthInBytes) {
     printf("Decoded 0 bytes\n");
-    return 1;
+    return 0;
   }
 
   unsigned numOperands = getNumOperands(&dis);
   if (0 == numOperands || numOperands > 2) {
     printf("can't handle %u operands\n", numOperands);
-    return 1;
-  }
-
-  // TODO: remove this once we handle SET insns
-  if (numOperands != 2) {
-    printf("can't handle %u operands\n", numOperands);
-    return 1;
+    return 0;
   }
 
   printf("\t%s\n", ud_insn_asm(&dis));
 
   // state used to decide which interpreter function to call
 
-  uint64_t dummy, dummyflags = 0x202; // for testing
-
-  void* dstAddress = &dummy; // TODO: get this from interrupt handler
   uint64_t srcValue = 0;
-  unsigned __int128 srcValue128b = 0;
-  uint64_t* flags = &dummyflags; // TODO: point into user context
-  ud_mnemonic_code_t opcode = 0;
+  uint64_t* flags = &(context->flags);
+  ud_mnemonic_code_t opcode = dis.mnemonic;
 
+  if (1 == numOperands) {
+    if (isOpcodeSET(opcode)) {
+      if (opcode < 0 || opcode > CV_LAST_VALID_OPCODE) {
+        printf("single-operand opcode out of bounds %u", opcode);
+        return 0;
+      }
+      NoWriteFlagsOpcode2FunTable_SIL[opcode](dstAddress, *flags);
+      return 1;
+    } else {
+      printf("Can't handle 1-operand insn\n");
+      return 0;
+    }
+  }
 
-  // get srcValue. Assume it's operand 1  
+  // get srcValue which is operand 1
   const struct ud_operand* srcOp = ud_insn_opr(&dis, 1);
   assert(NULL != srcOp);
-
-  opcode = dis.mnemonic;
 
   if (UD_OP_IMM == srcOp->type) {
     switch (srcOp->size) {
@@ -371,84 +426,183 @@ int main(int argc, char** argv) {
     case 32: srcValue = srcOp->lval.udword; break;
     case 64: srcValue = srcOp->lval.uqword; break;
     default:
-      // TODO: fail over to CoW
       printf("Invalid srcOp size: %d\n", srcOp->size);
-      return 2;
+      return 0;
     }
 
   } else if (UD_OP_REG == srcOp->type) { // source value is a register
-    ud_type_t canonSrcReg = getCanonicalRegister(srcOp->base); 
-    // TODO: read src reg from the user context
-    // srcValue = ...; srcValue128b = ...;
+    ud_type_t canonSrcReg = getCanonicalRegister(srcOp->base);
+    if (isGPR(canonSrcReg)) {
+      // read src reg from the user context
+      switch (canonSrcReg) {
+      case UD_R_RAX:
+        srcValue = context->ax;
+        break;
+      case UD_R_RCX:
+        srcValue = context->cx;
+        break;
+      case UD_R_RDX:
+        srcValue = context->dx;
+        break;
+      case UD_R_RBX:
+        srcValue = context->bx;
+        break;
+      case UD_R_RSP:
+        srcValue = context->sp;
+        break;
+      case UD_R_RBP:
+        srcValue = context->bp;
+        break;
+      case UD_R_RSI:
+        srcValue = context->si;
+        break;
+      case UD_R_RDI:
+        srcValue = context->di;
+        break;
+      case UD_R_R8:
+        srcValue = context->r8;
+        break;
+      case UD_R_R9:
+        srcValue = context->r9;
+        break;
+      case UD_R_R10:
+        srcValue = context->r10;
+        break;
+      case UD_R_R11:
+        srcValue = context->r11;
+        break;
+      case UD_R_R12:
+        srcValue = context->r12;
+        break;
+      case UD_R_R13:
+        srcValue = context->r13;
+        break;
+      case UD_R_R14:
+        srcValue = context->r14;
+        break;
+      case UD_R_R15:
+        srcValue = context->r15;
+        break;
+      default:
+        printf("Invalid GPR source register %u", canonSrcReg);
+        return 0;
+      }
+
+    } else if (isSIMDreg(canonSrcReg)) {
+      // SIMD regs don't need to be read from context; they're already in the register file
+    } else {
+      printf("Invalid source register %u", canonSrcReg);
+      return 0;
+    }
 
   } else {
     printf("Can't handle srcOp type %u\n", srcOp->type);
-    return 2;
+    return 0;
   }
 
-  if (opcode < 0 || opcode >= UD_Iaaa) {
+  if (opcode < 0 || opcode > CV_LAST_VALID_OPCODE) {
     printf("opcode out-of-bounds: %u\n", opcode);
-    return 2;
+    return 0;
   }
+
+  movInsnFun movFun = NULL;
+  writeFlagsInsnFun flagsFun = NULL;
 
   switch (getFunTable(srcOp)) {
   case FUN_SIL: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_SIL[opcode](dstAddress, srcValue, flags);
-    } else {
-      NonComputeOpcode2FunTable_SIL[opcode](dstAddress, srcValue);
-    }
+    movFun = NoWriteFlagsOpcode2FunTable_SIL[opcode];
+    flagsFun = WriteFlagsOpcode2FunTable_SIL[opcode];
     break;
   }
   case FUN_AH: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_AH[opcode](dstAddress, srcValue, flags);
-    } else {
-      NonComputeOpcode2FunTable_AH[opcode](dstAddress, srcValue);
-    }
+    movFun = NoWriteFlagsOpcode2FunTable_AH[opcode];
+    flagsFun = WriteFlagsOpcode2FunTable_AH[opcode];
     break;
   }
   case FUN_SI: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_SI[opcode](dstAddress, srcValue, flags);
-    } else {
-      NonComputeOpcode2FunTable_SI[opcode](dstAddress, srcValue);
-    }
+    movFun = NoWriteFlagsOpcode2FunTable_SI[opcode];
+    flagsFun = WriteFlagsOpcode2FunTable_SI[opcode];
     break;
   }
   case FUN_ESI: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_ESI[opcode](dstAddress, srcValue, flags);
-    } else {
-      NonComputeOpcode2FunTable_ESI[opcode](dstAddress, srcValue);
-    }
+    movFun = NoWriteFlagsOpcode2FunTable_ESI[opcode];
+    flagsFun = WriteFlagsOpcode2FunTable_ESI[opcode];
     break;
   }
   case FUN_RSI: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_RSI[opcode](dstAddress, srcValue, flags);
-    } else {
-      NonComputeOpcode2FunTable_RSI[opcode](dstAddress, srcValue);
-    }
+    movFun = NoWriteFlagsOpcode2FunTable_RSI[opcode];
+    flagsFun = WriteFlagsOpcode2FunTable_RSI[opcode];
     break;
   }
-  case FUN_MMX0: {
-    if (isComputeInsn(opcode)) {
-      ComputeOpcode2FunTable_MMX0[opcode](dstAddress, srcValue, flags);
-    } else {
-      NonComputeOpcode2FunTable_MMX0[opcode](dstAddress, srcValue);
-    }
-    break;
-  }
+  case FUN_MMX0: 
   case FUN_XMM0: {
-    assert(!isComputeInsn(opcode));
-    NonComputeOpcode2FunTable_XMM0[opcode](dstAddress, srcValue);
-    break;
+    simdMovInsnFun* regTable = SIMDOpcode2RegTable[opcode];
+    if (NULL == regTable) {
+      printf("Invalid SIMD opcode %u", opcode);
+      return 0;
+    }
+    ud_type_t srcReg = getCanonicalRegister(srcOp->base);
+    if (srcReg < UD_R_MM0 || srcReg > UD_R_XMM15) {
+      printf("Invalid SIMD src register %u", srcReg);
+      return 0;
+    }
+    unsigned index = srcReg - UD_R_MM0; // TODO: HORRIBLE HACK!!
+    simdMovInsnFun fun = regTable[index];
+    if (NULL == fun) {
+      printf("No function to interpret SIMD src register %u", index);
+      return 0;
+    }
+    fun(dstAddress);
+    return 1;
   }
   default:
-    // TODO: fail over to CoW
     printf("Invalid fun table: %d\n", getFunTable(srcOp));
-    return 2;
+    return 0;
+  }
+
+  // non-SIMD insn
+  if (opcode < 0 || opcode > CV_LAST_GPR_OPCODE) {
+    printf("OOB GPR opcode %u", opcode);
+    return 0;
+  }
+
+  if (insnWritesFlags(opcode)) {
+    if (NULL == flagsFun) {
+      printf("No function to interpret flag-writing opcode %u", opcode);
+      return 0;
+    }
+    flagsFun(dstAddress, srcValue, flags);
+
+  } else {
+    if (NULL == movFun) {
+      printf("No function to interpret non-flag-writing opcode %u", opcode);
+      return 0;
+    }
+    movFun(dstAddress, srcValue);
+  }
+
+  return 1;
+}
+
+int main(int argc, char** argv) {
+
+  verifyOpcodesAndRegisters();
+
+  uint8_t INPUT_BYTES[4][4] = {
+    {0x0f, 0x92, 0x07, 0x90}, // setb (%rdi) 3B
+    {0x88, 0x27, 0x90, 0x90}, // mov %ah,(%rdi) 2B
+    {0x40, 0x00, 0x37, 0x90}, // add %sil,(%rdi) 3B
+    {0x66, 0x0f, 0x7e, 0x07}  // movd %xmm0,(%rdi) 4B
+  };
+
+  uint64_t dummy; // for testing
+  
+  struct pt_regs regs;
+
+  for (int i = 0; i < sizeof(INPUT_BYTES) / sizeof(INPUT_BYTES[0]); i++) {
+    regs.flags = 0x202;
+    int ok = interpret(INPUT_BYTES[i], sizeof(INPUT_BYTES[0]), &dummy, &regs);
+    assert(ok);
   }
 
   return 0;
