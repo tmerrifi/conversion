@@ -37,8 +37,7 @@ int __checkpoint_page(struct cv_page_entry * page_entry, struct snapshot_pte_lis
 
 int __checkpoint_logging(struct cv_logging_entry * logging_entry, struct snapshot_pte_list * entry,
                   struct vm_area_struct * vma){
-    //struct ksnap * cv_seg = ksnap_vma_to_ksnap(vma);
-    struct ksnap * cv_seg;
+    struct ksnap * cv_seg = ksnap_vma_to_ksnap(vma);
     if (cv_logging_is_dirty(logging_entry)){
         //just write over the old data
         if (!logging_entry->local_checkpoint_data){

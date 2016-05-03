@@ -5,6 +5,7 @@
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/semaphore.h>
+#include <linux/fs.h>
 
 
 #include "cv_meta_data.h"
