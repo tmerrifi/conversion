@@ -536,7 +536,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
 
   const struct ud_operand* dstOp = ud_insn_opr(&dis, 0);
   assert(NULL != dstOp);
-  assert(UD_OP_MEM == dstOp->type);
+  assert(UD_OP_MEM == dstOp->type); 
   const unsigned storeWidthBytes = dstOp->size / 8; // convert bits => bytes
 
   movInsnFun movFun = NULL;
