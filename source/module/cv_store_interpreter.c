@@ -385,8 +385,10 @@ unsigned getNumOperands(ud_t* dis) {
 ud_mnemonic_code_t IdentifiedOpcode = UD_Inone;
 #endif
 
-/* Perform the store (pointed to by bytes). Returns the number of bytes written
-   by the store. If 0, the store could not be performed. */
+/* Perform the store (pointed to by bytes).  Returns the number of bytes written
+by the store. If 0, the store could not be performed. If the store is performed,
+context->ip is incremented by the length of the store insn, to skip to the next
+insn and avoid repeated faults. */
 int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress, struct pt_regs* context) {
 #ifdef TEST_INTERPRETER
   IdentifiedOpcode = UD_Inone;
