@@ -400,7 +400,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   ud_set_vendor(&dis, UD_VENDOR_INTEL);
   ud_set_syntax(&dis, UD_SYN_INTEL);
     
-  unsigned lengthInBytes = ud_disassemble(&dis);
+  const unsigned lengthInBytes = ud_disassemble(&dis);
   if (0 == lengthInBytes) {
     printf("Decoded 0 bytes\n");
     return 0;
@@ -431,7 +431,11 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
         return 0;
       }
       NoWriteFlagsOpcode2FunTable_SIL[opcode](dstAddress, *flags);
+
+      // NB: update RIP to skip over the store we just executed
+      context->ip += lengthInBytes;
       return 1; // SET insns always write 1 byte
+
     } else {
       printf("Can't handle 1-operand insn\n");
       return 0;
@@ -587,6 +591,9 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
       return 0;
     }
     fun(dstAddress);
+    
+    // NB: update RIP to skip over the store we just executed
+    context->ip += lengthInBytes;
     return storeWidthBytes;
   }
   default:
@@ -615,6 +622,8 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     movFun(dstAddress, srcValue);
   }
 
+  // NB: update RIP to skip over the store we just executed
+  context->ip += lengthInBytes;
   return storeWidthBytes;
 }
 
