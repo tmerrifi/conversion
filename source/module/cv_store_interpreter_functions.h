@@ -3,9 +3,8 @@
 
 #ifdef __KERNEL__
 #define printf(...) printk(KERN_INFO __VA_ARGS__)
-#define assert(...) BUG_ON(__VA_ARGS__)
+#define assert(...) BUG_ON(!(__VA_ARGS__))
 #endif
-
 
 
 void verifyOpcodesAndRegisters(void);
