@@ -30,6 +30,8 @@ struct cv_logging_page_status_entry;
 
 #define cv_logging_line_start(addr) (addr & CV_LOGGING_LOG_MASK )
 
+#define cv_logging_line_index(addr) (((addr & CV_LOGGING_LOG_MASK ) & ~PAGE_MASK) / CV_LOGGING_LOG_SIZE )
+
 #define cv_logging_set_dirty(e) (e->dirty=1)
 
 #define cv_logging_clear_dirty(e) (e->dirty=0)
