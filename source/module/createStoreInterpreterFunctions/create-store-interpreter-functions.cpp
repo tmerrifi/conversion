@@ -655,6 +655,8 @@ unsigned generateTestInsn(const xed_iclass_enum_t opcode, const xed_encoder_oper
   return 1;
 }
 
+const unsigned MAX_DISPLACEMENT_BITS = 32;
+
 void generateTests() {
 
   cout << "#ifdef TEST_INTERPRETER" << endl;
@@ -671,18 +673,22 @@ void generateTests() {
         const xed_reg_enum_t srcReg = static_cast<xed_reg_enum_t>(srci);
 
         for (unsigned storeWidthBits = 8; storeWidthBits <= 64; storeWidthBits <<= 1) { // stores of different widths
-          const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, storeWidthBits);
+          xed_encoder_operand_t dstOp = xed_mem_b(dstReg, storeWidthBits);
           const xed_encoder_operand_t srcOp = xed_reg(srcReg);
           generateTestInsn(opcode, dstOp, srcOp, storeWidthBits);
           
           // base+displacement destination
-          for (unsigned immWidthBits = 8; immWidthBits <= 32; immWidthBits <<= 1) {
-            const xed_enc_displacement_t disp = xed_disp(rand() % (1 << immWidthBits), immWidthBits);
-            const xed_encoder_operand_t dstOp = xed_mem_bd(dstReg, disp, storeWidthBits);
+          const xed_enc_displacement_t disp = xed_disp(rand(), MAX_DISPLACEMENT_BITS);
+          dstOp = xed_mem_bd(dstReg, disp, storeWidthBits);
+          generateTestInsn(opcode, dstOp, srcOp, storeWidthBits);
+
+          // base+index+scale+displacement destination
+          for (unsigned indexi = XED_REG_AX; indexi <= XED_REG_BH; indexi++) {
+            const xed_reg_enum_t indexReg = static_cast<xed_reg_enum_t>(indexi);
+            const unsigned scale = 2;
+            const xed_encoder_operand_t dstOp = xed_mem_bisd(dstReg, indexReg, scale, disp, storeWidthBits);
             generateTestInsn(opcode, dstOp, srcOp, storeWidthBits);
           }
-
-          // TODO: base+index+scale+displacement destination
         }
       }
 
@@ -695,11 +701,17 @@ void generateTests() {
         generateTestInsn(opcode, dstOp, srcOp, immWidthBits);
 
         // base+displacement destination
-        xed_enc_displacement_t disp = xed_disp(rand() % (1 << immWidthBits), immWidthBits);
+        const xed_enc_displacement_t disp = xed_disp(rand(), MAX_DISPLACEMENT_BITS);
         dstOp = xed_mem_bd(dstReg, disp, immWidthBits);
         generateTestInsn(opcode, dstOp, srcOp, immWidthBits);
 
-        // TODO: base+index+scale+displacement destination
+        // base+index+scale+displacement destination
+        for (unsigned indexi = XED_REG_AX; indexi <= XED_REG_BH; indexi++) {
+          const xed_reg_enum_t indexReg = static_cast<xed_reg_enum_t>(indexi);
+          const unsigned scale = 2;
+          const xed_encoder_operand_t dstOp = xed_mem_bisd(dstReg, indexReg, scale, disp, immWidthBits);
+          generateTestInsn(opcode, dstOp, srcOp, immWidthBits);
+        }
       }
     }
 
