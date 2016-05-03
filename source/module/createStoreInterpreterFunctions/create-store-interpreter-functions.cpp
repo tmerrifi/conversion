@@ -645,7 +645,7 @@ unsigned generateTestInsn(const xed_iclass_enum_t opcode, const xed_encoder_oper
   }
   cout << " }, " << dec;
   cout << ".expectedOpcode = " << udis86MnemonicNameOfXedIclass(opcode) << ", ";
-  cout << ".srcWidthBytes = " << srcRegWidthBits/8 << ", ";
+  cout << ".storeWidthBytes = " << srcRegWidthBits/8 << ", ";
   cout << ".disasm = \"" << insnAsm << "\"";
   cout << " }," << endl; // end struct
 
@@ -656,7 +656,7 @@ void generateTests() {
 
   cout << "#ifdef TEST_INTERPRETER" << endl;
 
-  cout << "struct test_insn { const uint8_t bytes[" << XED_MAX_INSTRUCTION_BYTES << "]; const ud_mnemonic_code_t expectedOpcode; const uint8_t srcWidthBytes; const char* disasm; };" << endl;
+  cout << "struct test_insn { const uint8_t bytes[" << XED_MAX_INSTRUCTION_BYTES << "]; const ud_mnemonic_code_t expectedOpcode; const uint8_t storeWidthBytes; const char* disasm; };" << endl;
   cout << "struct test_insn TEST_INSNS[] = {" << endl;
 
   unsigned numTestInsns = 0;

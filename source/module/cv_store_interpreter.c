@@ -59,8 +59,12 @@ typedef enum fun_table_kind {
 fun_table_kind_t getFunTable(const ud_operand_t* src) {
   switch (src->type) {
 
-    // for immediates, pick the right size and use the regular src-register fun table
-  case UD_OP_CONST: // intentional fall-through
+  case UD_OP_CONST:
+    // NB: I've only seen UD_OP_CONST with shift insns, and those require the
+    // shift amount be passed via CL (which is held in the SIL entry)
+    return FUN_SIL;
+    
+  // for immediates, pick the right size and use the regular src-register fun table
   case UD_OP_IMM: {
     switch (src->size) {
     case  8: return FUN_SIL; 
@@ -416,11 +420,6 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   uint64_t* flags = &(context->flags);
   ud_mnemonic_code_t opcode = dis.mnemonic;
 
-  if (insnWritesFlags(opcode)) {
-    // TODO: can't calculate bytes written for these insns based on "src" register, as it's the width of the memory operation that counts
-    return 0;
-  }
-
 #ifdef TEST_INTERPRETER
   IdentifiedOpcode = opcode;
 #endif
@@ -535,7 +534,10 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     return 0;
   }
 
-  const unsigned srcWidthBytes = srcOp->size / 8; // convert bits => bytes
+  const struct ud_operand* dstOp = ud_insn_opr(&dis, 0);
+  assert(NULL != dstOp);
+  assert(UD_OP_MEM == dstOp->type);
+  const unsigned storeWidthBytes = dstOp->size / 8; // convert bits => bytes
 
   movInsnFun movFun = NULL;
   writeFlagsInsnFun flagsFun = NULL;
@@ -585,7 +587,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
       return 0;
     }
     fun(dstAddress);
-    return srcWidthBytes;
+    return storeWidthBytes;
   }
   default:
     printf("Invalid fun table: %d\n", getFunTable(srcOp));
@@ -613,7 +615,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     movFun(dstAddress, srcValue);
   }
 
-  return srcWidthBytes;
+  return storeWidthBytes;
 }
 
 #ifndef __KERNEL__
@@ -655,9 +657,9 @@ int main(int argc, char** argv) {
              i, TEST_INSNS[i].disasm, TEST_INSNS[i].expectedOpcode, IdentifiedOpcode);
       continue;
     }
-    if (TEST_INSNS[i].srcWidthBytes != bytesWritten) {
+    if (TEST_INSNS[i].storeWidthBytes != bytesWritten) {
       printf("FAILURE wrong opcode identified for test insn #%u (%s), expected %u bytes written but actually wrote %u\n", 
-             i, TEST_INSNS[i].disasm, TEST_INSNS[i].srcWidthBytes, bytesWritten);
+             i, TEST_INSNS[i].disasm, TEST_INSNS[i].storeWidthBytes, bytesWritten);
       continue;
     }
 
