@@ -42,8 +42,7 @@ struct pt_regs {
 #endif
 
 #include "cv_store_interpreter_functions.h"
-
-#include "cv_store_interpreter_functions.c"
+#include "createStoreInterpreterFunctions/cv_store_interpreter_functions.c"
 
 typedef enum fun_table_kind {
   FUN_NONE,
