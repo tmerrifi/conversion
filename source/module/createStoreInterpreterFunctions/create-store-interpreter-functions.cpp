@@ -593,6 +593,8 @@ void generateVerify() {
   cout << "}" << endl;
 }
 
+unsigned NumTestInsns = 0;
+
 unsigned generateTestInsn(const xed_iclass_enum_t opcode, const xed_encoder_operand_t dstOp, 
                           const xed_encoder_operand_t srcOp, const uint32_t srcRegWidthBits) {
   xed_state_t dstate;
@@ -647,10 +649,13 @@ unsigned generateTestInsn(const xed_iclass_enum_t opcode, const xed_encoder_oper
   cout << ".expectedOpcode = " << udis86MnemonicNameOfXedIclass(opcode) << ", ";
   cout << ".storeWidthBytes = " << srcRegWidthBits/8 << ", ";
   cout << ".disasm = \"" << insnAsm << "\"";
-  cout << " }," << endl; // end struct
+  cout << " }, // " << NumTestInsns << endl; // end struct
 
+  NumTestInsns++;
   return 1;
 }
+
+const unsigned MAX_DISPLACEMENT_BITS = 32;
 
 void generateTests() {
 
@@ -659,7 +664,6 @@ void generateTests() {
   cout << "struct test_insn { const uint8_t bytes[" << XED_MAX_INSTRUCTION_BYTES << "]; const ud_mnemonic_code_t expectedOpcode; const uint8_t storeWidthBytes; const char* disasm; };" << endl;
   cout << "struct test_insn TEST_INSNS[] = {" << endl;
 
-  unsigned numTestInsns = 0;
   for (int opi = 0; opi < NUM_GPR_OPCODES; opi++) {
     const xed_iclass_enum_t opcode = GPR_OPCODES[opi];
 
@@ -667,22 +671,47 @@ void generateTests() {
       const xed_reg_enum_t dstReg = static_cast<xed_reg_enum_t>(dsti);
       for (unsigned srci = XED_REG_AX; srci <= XED_REG_BH; srci++) {
         const xed_reg_enum_t srcReg = static_cast<xed_reg_enum_t>(srci);
-        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(srcReg));
-        const xed_encoder_operand_t srcOp = xed_reg(srcReg);
-        numTestInsns += generateTestInsn(opcode, dstOp, srcOp, xed_get_register_width_bits64(srcReg));
 
-        // base+displacement destination
+        for (unsigned storeWidthBits = 8; storeWidthBits <= 64; storeWidthBits <<= 1) { // stores of different widths
+          xed_encoder_operand_t dstOp = xed_mem_b(dstReg, storeWidthBits);
+          const xed_encoder_operand_t srcOp = xed_reg(srcReg);
+          generateTestInsn(opcode, dstOp, srcOp, storeWidthBits);
+          
+          // base+displacement destination
+          const xed_enc_displacement_t disp = xed_disp(rand(), MAX_DISPLACEMENT_BITS);
+          dstOp = xed_mem_bd(dstReg, disp, storeWidthBits);
+          generateTestInsn(opcode, dstOp, srcOp, storeWidthBits);
+
+          // base+index+scale+displacement destination
+          for (unsigned indexi = XED_REG_AX; indexi <= XED_REG_BH; indexi++) {
+            const xed_reg_enum_t indexReg = static_cast<xed_reg_enum_t>(indexi);
+            const unsigned scale = 2;
+            const xed_encoder_operand_t dstOp = xed_mem_bisd(dstReg, indexReg, scale, disp, storeWidthBits);
+            generateTestInsn(opcode, dstOp, srcOp, storeWidthBits);
+          }
+        }
       }
 
-      // immediate src, base+displacement destination
+      // immediate src
       for (unsigned immWidthBits = 8; immWidthBits <= 32; immWidthBits <<= 1) {
         const xed_encoder_operand_t srcOp = xed_imm0(rand() % (1 << immWidthBits), immWidthBits);
-        xed_encoder_operand_t dstOp = xed_mem_b(dstReg, immWidthBits);
-        numTestInsns += generateTestInsn(opcode, dstOp, srcOp, immWidthBits);
 
-        xed_enc_displacement_t disp = xed_disp(rand() % (1 << immWidthBits), immWidthBits);
+        // base destination
+        xed_encoder_operand_t dstOp = xed_mem_b(dstReg, immWidthBits);
+        generateTestInsn(opcode, dstOp, srcOp, immWidthBits);
+
+        // base+displacement destination
+        const xed_enc_displacement_t disp = xed_disp(rand(), MAX_DISPLACEMENT_BITS);
         dstOp = xed_mem_bd(dstReg, disp, immWidthBits);
-        numTestInsns += generateTestInsn(opcode, dstOp, srcOp, immWidthBits);
+        generateTestInsn(opcode, dstOp, srcOp, immWidthBits);
+
+        // base+index+scale+displacement destination
+        for (unsigned indexi = XED_REG_AX; indexi <= XED_REG_BH; indexi++) {
+          const xed_reg_enum_t indexReg = static_cast<xed_reg_enum_t>(indexi);
+          const unsigned scale = 2;
+          const xed_encoder_operand_t dstOp = xed_mem_bisd(dstReg, indexReg, scale, disp, immWidthBits);
+          generateTestInsn(opcode, dstOp, srcOp, immWidthBits);
+        }
       }
     }
 
@@ -691,25 +720,27 @@ void generateTests() {
     const xed_iclass_enum_t opcode = SIMD_OPCODES[opi];
 
     for (unsigned dsti = XED_REG_AX; dsti <= XED_REG_BH; dsti++) {
-      for (unsigned srci = XED_REG_MMX0; srci <= XED_REG_MMX7; srci++) {
+      for (unsigned srci = XED_REG_MMX0; srci <= XED_REG_MMX7; srci++) { // MMX registers
         const xed_reg_enum_t dstReg = static_cast<xed_reg_enum_t>(dsti);
         const xed_reg_enum_t srcReg = static_cast<xed_reg_enum_t>(srci);
-        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(srcReg));
+        const unsigned storeWidthBits = xed_get_register_width_bits64(srcReg);
+        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, storeWidthBits);
         const xed_encoder_operand_t srcOp = xed_reg(srcReg);
-        numTestInsns += generateTestInsn(opcode, dstOp, srcOp, xed_get_register_width_bits64(srcReg));
+        generateTestInsn(opcode, dstOp, srcOp, storeWidthBits);
       }
-      for (unsigned srci = XED_REG_XMM0; srci <= XED_REG_XMM15; srci++) {
+      for (unsigned srci = XED_REG_XMM0; srci <= XED_REG_XMM15; srci++) { // SSE registers
         const xed_reg_enum_t dstReg = static_cast<xed_reg_enum_t>(dsti);
         const xed_reg_enum_t srcReg = static_cast<xed_reg_enum_t>(srci);
-        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, xed_get_register_width_bits64(srcReg));
+        const unsigned storeWidthBits = xed_get_register_width_bits64(srcReg);
+        const xed_encoder_operand_t dstOp = xed_mem_b(dstReg, storeWidthBits);
         const xed_encoder_operand_t srcOp = xed_reg(srcReg);
-        numTestInsns += generateTestInsn(opcode, dstOp, srcOp, xed_get_register_width_bits64(srcReg));
+        generateTestInsn(opcode, dstOp, srcOp, storeWidthBits);
       }
     }
   }
 
   cout << "};" << endl;
-  cout << "#define NUM_TEST_INSNS " << numTestInsns << endl;
+  cout << "#define NUM_TEST_INSNS " << NumTestInsns << endl;
   cout << "#define MAX_INSN_BYTES " << XED_MAX_INSTRUCTION_BYTES << endl << endl;
 
   cout << "#endif" << endl;

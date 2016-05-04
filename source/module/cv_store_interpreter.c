@@ -668,7 +668,7 @@ int main(int argc, char** argv) {
       continue;
     }
     if (TEST_INSNS[i].storeWidthBytes != bytesWritten) {
-      printf("FAILURE wrong opcode identified for test insn #%u (%s), expected %u bytes written but actually wrote %u\n", 
+      printf("FAILURE wrong width for test insn #%u (%s), expected %u bytes written but actually wrote %u\n", 
              i, TEST_INSNS[i].disasm, TEST_INSNS[i].storeWidthBytes, bytesWritten);
       continue;
     }
