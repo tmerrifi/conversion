@@ -292,8 +292,8 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     uint8_t * local_addr;
     pte_t page_table_e;
 
-    //printk(KERN_EMERG "migrating to logging 1, pid: %d, page index: %d\n",
-    //     current->pid, pte_list_entry->page_index);
+    printk(KERN_EMERG "migrating to logging 1, pid: %d, page index: %d\n",
+           current->pid, pte_list_entry->page_index);
     
     struct cv_page_entry * page_entry = cv_list_entry_get_page_entry(pte_list_entry);
     //do this before we blow away the data
@@ -304,9 +304,10 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
                                              pte_list_entry->page_index,
                                              pte_list_entry->checkpoint);
 
-    //printk(KERN_EMERG "migrating to logging 2, pid: %d, page index: %d, logging entry pte: %p, data %d\n",
-    //     current->pid, pte_list_entry->page_index,logging_entry->pte, *((int*)page_entry->addr));
-
+    uint8_t * data_addr = ((uint8_t*)(page_entry->addr & PAGE_MASK));
+    
+    printk(KERN_EMERG "migrating to logging 2, pid: %d, page index: %d, logging entry pte: %p, data %d\n",
+           current->pid, pte_list_entry->page_index,logging_entry->pte, *data_addr);
     
     //switch the pte_list_entry to logging type
     pte_list_entry->type=CV_DIRTY_LIST_ENTRY_TYPE_LOGGING;
@@ -350,7 +351,7 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     //set it back
     set_pte(logging_entry->pte, page_table_e);
 
-    //printk(KERN_EMERG "done migrating to logging, pid: %d, page index: %d\n", current->pid, pte_list_entry->page_index);
+    printk(KERN_EMERG "done migrating to logging, pid: %d, page index: %d, data %d\n", current->pid, pte_list_entry->page_index, *data_addr);
 }
 
 int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
@@ -511,12 +512,23 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   while(!list_empty(&wait_list->list)){
       if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv))){
           if (pte_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
-
               //check and see if we want to make this a logging page.
               //We do this before we commit, because merging will mess up the diffing.
-              should_migrate=cv_commit_do_logging_migration_check(vma, pte_entry);
-              //grab the currently committed entry
-              cv_commit_page(cv_list_entry_get_page_entry(pte_entry), vma, our_version_number, pte_entry->page_index, pte_entry->checkpoint);
+              if (cv_per_page_is_logging_page(cv_seg->ppv, pte_entry->page_index)){
+                  //migrate to a logging page
+                  cv_commit_migrate_page_to_logging(vma, cv_user, cv_seg, pte_entry, our_version_number);
+                  //do a logging commit instead
+                  cv_commit_logging_entry(cv_list_entry_get_logging_entry(pte_entry), pte_entry, vma,
+                                          cv_seg, cv_user, our_version_number);
+              }
+              else{
+                  should_migrate=cv_commit_do_logging_migration_check(vma, pte_entry);
+                  //do page commit here
+                  cv_commit_page(cv_list_entry_get_page_entry(pte_entry), vma, our_version_number, pte_entry->page_index, pte_entry->checkpoint);
+                  if (should_migrate){
+                      cv_commit_migrate_page_to_logging(vma, cv_user, cv_seg, pte_entry, our_version_number);
+                  }
+              }
               //remove from the waitlist
               list_del(&pte_entry->list);
               list_add(&pte_entry->list, &our_version_entry->pte_list->list);
