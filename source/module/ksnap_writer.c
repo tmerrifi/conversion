@@ -63,7 +63,6 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   }
   dirty_pages_list = cv_user_data->dirty_pages_list;
   struct ksnap * ksnap_segment = ksnap_vma_to_ksnap(vma);
-  printk(KERN_EMERG "page fault: pte %p\n", new_pte);
   /*grab the new page*/
   new_page=pte_page(*new_pte);
   if (new_page!=pte_page(*new_pte)){
@@ -103,9 +102,9 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       /*now we need to add the pte to the list */
       list_add_tail(&pte_list_entry->list, &dirty_pages_list->list);
       
-      //      #ifdef CONV_LOGGING_ON
+      #ifdef CONV_LOGGING_ON
           printk(KSNAP_LOG_LEVEL " %d added index %lu pfn %lu page %p", current->pid, pte_list_entry->page_index, cv_page->pfn, new_page);
-          //#endif
+      #endif
 
 
       cv_meta_inc_dirty_page_count(vma);

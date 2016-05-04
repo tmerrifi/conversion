@@ -136,8 +136,8 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
     logging_page_status = cv_logging_page_status_lookup(cv_user, entry->page_index);
         
     if (latest_entry && latest_version_num > our_version_number){
-        printk(KERN_EMERG "committing logging page, pid: %d, page index: %d, latest version %lu\n",
-               current->pid, latest_entry->page_index, latest_version_num);
+        //printk(KERN_EMERG "committing logging page, pid: %d, page index: %d, latest version %lu\n",
+        //     current->pid, latest_entry->page_index, latest_version_num);
         //grab the logging entry that is committed (latest)
         latest_logging_entry = cv_list_entry_get_logging_entry(latest_entry);
 
@@ -147,8 +147,8 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
             //could be full page. In which case we are in luck and only have to merge
             //with that page
             if (cv_logging_is_full_page(latest_logging_entry)){
-                printk(KERN_EMERG "merged logging (full) page, pid: %d, page index: %d\n",
-                   current->pid, latest_entry->page_index);
+                //printk(KERN_EMERG "merged logging (full) page, pid: %d, page index: %d\n",
+                // current->pid, latest_entry->page_index);
                 //do the merge with the latest version
                 cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status, logging_entry->line_index),
                                    logging_entry->data,
@@ -156,12 +156,12 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                                    PAGE_SIZE);
                 //now copy the full page into the entry data
                 //memcpy(logging_entry->data, (uint8_t *)logging_entry->addr, logging_entry->data_len);
-                printk(KERN_EMERG "merged logging (full) page DONE, pid: %d, page index: %d\n",
-                       current->pid, latest_entry->page_index);
+                //printk(KERN_EMERG "merged logging (full) page DONE, pid: %d, page index: %d\n",
+                //     current->pid, latest_entry->page_index);
             }
             else{
-                printk(KERN_EMERG "SLOW merging logging (full) page, pid: %d, page index: %d\n",
-                       current->pid, latest_entry->page_index);
+                //printk(KERN_EMERG "SLOW merging logging (full) page, pid: %d, page index: %d\n",
+                //     current->pid, latest_entry->page_index);
                 //need to traverse all of the lines and merge :(
                 __merge_full_page_with_cache_lines(logging_entry, logging_page_status, entry, cv_seg, cv_user);
             }
@@ -184,8 +184,8 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                                CV_LOGGING_MERGE_WORDS);
             //memcpy our local data into the committed entry data
             //memcpy(logging_entry->data, (uint8_t *)logging_entry->addr, logging_entry->data_len);
-            printk(KERN_EMERG "merged logging page, pid: %d, page index: %d\n",
-                   current->pid, latest_entry->page_index);
+            //printk(KERN_EMERG "merged logging page, pid: %d, page index: %d\n",
+            //     current->pid, latest_entry->page_index);
         }
     }
     //we need to copy our new data into our entry
@@ -198,19 +198,20 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
         set_pte(logging_page_status->pte, pte_temp);
         //flush the tlb entry
         __flush_tlb_one(logging_entry->addr);
-        printk(KERN_EMERG "done committing and write protecting page, pid: %d, page index: %d\n",
-               current->pid, latest_entry->page_index);
+        //printk(KERN_EMERG "done committing and write protecting page, pid: %d, page index: %d\n",
+        //     current->pid, latest_entry->page_index);
         __remove_old_logging_page(cv_seg, entry, entry->page_index, our_version_number);
     }
     else{
         __remove_old_logging_line(cv_seg, entry, entry->page_index, logging_entry->line_index, our_version_number);
     }
 
+    logging_page_status->logging_writes=0;
     //update the ppv with our version...do this *after* we make the old entry obsolete.
     cv_per_page_version_update_logging_entry(cv_seg->ppv, entry->page_index, entry, our_version_number, logging_entry->line_index);
     
-    printk(KERN_EMERG "done committing, pid: %d, page index: %d\n",
-           current->pid, latest_entry->page_index);
+    //printk(KERN_EMERG "done committing, pid: %d, page index: %d\n",
+    //      current->pid, latest_entry->page_index);
 }
 
 void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_struct * vma,
@@ -291,8 +292,8 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     uint8_t * local_addr;
     pte_t page_table_e;
 
-    printk(KERN_EMERG "migrating to logging 1, pid: %d, page index: %d\n",
-           current->pid, pte_list_entry->page_index);
+    //printk(KERN_EMERG "migrating to logging 1, pid: %d, page index: %d\n",
+    //     current->pid, pte_list_entry->page_index);
     
     struct cv_page_entry * page_entry = cv_list_entry_get_page_entry(pte_list_entry);
     //do this before we blow away the data
@@ -303,8 +304,8 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
                                              pte_list_entry->page_index,
                                              pte_list_entry->checkpoint);
 
-    printk(KERN_EMERG "migrating to logging 2, pid: %d, page index: %d, logging entry pte: %p, data %d\n",
-           current->pid, pte_list_entry->page_index,logging_entry->pte, *((int*)page_entry->addr));
+    //printk(KERN_EMERG "migrating to logging 2, pid: %d, page index: %d, logging entry pte: %p, data %d\n",
+    //     current->pid, pte_list_entry->page_index,logging_entry->pte, *((int*)page_entry->addr));
 
     
     //switch the pte_list_entry to logging type
@@ -313,14 +314,16 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     pte_list_entry->logging_entry.data = (uint8_t *)kmalloc(PAGE_SIZE, GFP_KERNEL);
     pte_list_entry->logging_entry.data_len = PAGE_SIZE;
     pte_list_entry->logging_entry.addr = local_addr;
-    printk(KERN_EMERG "migrating to logging 3, pid: %d, page index: %d, memcpy to %p, src %p\n",
-           current->pid, pte_list_entry->page_index, pte_list_entry->logging_entry.data, local_addr);
     pte_list_entry->logging_entry.line_index = 0;
+
+    
+    //printk(KERN_EMERG "migrating to logging 3, pid: %d, page index: %d, memcpy to %p, src %p\n",
+    //     current->pid, pte_list_entry->page_index, pte_list_entry->logging_entry.data, local_addr);
 
     //do the copy
     memcpy(pte_list_entry->logging_entry.data, local_addr, PAGE_SIZE);
 
-    printk(KERN_EMERG "migrating to logging 4, pid: %d, page index: %d\n", current->pid, pte_list_entry->page_index);
+    //printk(KERN_EMERG "migrating to logging 4, pid: %d, page index: %d\n", current->pid, pte_list_entry->page_index);
 
     //mark the page as "logging" in the per_page data structure
     if (!cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index)){
@@ -336,8 +339,8 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     if (cv_logging_page_status_insert(cv_user, logging_entry, pte_list_entry->page_index)<0){
         BUG();
     }
-    printk(KERN_EMERG "migrating to logging 5, pid: %d, page index: %d, pte: %p, page entry pte: %p\n",
-           current->pid, pte_list_entry->page_index, logging_entry->pte, page_entry->pte);
+    //printk(KERN_EMERG "migrating to logging 5, pid: %d, page index: %d, pte: %p, page entry pte: %p\n",
+    //       current->pid, pte_list_entry->page_index, logging_entry->pte, page_entry->pte);
     
     //need to write protect the page
     //get the pre-existing pte value and clear the pte pointer
@@ -347,7 +350,7 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     //set it back
     set_pte(logging_entry->pte, page_table_e);
 
-    printk(KERN_EMERG "done migrating to logging, pid: %d, page index: %d\n", current->pid, pte_list_entry->page_index);
+    //printk(KERN_EMERG "done migrating to logging, pid: %d, page index: %d\n", current->pid, pte_list_entry->page_index);
 }
 
 int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
@@ -364,19 +367,19 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
     //don't want to do this too often - its kinda expensive!
     if (!cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index) &&
         cv_user->committed_non_logging_entries++ % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES == 0){
-        printk(KERN_EMERG "doing a logging migration check...pid: %d\n", current->pid);
+        //printk(KERN_EMERG "doing a logging migration check...pid: %d\n", current->pid);
         page_entry = cv_list_entry_get_page_entry(pte_list_entry);
         //first get the address of our page
         local_addr=__compute_local_addr_for_diff(vma, page_entry->pfn, pte_list_entry->page_index, pte_list_entry->checkpoint);
         //now do a diff to see how many 64bit words changed
         if ((diff=cv_logging_diff_64(local_addr, page_entry->ref_page))<=CV_LOGGING_DIFF_THRESHOLD_64){
-            printk(KERN_EMERG "doing a logging migration check...diff %d...pid: %d...bitmap %lu\n", diff,current->pid,
-                   cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index) & 0xFUL);
+            //printk(KERN_EMERG "doing a logging migration check...diff %d...pid: %d...bitmap %lu\n", diff,current->pid,
+            //     cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index) & 0xFUL);
             cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 1);
             //should we switch over to logging?
             if (cv_logging_should_switch(cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index))){
-                printk(KERN_EMERG "migration check...time to switch pid: %d, page index: %d\n",
-                       current->pid, pte_list_entry->page_index);
+                //printk(KERN_EMERG "migration check...time to switch pid: %d, page index: %d\n",
+                //     current->pid, pte_list_entry->page_index);
                 result=1;
             }
         }

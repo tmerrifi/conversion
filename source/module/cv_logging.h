@@ -22,6 +22,10 @@ struct cv_logging_page_status_entry;
 
 #define CV_LOGGING_LOG_MASK (~((1<<6)-1))
 
+#define CV_LOGGING_WRITES_THRESHOLD 5
+
+#define CV_LOGGING_INSTRUCTION_MAX_WIDTH 15  //maximum width for an instruction when we decode it
+
 #define CV_LOGGING_MERGE_WORDS (CV_LOGGING_LOG_SIZE/sizeof(uint64_t))
 
 #define cv_logging_should_switch(bits) ((bits & CV_LOGGING_SWITCH_BITMASK)==CV_LOGGING_SWITCH_BITMASK)

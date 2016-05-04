@@ -102,7 +102,7 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     pte_t new_pte_entry;
     uint8_t * local_addr, * kaddr;
 
-    printk(KERN_EMERG "__migrate in update 1, page: %d, pid: %d", new_page, current->pid);
+    //printk(KERN_EMERG "__migrate in update 1, page: %d, pid: %d", new_page, current->pid);
     struct cv_logging_entry * logging_entry = cv_list_entry_get_logging_entry(entry);
     //grab the pte for our address
     pte_t * pte = pte_get_entry_from_address(vma->vm_mm, logging_entry->addr);
@@ -115,15 +115,21 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, logging_entry->addr);
     __SetPageUptodate(new_page);
     page_add_new_anon_rmap(new_page, vma, logging_entry->addr);
-    printk(KERN_EMERG "__migrate in update 2, page: %d, pid: %d", new_page, current->pid);
+    //printk(KERN_EMERG "__migrate in update 2, page: %d, pid: %d", new_page, current->pid);
     //now do the Copy
     local_addr = logging_entry->addr & PAGE_MASK;
     kaddr = (uint8_t *)kmap_atomic(new_page, KM_USER0);
     memcpy(kaddr,local_addr,PAGE_SIZE);
     kunmap_atomic(kaddr, KM_USER0);
-    printk(KERN_EMERG "__migrate in update 3, page: %d, pid: %d", new_page, current->pid);
+    //printk(KERN_EMERG "__migrate in update 3, page: %d, pid: %d", new_page, current->pid);
     //now update the local logging data structure
     logging_status_entry = cv_logging_page_status_entry_init(pte, page_to_pfn(new_page));
+    //insert this page into our local logging ds
+    if (cv_logging_page_status_insert(cv_user, logging_status_entry, entry->page_index)<0){
+        BUG();
+    }
+
+    
     //updating the pte with the new PFN and flush the TLB
     new_pte_entry = mk_pte(new_page, vma->vm_page_prot);
     new_pte_entry = pte_wrprotect(new_pte_entry);
@@ -132,7 +138,7 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     //deal with the old page
     page_remove_rmap(old_page);
     put_page(old_page);
-    printk(KERN_EMERG "__migrate in update 4, page: %d, pid: %d", new_page, current->pid);
+    //printk(KERN_EMERG "__migrate in update 4, page: %d, pid: %d", new_page, current->pid);
 }
 
 
@@ -300,22 +306,22 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
             dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
             //check to see if the current guy is obsolete
             if (tmp_pte_list->obsolete_version <= target_version_number){
-                printk(KERN_EMERG "UPDATE of logging page SKIP 1 ...%d %d %lu %lu",
-                       current->pid, tmp_pte_list->page_index,
-                       tmp_pte_list->obsolete_version, target_version_number);
+                //printk(KERN_EMERG "UPDATE of logging page SKIP 1 ...%d %d %lu %lu",
+                //     current->pid, tmp_pte_list->page_index,
+                //     tmp_pte_list->obsolete_version, target_version_number);
                 continue;
             }
             //don't do partial updates
             else if (partial_update){
-                printk(KERN_EMERG "UPDATE of logging page SKIP 2 ...%d %d",
-                       current->pid, tmp_pte_list->page_index);
+                //printk(KERN_EMERG "UPDATE of logging page SKIP 2 ...%d %d",
+                //     current->pid, tmp_pte_list->page_index);
                 continue;
             }
             else if (dirty_entry){
                 BUG();
             }
             else{
-                printk(KERN_EMERG "UPDATE of logging page...%d %d", current->pid, tmp_pte_list->page_index);
+                //printk(KERN_EMERG "UPDATE of logging page...%d %d", current->pid, tmp_pte_list->page_index);
                 //ok do the update
                 logging_status_entry=cv_logging_page_status_lookup(cv_user, tmp_pte_list->page_index);
                 if (!logging_status_entry){
@@ -324,6 +330,11 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                     logging_status_entry=cv_logging_page_status_lookup(cv_user, tmp_pte_list->page_index);
                     BUG_ON(logging_status_entry==NULL);
                 }
+                printk(KERN_INFO "memcpy %p %p %lu %lu\n",
+                       ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
+                       logging_entry->data,
+                       logging_entry->data_len,
+                       logging_entry->line_index);
                 //copy the data
                 memcpy(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
                        logging_entry->data,

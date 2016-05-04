@@ -98,6 +98,7 @@ struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * 
     struct cv_logging_page_status_entry * entry = kmalloc(sizeof(struct cv_logging_page_status_entry), GFP_KERNEL);
     entry->pte=pte;
     entry->pfn=pfn;
+    entry->logging_writes=0;
     return entry;
 }
 
@@ -133,14 +134,14 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma, struct cv_logging_en
     
     //now do the copy
     memcpy(logging_entry->data, (uint8_t *)logging_entry->addr, PAGE_SIZE);
-    printk(KERN_EMERG "about to set PTE entry %lu %lu for page\n", page_table_e, *pte); 
+    //printk(KERN_EMERG "about to set PTE entry %lu %lu for page\n", page_table_e, *pte); 
     //now fix the pte and make it writeable
     //get the pre-existing pte value and clear the pte pointer
     page_table_e = ptep_get_and_clear(vma->vm_mm, (uint8_t *)logging_entry->addr, pte);
     //make writeable and set it back
     set_pte(pte, pte_mkwrite(page_table_e));
     __flush_tlb_one(logging_entry->addr);
-    printk(KERN_EMERG "set PTE entry %lx %lx for page\n", page_table_e, *pte); 
+    //printk(KERN_EMERG "set PTE entry %lx %lx for page\n", page_table_e, *pte); 
 }
 
 void cv_logging_store_interpreter_fault(unsigned long faulting_addr, struct pt_regs * regs){
@@ -154,16 +155,16 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     //get the page index
     struct snapshot_pte_list * dirty_list_entry;
     struct cv_logging_entry * logging_entry;
-    uint64_t write_width=0;    
+    uint64_t write_width=0;
+    int handled=0;
     uint32_t page_index = (faulting_addr - vma->vm_start)/PAGE_SIZE;
     
     struct cv_logging_page_status_entry * logging_status_entry = cv_logging_page_status_lookup(cv_user, page_index);
-    printk(KERN_EMERG "logging fault, pid: %d, page index: %d, data %d\n",
-           current->pid, page_index, *((int *)faulting_addr));
+    //printk(KERN_EMERG "logging fault, pid: %d, page index: %d, data %d\n",
+    //     current->pid, page_index, *((int *)faulting_addr));
     
     if (logging_status_entry){
         uint8_t * kaddr_faulting = pfn_to_kaddr(logging_status_entry->pfn) + (faulting_addr & (~PAGE_MASK));
-        printk(KERN_EMERG "LOGGING FAULT: kaddr %p, uaddr %p\n", kaddr_faulting, faulting_addr);
         //we've got a local logging entry, so we can proceed from here...
         /*create the new pte entry*/
         dirty_list_entry = kmem_cache_alloc(cv_seg->pte_list_mem_cache, GFP_KERNEL);
@@ -179,21 +180,27 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         INIT_LIST_HEAD(&dirty_list_entry->list);
         /*now we need to add the pte to the list */
         list_add_tail(&dirty_list_entry->list, &cv_user->dirty_pages_list->list);
-        //allocate some space to hold the data
-        logging_entry->data = cv_logging_allocate_data_entry(CV_LOGGING_LOG_SIZE, cv_seg);
-        memcpy(logging_entry->data,cv_logging_line_start(faulting_addr),CV_LOGGING_LOG_SIZE);
-        logging_entry->addr = (faulting_addr & CV_LOGGING_LOG_MASK);
-        logging_entry->data_len = CV_LOGGING_LOG_SIZE;
-        logging_entry->line_index = cv_logging_line_index(faulting_addr);
-        cv_logging_set_dirty(logging_entry);
-        printk(KERN_EMERG "LOGGING FAULT: about to call interpret");
 
-        if ((write_width=interpret(regs->ip, 15, kaddr_faulting, regs))){
-            printk(KERN_EMERG "LOGGING FAULT: interpret succeeded!");
-            //we succeeded, figure out if we wrote to more than one cache line
-            BUG_ON(cv_logging_line_start(faulting_addr) + write_width > cv_logging_line_start(faulting_addr) + CV_LOGGING_LOG_SIZE);
+        if (logging_status_entry->logging_writes < CV_LOGGING_WRITES_THRESHOLD){
+            //allocate some space to hold the data
+            logging_entry->data = cv_logging_allocate_data_entry(CV_LOGGING_LOG_SIZE, cv_seg);
+            memcpy(logging_entry->data,cv_logging_line_start(faulting_addr),CV_LOGGING_LOG_SIZE);
+            logging_entry->addr = (faulting_addr & CV_LOGGING_LOG_MASK);
+            logging_entry->data_len = CV_LOGGING_LOG_SIZE;
+            logging_entry->line_index = cv_logging_line_index(faulting_addr);
+            cv_logging_set_dirty(logging_entry);
+            printk(KERN_EMERG "LOGGING FAULT: about to call interpret, line index is %lu", logging_entry->line_index);
+
+            if (0 && (write_width=interpret(regs->ip, CV_LOGGING_INSTRUCTION_MAX_WIDTH, kaddr_faulting, regs))){
+                //printk(KERN_EMERG "LOGGING FAULT: interpret succeeded!");
+                logging_status_entry->logging_writes++;
+                handled=1;
+                //we succeeded, figure out if we wrote to more than one cache line
+                BUG_ON(cv_logging_line_start(faulting_addr) + write_width > cv_logging_line_start(faulting_addr) + CV_LOGGING_LOG_SIZE);
+            }
         }
-        else{
+        
+        if (!handled){
             cv_logging_cow_page_fault(vma, logging_entry, faulting_addr, logging_status_entry->pte);            
         }
         
