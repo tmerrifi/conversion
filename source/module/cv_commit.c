@@ -315,6 +315,7 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     pte_list_entry->logging_entry.addr = local_addr;
     printk(KERN_EMERG "migrating to logging 3, pid: %d, page index: %d, memcpy to %p, src %p\n",
            current->pid, pte_list_entry->page_index, pte_list_entry->logging_entry.data, local_addr);
+    pte_list_entry->logging_entry.line_index = 0;
 
     //do the copy
     memcpy(pte_list_entry->logging_entry.data, local_addr, PAGE_SIZE);
