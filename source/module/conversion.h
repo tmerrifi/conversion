@@ -147,6 +147,7 @@ struct snapshot_version_list{
 struct cv_logging_page_status_entry{
     unsigned long pfn;
     pte_t * pte;
+    uint32_t logging_writes;
 };
 
 struct ksnap{
