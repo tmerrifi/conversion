@@ -25,21 +25,30 @@
 #include "cv_debugging.h"
 #include "cv_memory_accounting.h"
 
-void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte_list * new_dirty_entry, unsigned long index){
-  if (new_dirty_entry){
-    int insert_error = radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
-    if (insert_error == -EEXIST){
-      radix_tree_delete(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index);
-      radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
+void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte_list * new_dirty_entry,
+                                   unsigned long page_index, unsigned long line_index, uint8_t is_page_level){
+    unsigned long index = cv_logging_get_index(page_index, line_index, is_page_level);
+    if (new_dirty_entry){
+        int insert_error = radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
+        if (insert_error == -EEXIST){
+            radix_tree_delete(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index);
+            radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
+        }
+        printk(KERN_EMERG "added entry at index %lu, pid: %d\n", index, current->pid);
     }
-  }
 }
 
-struct snapshot_pte_list * conv_dirty_search_lookup(struct ksnap_user_data * cv_user_data, unsigned long index){
-  return radix_tree_lookup(&cv_user_data->dirty_list_lookup, index);
+struct snapshot_pte_list * conv_dirty_search_lookup(struct ksnap_user_data * cv_user_data,
+                                                    unsigned long page_index, unsigned long line_index, uint8_t is_page_level){
+    unsigned long index = cv_logging_get_index(page_index, line_index, is_page_level);
+    printk(KERN_EMERG "lookup at index %lu, pid: %d\n", index, current->pid);
+    return radix_tree_lookup(&cv_user_data->dirty_list_lookup, index);
 }
 
-void conv_dirty_delete_lookup(struct ksnap_user_data * cv_user_data, unsigned long index){
+void conv_dirty_delete_lookup(struct ksnap_user_data * cv_user_data,
+                              unsigned long page_index, unsigned long line_index, uint8_t is_page_level){
+    unsigned long index = cv_logging_get_index(page_index, line_index, is_page_level);
+    printk(KERN_EMERG "delete at index %lu, pid: %d\n", index, current->pid);
     radix_tree_delete(&cv_user_data->dirty_list_lookup, index);
 }
 
@@ -70,7 +79,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   }
 
   //is this page already in the dirty list? then this is the result of a checkpoint
-  if ((pte_list_entry=conv_dirty_search_lookup(cv_user_data, new_page->index))){
+  if ((pte_list_entry=conv_dirty_search_lookup(cv_user_data, new_page->index, 0, 1))){
       if (pte_list_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
           cv_page=cv_list_entry_get_page_entry(pte_list_entry);
           cv_page->pfn = pte_pfn(*new_pte);
@@ -92,7 +101,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       pte_list_entry->wait_revision = 0;
       //grab the inner entry for paging
       cv_page=cv_list_entry_get_page_entry(pte_list_entry);
-      conv_add_dirty_page_to_lookup(vma,pte_list_entry, new_page->index);
+      conv_add_dirty_page_to_lookup(vma,pte_list_entry, new_page->index,0,1);
       INIT_LIST_HEAD(&pte_list_entry->list);
       cv_page->pte = new_pte;
       cv_page->addr = address;

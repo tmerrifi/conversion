@@ -94,6 +94,25 @@ struct snapshot_pte_list * cv_per_page_version_walk_unsafe(struct snapshot_pte_l
   return NULL;
 }
 
+void cv_per_page_version_walk_unsafe_debug(struct snapshot_pte_list * wait_list, struct cv_per_page_version * ppv){
+  struct list_head * pos;
+  struct snapshot_pte_list * pte_entry;
+
+  list_for_each(pos, &wait_list->list){
+    pte_entry = list_entry(pos, struct snapshot_pte_list, list);
+    //check commit status
+    if (__commit_page_wait_status(ppv, pte_entry->page_index, pte_entry->wait_revision) == __CV_PPV_UNSAFE){
+        printk(KERN_EMERG ".....unsafe %d: wait %llu actual %llu %p",
+               pte_entry->page_index,
+               pte_entry->wait_revision,
+               ppv->entries[pte_entry->page_index].actual_version,
+               pte_entry);
+    }
+  }
+}
+
+
+
 void cv_per_page_version_update_version_entry(struct cv_per_page_version * ppv, struct snapshot_pte_list * version_list_entry){
   ppv->entries[version_list_entry->page_index].version_list_entry=version_list_entry;
 }
@@ -118,7 +137,6 @@ void cv_per_page_switch_to_logging(struct cv_per_page_version * ppv, uint32_t pa
     //set up the per page logging struture
     struct cv_per_page_logging_entry * pp_logging_entry = kmalloc(sizeof(struct cv_per_page_logging_entry), GFP_KERNEL);
     memset(pp_logging_entry, 0, sizeof(struct cv_per_page_logging_entry));
-    printk(KERN_EMERG "set logging entry....%p\n", pp_logging_entry);
     ppv->entries[page_index].logging_entry = pp_logging_entry;
 }
 
@@ -151,7 +169,6 @@ void cv_per_page_version_update_logging_entry(struct cv_per_page_version * ppv,
 struct snapshot_pte_list * cv_per_page_version_get_logging_entry(struct cv_per_page_version * ppv, uint32_t page_index, uint32_t line_index, uint64_t * version_num){
     //grab both the line version and the page level version
     struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
-    printk(KERN_EMERG "get logging entry....%p\n", pp_logging_entry);
     
     if (pp_logging_entry==NULL){
         return NULL;

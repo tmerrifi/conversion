@@ -48,6 +48,8 @@ void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struc
 
 struct snapshot_pte_list * cv_per_page_version_walk_unsafe(struct snapshot_pte_list * wait_list, struct cv_per_page_version * ppv);
 
+void cv_per_page_version_walk_unsafe_debug(struct snapshot_pte_list * wait_list, struct cv_per_page_version * ppv);
+
 void cv_per_page_version_update_version_entry(struct cv_per_page_version * ppv, struct snapshot_pte_list * version_list_entry);
 
 struct snapshot_pte_list * cv_per_page_version_get_version_entry(struct cv_per_page_version * ppv, uint32_t index);

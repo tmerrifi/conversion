@@ -8,11 +8,11 @@
 #include "../common/process_shared_malloc.h"
 
 #define NUM_OF_PAGES 100
-#define NUM_OF_THREADS 8
+#define NUM_OF_THREADS 2
 #define ARRAY_SIZE_BYTES (NUM_OF_PAGES * (1<<12))
 
 #define NUM_OF_RUNS 1000
-#define NUM_OF_ITERATIONS 100
+#define NUM_OF_ITERATIONS 50
 
 pthread_barrier_t * barrier;
 sem_t sem;
@@ -36,7 +36,8 @@ int compare_on_error(conv_seg * array_seg){
     unsigned char * array = (unsigned char *)array_seg->segment;
     for (i=0;i<ARRAY_SIZE_BYTES;++i){
         if (array[i]!=debug_array[i]){
-            printf("oops: %d page %d\n", i, i/4096);
+            printf("oops: %d page %d, is: %d, expected: %d, addr %p, pid: %d\n",
+                   i, i/4096, array[i], debug_array[i], array + i, getpid());
         }
     }
 }
@@ -80,7 +81,7 @@ void run(conv_seg * array_seg, int id){
 
 int main(){
     
-  srand(time(NULL));
+  srand(666);
   conv_seg * array_segment = conv_checkout_create(ARRAY_SIZE_BYTES, "simple_test", NULL);
 
   int i=0;

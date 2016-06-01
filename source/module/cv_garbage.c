@@ -47,13 +47,13 @@ void cv_garbage_final(struct ksnap * cv_seg){
             }
             else{
                 //handle logging entry
-                logging_entry=cv_list_entry_get_logging_entry(pte_list_entry);
-                if (logging_entry->data_len==PAGE_SIZE){
-                    kfree(logging_entry->data);
-                }
-                else{
-                    //need to free to slab allocator
-                }
+                //logging_entry=cv_list_entry_get_logging_entry(pte_list_entry);
+                /* if (logging_entry->data_len==PAGE_SIZE){ */
+                /*     kfree(logging_entry->data); */
+                /* } */
+                /* else{ */
+                /*     //need to free to slab allocator */
+                /* } */
             }
             list_del(pte_list_entry_pos);
             kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
@@ -121,7 +121,7 @@ void cv_garbage_collection(struct work_struct * work){
                   kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
               }
               else if (pte_list_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING){
-                  BUG();
+                  //BUG();
               }
 
           }

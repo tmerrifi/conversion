@@ -102,7 +102,7 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     pte_t new_pte_entry;
     uint8_t * local_addr, * kaddr;
 
-    //printk(KERN_EMERG "__migrate in update 1, page: %d, pid: %d", new_page, current->pid);
+    //printk(KERN_EMERG "start migration in update %d", current->pid);
     struct cv_logging_entry * logging_entry = cv_list_entry_get_logging_entry(entry);
     //grab the pte for our address
     pte_t * pte = pte_get_entry_from_address(vma->vm_mm, logging_entry->addr);
@@ -128,8 +128,6 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     if (cv_logging_page_status_insert(cv_user, logging_status_entry, entry->page_index)<0){
         BUG();
     }
-
-    
     //updating the pte with the new PFN and flush the TLB
     new_pte_entry = mk_pte(new_page, vma->vm_page_prot);
     new_pte_entry = pte_wrprotect(new_pte_entry);
@@ -248,6 +246,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
       list_for_each(pos, &latest_version_entry->pte_list->list){
 	//get the pte entry
 	tmp_pte_list = list_entry(pos, struct snapshot_pte_list, list);
+        //printk(KERN_EMERG ".........walking entry %p, pid %d, type %d", tmp_pte_list, current->pid, tmp_pte_list->type);
         if (tmp_pte_list->type == CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
             //*********We are committing a page*************
             page_entry = cv_list_entry_get_page_entry(tmp_pte_list);
@@ -257,7 +256,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_SKIP);
                 continue;
             }
-            dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
+            dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index, 0, 1);
             if (merge && dirty_entry){
                 //we have to merge our changes with the committed stuff
                 if (dirty_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
@@ -303,25 +302,21 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
         else{
             //LOGGING CODE
             logging_entry = cv_list_entry_get_logging_entry(tmp_pte_list);
-            dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index);
+            dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index, logging_entry->line_index, 1);
             //check to see if the current guy is obsolete
             if (tmp_pte_list->obsolete_version <= target_version_number){
-                //printk(KERN_EMERG "UPDATE of logging page SKIP 1 ...%d %d %lu %lu",
-                //     current->pid, tmp_pte_list->page_index,
-                //     tmp_pte_list->obsolete_version, target_version_number);
-                continue;
-            }
-            //don't do partial updates
-            else if (partial_update){
-                //printk(KERN_EMERG "UPDATE of logging page SKIP 2 ...%d %d",
-                //     current->pid, tmp_pte_list->page_index);
+                /* printk(KERN_EMERG "UPDATE of logging page SKIP 1 ...%d %d %lu %lu", */
+                /*        current->pid, tmp_pte_list->page_index, */
+                /*        tmp_pte_list->obsolete_version, target_version_number); */
                 continue;
             }
             else if (dirty_entry){
                 BUG();
             }
             else{
-                //printk(KERN_EMERG "UPDATE of logging page...%d %d", current->pid, tmp_pte_list->page_index);
+                printk(KERN_EMERG "UPDATE of logging page...%d %d version %lu addr %p %x",
+                       current->pid, tmp_pte_list->page_index, latest_version_entry->version_num,
+                       logging_entry->addr & (~PAGE_MASK), (CV_LOGGING_LOG_SIZE * logging_entry->line_index));
                 //ok do the update
                 logging_status_entry=cv_logging_page_status_lookup(cv_user, tmp_pte_list->page_index);
                 if (!logging_status_entry){
@@ -330,15 +325,22 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                     logging_status_entry=cv_logging_page_status_lookup(cv_user, tmp_pte_list->page_index);
                     BUG_ON(logging_status_entry==NULL);
                 }
-                printk(KERN_INFO "memcpy %p %p %lu %lu\n",
-                       ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
-                       logging_entry->data,
-                       logging_entry->data_len,
-                       logging_entry->line_index);
                 //copy the data
-                memcpy(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
+                memcpy( ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
                        logging_entry->data,
-                       logging_entry->data_len);                
+                       logging_entry->data_len);
+    
+                /* cv_logging_line_debug_print(tmp_pte_list, */
+                /*                             logging_entry, */
+                /*                             "update"); */
+
+                /* printk(KERN_EMERG "memcpy %p %p %lu %lu data %d\n", */
+                /*        ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index), */
+                /*        logging_entry->data, */
+                /*        logging_entry->data_len, */
+                /*        logging_entry->line_index, */
+                /*        *(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + 1631)); */
+
             }
         }
       }

@@ -82,6 +82,9 @@
 
 #define LOGGING_SIZE_BYTES (64*8) //one cache line
 
+#define LOGGING_DEBUG_PAGE_INDEX 91
+#define LOGGING_DEBUG_INDEX 13
+
 struct cv_logging_data_entry{
     uint8_t data[LOGGING_SIZE_BYTES];
 };
@@ -148,6 +151,8 @@ struct cv_logging_page_status_entry{
     unsigned long pfn;
     pte_t * pte;
     uint32_t logging_writes;
+    struct snapshot_pte_list * lines[PAGE_SIZE/CV_LOGGING_LOG_SIZE];
+    struct snapshot_pte_list * page_entry;
 };
 
 struct ksnap{
@@ -286,5 +291,11 @@ void conv_checkpoint(struct vm_area_struct * vma);
 #define conv_is_checkpointed_logging_entry(entry) \
     (entry->local_checkpoint_data!=NULL)
 
+#define conv_debug_logging_is_line(page_index, line_index) \
+    (page_index==LOGGING_DEBUG_PAGE_INDEX && line_index==LOGGING_DEBUG_INDEX)
+
+void cv_logging_line_debug_print(struct snapshot_pte_list * dirty_list_entry,
+                                 struct cv_logging_entry * logging_entry,
+                                 char * message);
 
 #endif

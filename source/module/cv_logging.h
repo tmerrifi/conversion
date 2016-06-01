@@ -7,13 +7,22 @@ struct ksnap;
 struct ksnap_user_data;
 struct cv_logging_page_status_entry;
 
+#ifdef CV_FORCE_LOGGING
 //every N committed pages, we check to see if this page should be turned into a logging page
 //#define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 64
-
 #define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 1
-
 //how many 64bit words can be different in order to trigger a switch to logging
-#define CV_LOGGING_DIFF_THRESHOLD_64 1
+#define CV_LOGGING_DIFF_THRESHOLD_64 64
+
+#else
+
+//every N committed pages, we check to see if this page should be turned into a logging page
+//#define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 64
+#define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 64
+//how many 64bit words can be different in order to trigger a switch to logging
+#define CV_LOGGING_DIFF_THRESHOLD_64 4
+
+#endif //CV_FORCE_LOGGING
 
 #define CV_LOGGING_SWITCH_BITMASK 0xFUL
 
@@ -22,7 +31,7 @@ struct cv_logging_page_status_entry;
 
 #define CV_LOGGING_LOG_MASK (~((1<<6)-1))
 
-#define CV_LOGGING_WRITES_THRESHOLD 5
+#define CV_LOGGING_WRITES_THRESHOLD 4
 
 #define CV_LOGGING_INSTRUCTION_MAX_WIDTH 15  //maximum width for an instruction when we decode it
 
@@ -69,5 +78,11 @@ void cv_merge_line(uint8_t * local, uint8_t * ref, uint8_t * latest);
 #define cv_logging_page_status_to_kaddr(e,li) ((uint8_t *)pfn_to_kaddr(e->pfn) + li )
 
 uint8_t * cv_logging_allocate_data_entry(int data_len, struct ksnap * cv_seg);
+
+void cv_logging_free_data_entry(int data_len, struct ksnap * cv_seg, void * data);
+
+
+
+#define sum_page(ptr,i,sum) for(i=0;i<PAGE_SIZE/sizeof(int);i++){sum+=*ptr++;}
 
 #endif

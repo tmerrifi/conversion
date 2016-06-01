@@ -36,18 +36,33 @@ int __checkpoint_page(struct cv_page_entry * page_entry, struct snapshot_pte_lis
 }
 
 int __checkpoint_logging(struct cv_logging_entry * logging_entry, struct snapshot_pte_list * entry,
-                  struct vm_area_struct * vma){
+                         struct ksnap_user_data * cv_user,
+                         struct vm_area_struct * vma){
+
+    struct cv_logging_page_status_entry * logging_entry_status;
     struct ksnap * cv_seg = ksnap_vma_to_ksnap(vma);
+    pte_t page_table_e;
+    
     if (cv_logging_is_dirty(logging_entry)){
+        printk(KERN_EMERG "check logging index: %d, pid: %d", entry->page_index, current->pid);
         //just write over the old data
         if (!logging_entry->local_checkpoint_data){
             logging_entry->local_checkpoint_data=cv_logging_allocate_data_entry(logging_entry->data_len, cv_seg);
         }
         memcpy(logging_entry->local_checkpoint_data, (uint8_t *)logging_entry->addr, logging_entry->data_len);
         cv_logging_clear_dirty(logging_entry);
+        //if its a page level logging entry, we need to enable write protection again
+        if (cv_logging_is_full_page(logging_entry)){
+            logging_entry_status = cv_logging_page_status_lookup(cv_user, entry->page_index);
+            page_table_e = ptep_get_and_clear(vma->vm_mm, (uint8_t *)logging_entry->addr, logging_entry_status->pte);
+            //make write-protected
+            set_pte(logging_entry_status->pte, pte_wrprotect(page_table_e));
+            __flush_tlb_one(logging_entry->addr);
+        }
         return 1;
     }
     else{
+        printk(KERN_EMERG "check logging NOT DIRTY index: %d, pid: %d", entry->page_index, current->pid);
         return 0;
     }
 }
@@ -70,6 +85,7 @@ void conv_checkpoint(struct vm_area_struct * vma){
         else if (entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING){
             __checkpoint_logging(cv_list_entry_get_logging_entry(entry),
                                  entry,
+                                 cv_user,
                                  vma);
         }
     }
