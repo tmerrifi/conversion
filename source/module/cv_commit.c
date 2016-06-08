@@ -234,12 +234,9 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
         /* printk(KERN_EMERG "done committing line, pid: %d, page index: %d, line index: %d, our_version: %lu, latest_version: %lu, old version: %lu\n", */
         /*        current->pid, latest_entry->page_index, logging_entry->line_index, our_version_number, latest_version_num, cv_user->version_num); */
 
+        //        
+        logging_page_status->lines[logging_entry->line_index]=NULL;
         __remove_old_logging_line(cv_seg, entry, entry->page_index, logging_entry->line_index, our_version_number);
-
-        /* cv_logging_line_debug_print(entry, */
-        /*                             logging_entry, */
-        /*                             "commit"); */
-
     }
 
     logging_page_status->logging_writes=0;
