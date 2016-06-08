@@ -77,7 +77,8 @@ void cv_per_page_version_update_logging_entry(struct cv_per_page_version * ppv,
                                               uint32_t line_index);
 
 
-struct snapshot_pte_list * cv_per_page_version_get_logging_entry(struct cv_per_page_version * ppv, uint32_t page_index, uint32_t line_index, uint64_t * version_num);
+struct snapshot_pte_list * cv_per_page_version_get_logging_entry_and_version(struct cv_per_page_version * ppv, uint32_t page_index,
+                                                                             uint32_t line_index, uint64_t * version_num, int is_page_level);
 
 struct snapshot_pte_list * cv_per_page_version_get_logging_line_entry(struct cv_per_page_version * ppv, uint32_t page_index,
                                                                       uint32_t line_index);

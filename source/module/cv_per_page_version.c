@@ -166,19 +166,30 @@ void cv_per_page_version_update_logging_entry(struct cv_per_page_version * ppv,
     pp_logging_entry->max_version=version_num;
 }
 
-struct snapshot_pte_list * cv_per_page_version_get_logging_entry(struct cv_per_page_version * ppv, uint32_t page_index, uint32_t line_index, uint64_t * version_num){
+struct snapshot_pte_list * cv_per_page_version_get_logging_entry_and_version(struct cv_per_page_version * ppv, uint32_t page_index,
+                                                                             uint32_t line_index, uint64_t * version_num, int is_page_level){
     //grab both the line version and the page level version
     struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
     
     if (pp_logging_entry==NULL){
         return NULL;
     }
-    else if (pp_logging_entry->page_version > pp_logging_entry->lines[line_index].version){
-        //the page level is the latest
+    else if ((is_page_level && pp_logging_entry->page_version == pp_logging_entry->max_version) ||
+             (!is_page_level && pp_logging_entry->page_version > pp_logging_entry->lines[line_index].version)){
+        //return the page level entry and version number
         *version_num = pp_logging_entry->page_version;
         return pp_logging_entry->page_entry;
     }
+    else if (is_page_level){
+        //we're page level, but there's a logging entry that's newer
+        *version_num = pp_logging_entry->max_version;
+        printk(KERN_EMERG "returning NULL\n");
+        return NULL;
+    }
     else{
+        if (page_index==12){
+            printk(KERN_EMERG "returning the line version, %lu, max version is %lu\n", pp_logging_entry->lines[line_index].version, pp_logging_entry->max_version);
+        }
         //returning the line entry
         *version_num = pp_logging_entry->lines[line_index].version;
         return pp_logging_entry->lines[line_index].line_entry;

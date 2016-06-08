@@ -275,9 +275,6 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         INIT_LIST_HEAD(&dirty_list_entry->list);
         /*now we need to add the pte to the list */
         list_add_tail(&dirty_list_entry->list, &cv_user->dirty_pages_list->list);
-        if (page_index==11){
-            printk(KERN_EMERG "CV_LOGGING: creating new entry. pid: %d, cache_line: %d, data: %p\n", current->pid, logging_entry->line_index, logging_entry->data);
-        }
     }
     else{
         //just grab the logging entry otherwise
@@ -290,13 +287,17 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         memcpy(logging_entry->data,cv_logging_line_start(faulting_addr),CV_LOGGING_LOG_SIZE);
         uint8_t * kaddr_faulting = pfn_to_kaddr(logging_status_entry->pfn) + (faulting_addr & (~PAGE_MASK));
         if ((write_width=interpret(regs->ip, CV_LOGGING_INSTRUCTION_MAX_WIDTH, kaddr_faulting, regs))){
-            //printk(KERN_EMERG "LOGGING FAULT: interpret succeeded! pid: %d\n", current->pid);
             cv_logging_set_dirty(logging_entry);
             logging_status_entry->logging_writes++;
             handled=1;
             //cv_logging_free_data_entry(CV_LOGGING_LOG_SIZE, cv_seg, logging_entry->data);
             //store this in our logging status entry so we can easily find it later if we switch to page-level
             logging_status_entry->lines[logging_entry->line_index]=dirty_list_entry;
+            if (page_index==12){
+                printk(KERN_EMERG "LOGGING FAULT: interpret succeeded! pid: %d, index %lu\n", current->pid, logging_entry->line_index);
+            }
+
+            
             //we succeeded, figure out if we wrote to more than one cache line
             BUG_ON(cv_logging_line_start(faulting_addr) + write_width > cv_logging_line_start(faulting_addr) + CV_LOGGING_LOG_SIZE);
             //cv_logging_line_debug_print(dirty_list_entry, logging_entry, "added logging entry");
