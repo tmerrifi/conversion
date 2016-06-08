@@ -314,9 +314,9 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 BUG();
             }
             else{
-                printk(KERN_EMERG "UPDATE of logging page...%d %d version %lu addr %p %x",
-                       current->pid, tmp_pte_list->page_index, latest_version_entry->version_num,
-                       logging_entry->addr & (~PAGE_MASK), (CV_LOGGING_LOG_SIZE * logging_entry->line_index));
+                /* printk(KERN_EMERG "UPDATE of logging page...%d %d version %lu addr %p %x", */
+                /*        current->pid, tmp_pte_list->page_index, latest_version_entry->version_num, */
+                /*        logging_entry->addr & (~PAGE_MASK), (CV_LOGGING_LOG_SIZE * logging_entry->line_index)); */
                 //ok do the update
                 logging_status_entry=cv_logging_page_status_lookup(cv_user, tmp_pte_list->page_index);
                 if (!logging_status_entry){
@@ -329,18 +329,16 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 memcpy( ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
                        logging_entry->data,
                        logging_entry->data_len);
-    
-                /* cv_logging_line_debug_print(tmp_pte_list, */
-                /*                             logging_entry, */
-                /*                             "update"); */
 
-                /* printk(KERN_EMERG "memcpy %p %p %lu %lu data %d\n", */
-                /*        ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index), */
-                /*        logging_entry->data, */
-                /*        logging_entry->data_len, */
-                /*        logging_entry->line_index, */
-                /*        *(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + 1631)); */
-
+                if (tmp_pte_list->page_index==12){
+                    printk(KERN_EMERG "memcpy %p %p %lu %lu data %d, pid %d, logging_entry %p, version %lu\n",
+                           ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
+                           logging_entry->data,
+                           logging_entry->data_len,
+                           logging_entry->line_index,
+                           *(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + 1119), current->pid, logging_entry,
+                           latest_version_entry->version_num);
+                }
             }
         }
       }

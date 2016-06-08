@@ -84,4 +84,7 @@ struct snapshot_pte_list * cv_per_page_version_get_logging_line_entry(struct cv_
 
 struct snapshot_pte_list * cv_per_page_version_get_logging_page_entry(struct cv_per_page_version * ppv, uint32_t page_index);
 
+void cv_per_page_version_clear_logging_line_entry(struct cv_per_page_version * ppv, uint32_t page_index,
+                                                  uint32_t line_index);
+
 #endif

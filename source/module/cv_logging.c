@@ -64,7 +64,7 @@ uint8_t * cv_logging_allocate_data_entry(int data_len, struct ksnap * cv_seg){
 void cv_logging_free_data_entry(int data_len, struct ksnap * cv_seg, void * data){
     if (data_len==PAGE_SIZE){
         return kfree(data);
-    }
+    }    
     else{
         return kmem_cache_free(cv_seg->logging_data_entry_mem_cache, data);
     }
@@ -240,8 +240,8 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     uint32_t page_index = (faulting_addr - vma->vm_start)/PAGE_SIZE;
     
     struct cv_logging_page_status_entry * logging_status_entry = cv_logging_page_status_lookup(cv_user, page_index);
-    printk(KERN_EMERG "logging fault, pid: %d, page index: %d, data %d, addr %p\n",
-           current->pid, page_index, *((int *)faulting_addr), faulting_addr);
+    /* printk(KERN_EMERG "logging fault, pid: %d, page index: %d, data %d, addr %p\n", */
+    /*        current->pid, page_index, *((int *)faulting_addr), faulting_addr); */
     
     if (!logging_status_entry){
         return 0;
@@ -275,12 +275,14 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         INIT_LIST_HEAD(&dirty_list_entry->list);
         /*now we need to add the pte to the list */
         list_add_tail(&dirty_list_entry->list, &cv_user->dirty_pages_list->list);
-        printk(KERN_EMERG "CV_LOGGING: creating new entry. pid: %d, cache_line: %d\n", current->pid, logging_entry->line_index);
+        if (page_index==11){
+            printk(KERN_EMERG "CV_LOGGING: creating new entry. pid: %d, cache_line: %d, data: %p\n", current->pid, logging_entry->line_index, logging_entry->data);
+        }
     }
     else{
         //just grab the logging entry otherwise
         logging_entry = cv_list_entry_get_logging_entry(dirty_list_entry);
-        printk(KERN_EMERG "CV_LOGGING: entry already exists. pid: %d, cache_line: %d\n", current->pid, logging_entry->line_index);
+        //printk(KERN_EMERG "CV_LOGGING: entry already exists. pid: %d, cache_line: %d\n", current->pid, logging_entry->line_index);
     }
     
     if (logging_status_entry->logging_writes < CV_LOGGING_WRITES_THRESHOLD){
@@ -288,11 +290,11 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         memcpy(logging_entry->data,cv_logging_line_start(faulting_addr),CV_LOGGING_LOG_SIZE);
         uint8_t * kaddr_faulting = pfn_to_kaddr(logging_status_entry->pfn) + (faulting_addr & (~PAGE_MASK));
         if ((write_width=interpret(regs->ip, CV_LOGGING_INSTRUCTION_MAX_WIDTH, kaddr_faulting, regs))){
-            printk(KERN_EMERG "LOGGING FAULT: interpret succeeded! pid: %d\n", current->pid);
+            //printk(KERN_EMERG "LOGGING FAULT: interpret succeeded! pid: %d\n", current->pid);
             cv_logging_set_dirty(logging_entry);
             logging_status_entry->logging_writes++;
             handled=1;
-            cv_logging_free_data_entry(CV_LOGGING_LOG_SIZE, cv_seg, logging_entry->data);
+            //cv_logging_free_data_entry(CV_LOGGING_LOG_SIZE, cv_seg, logging_entry->data);
             //store this in our logging status entry so we can easily find it later if we switch to page-level
             logging_status_entry->lines[logging_entry->line_index]=dirty_list_entry;
             //we succeeded, figure out if we wrote to more than one cache line
@@ -302,13 +304,13 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     }
         
     if (!handled){
-        printk(KERN_EMERG "cow page index: %d, pid: %d, data: %d\n",
-               dirty_list_entry->page_index, current->pid,
-               *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX );
+        /* printk(KERN_EMERG "cow page index: %d, pid: %d, data: %d\n", */
+        /*        dirty_list_entry->page_index, current->pid, */
+        /*        *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX ); */
         cv_logging_cow_page_fault(vma, dirty_list_entry, logging_entry, logging_status_entry, faulting_addr, logging_status_entry->pte);
-        printk(KERN_EMERG "cow page index: %d, pid: %d, data: %d\n",
-               dirty_list_entry->page_index, current->pid,
-               *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX);
+        /* printk(KERN_EMERG "cow page index: %d, pid: %d, data: %d\n", */
+        /*        dirty_list_entry->page_index, current->pid, */
+        /*        *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX); */
     }
     cv_meta_inc_dirty_page_count(vma);
     cv_user->dirty_pages_list_count++;

@@ -34,21 +34,21 @@ void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_
             radix_tree_delete(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index);
             radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
         }
-        printk(KERN_EMERG "added entry at index %lu, pid: %d\n", index, current->pid);
+        //printk(KERN_EMERG "added entry at index %lu, pid: %d\n", index, current->pid);
     }
 }
 
 struct snapshot_pte_list * conv_dirty_search_lookup(struct ksnap_user_data * cv_user_data,
                                                     unsigned long page_index, unsigned long line_index, uint8_t is_page_level){
     unsigned long index = cv_logging_get_index(page_index, line_index, is_page_level);
-    printk(KERN_EMERG "lookup at index %lu, pid: %d\n", index, current->pid);
+    //printk(KERN_EMERG "lookup at index %lu, pid: %d\n", index, current->pid);
     return radix_tree_lookup(&cv_user_data->dirty_list_lookup, index);
 }
 
 void conv_dirty_delete_lookup(struct ksnap_user_data * cv_user_data,
                               unsigned long page_index, unsigned long line_index, uint8_t is_page_level){
     unsigned long index = cv_logging_get_index(page_index, line_index, is_page_level);
-    printk(KERN_EMERG "delete at index %lu, pid: %d\n", index, current->pid);
+    //printk(KERN_EMERG "delete at index %lu, pid: %d\n", index, current->pid);
     radix_tree_delete(&cv_user_data->dirty_list_lookup, index);
 }
 

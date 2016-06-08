@@ -196,6 +196,15 @@ struct snapshot_pte_list * cv_per_page_version_get_logging_line_entry(struct cv_
     }
 }
 
+void cv_per_page_version_clear_logging_line_entry(struct cv_per_page_version * ppv, uint32_t page_index,
+                                                                      uint32_t line_index){
+    struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
+    if (pp_logging_entry!=NULL){
+        pp_logging_entry->lines[line_index].line_entry=NULL;
+    }
+}
+
+
 struct snapshot_pte_list * cv_per_page_version_get_logging_page_entry(struct cv_per_page_version * ppv, uint32_t page_index){
     struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
     if (pp_logging_entry==NULL){
