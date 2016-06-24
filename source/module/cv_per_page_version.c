@@ -49,7 +49,7 @@ uint32_t __commit_page_status(struct cv_per_page_version * ppv, uint32_t page_in
 }
 
 uint32_t __commit_page_wait_status(struct cv_per_page_version * ppv, uint32_t page_index, uint64_t wait_version){
-  if(ppv->entries[page_index].actual_version == wait_version){
+  if(ppv->entries[page_index].actual_version >= wait_version){
     return __CV_PPV_SAFE;
   }
   else{
@@ -67,13 +67,18 @@ void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struc
   list_for_each_safe(pos, tmp_pos, &dirty_pages_list->list){
       //get the pte_entry
       pte_entry = list_entry(pos, struct snapshot_pte_list, list);
+      //double check and make sure that we aren't just dealing with a redundant logging entry for the same page
+      if (pte_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING &&
+          ppv->entries[pte_entry->page_index].interest_version==revision_number){
+          continue;
+      }
       //if the interest and actual aren't equal, we need to store the interest and move it into the right list
       if (__commit_page_status(ppv, pte_entry->page_index)==__CV_PPV_UNSAFE){
-	pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version; //keep this so we can wait on interest to match actual later...
-        //add it to the wait list
-	list_del(&pte_entry->list);
-	INIT_LIST_HEAD(&pte_entry->list);
-	list_add(&pte_entry->list, &wait_list->list);
+          pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version; //keep this so we can wait on interest to match actual later...
+          //add it to the wait list
+          list_del(&pte_entry->list);
+          INIT_LIST_HEAD(&pte_entry->list);
+          list_add(&pte_entry->list, &wait_list->list);
       }
       //regardless, set our own interest level
       ppv->entries[pte_entry->page_index].interest_version=revision_number;
@@ -102,11 +107,13 @@ void cv_per_page_version_walk_unsafe_debug(struct snapshot_pte_list * wait_list,
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
     //check commit status
     if (__commit_page_wait_status(ppv, pte_entry->page_index, pte_entry->wait_revision) == __CV_PPV_UNSAFE){
-        printk(KERN_EMERG ".....unsafe %d: wait %llu actual %llu %p",
+        printk(KERN_EMERG ".....unsafe %d: wait %llu actual %llu %p pid %d",
                pte_entry->page_index,
                pte_entry->wait_revision,
                ppv->entries[pte_entry->page_index].actual_version,
-               pte_entry);
+               pte_entry,
+               current->pid
+               );
     }
   }
 }
@@ -183,7 +190,6 @@ struct snapshot_pte_list * cv_per_page_version_get_logging_entry_and_version(str
     else if (is_page_level){
         //we're page level, but there's a logging entry that's newer
         *version_num = pp_logging_entry->max_version;
-        printk(KERN_EMERG "returning NULL\n");
         return NULL;
     }
     else{
@@ -226,3 +232,23 @@ struct snapshot_pte_list * cv_per_page_version_get_logging_page_entry(struct cv_
     }
 }
 
+int cv_per_page_version_logging_page_entry_is_max_version(struct cv_per_page_version * ppv, uint32_t page_index){
+    struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
+    if (pp_logging_entry==NULL){
+        return 0;
+    }
+    else{
+        return (pp_logging_entry->max_version==pp_logging_entry->page_version);
+    }    
+}
+
+uint64_t cv_per_page_version_logging_get_full_page_version(struct cv_per_page_version * ppv, uint32_t page_index){
+    struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
+    if (pp_logging_entry==NULL){
+        return 0;
+    }
+    else{
+        return pp_logging_entry->page_version;
+    }    
+
+}

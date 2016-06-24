@@ -109,6 +109,7 @@ struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * 
     entry->pte=pte;
     entry->pfn=pfn;
     entry->logging_writes=0;
+    entry->entries_allocated=0;
     memset(entry->lines, 0, (PAGE_SIZE/CV_LOGGING_LOG_SIZE) * sizeof(struct snapshot_pte_list *));
     entry->page_entry=NULL;
     return entry;
@@ -171,8 +172,8 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
         if (logging_status_entry->lines[i]){
             struct snapshot_pte_list * entry_old = logging_status_entry->lines[i];
             struct cv_logging_entry * logging_entry_old = cv_list_entry_get_logging_entry(entry_old);
-            printk(KERN_EMERG "copying the old stuff, pid: %d, page: %d, line: %d, i: %d, entry: %p, entry_old %p\n",
-                   current->pid, entry->page_index, logging_entry_old->line_index, i, entry, entry_old);
+            /* printk(KERN_EMERG "copying the old stuff, pid: %d, page: %d, line: %d, i: %d, entry: %p, entry_old %p\n", */
+            /*        current->pid, entry->page_index, logging_entry_old->line_index, i, entry, entry_old); */
             //copy the reference data over
             memcpy(logging_entry->data + i*CV_LOGGING_LOG_SIZE, logging_entry_old->data, CV_LOGGING_LOG_SIZE);
             //remove from dirty list
@@ -275,6 +276,7 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         INIT_LIST_HEAD(&dirty_list_entry->list);
         /*now we need to add the pte to the list */
         list_add_tail(&dirty_list_entry->list, &cv_user->dirty_pages_list->list);
+        logging_status_entry->entries_allocated++;
     }
     else{
         //just grab the logging entry otherwise
@@ -294,7 +296,8 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
             //store this in our logging status entry so we can easily find it later if we switch to page-level
             logging_status_entry->lines[logging_entry->line_index]=dirty_list_entry;
             if (page_index==12){
-                printk(KERN_EMERG "LOGGING FAULT: interpret succeeded! pid: %d, index %lu\n", current->pid, logging_entry->line_index);
+                printk(KERN_EMERG "LOGGING FAULT: interpret succeeded! pid: %d, index %lu, logging_writes %d\n",
+                       current->pid, logging_entry->line_index, logging_status_entry->logging_writes);
             }
 
             
@@ -309,6 +312,8 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         /*        dirty_list_entry->page_index, current->pid, */
         /*        *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX ); */
         cv_logging_cow_page_fault(vma, dirty_list_entry, logging_entry, logging_status_entry, faulting_addr, logging_status_entry->pte);
+        logging_status_entry->logging_writes=0;
+        logging_status_entry->entries_allocated=0;
         /* printk(KERN_EMERG "cow page index: %d, pid: %d, data: %d\n", */
         /*        dirty_list_entry->page_index, current->pid, */
         /*        *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX); */

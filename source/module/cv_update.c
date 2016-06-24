@@ -139,6 +139,44 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     //printk(KERN_EMERG "__migrate in update 4, page: %d, pid: %d", new_page, current->pid);
 }
 
+void copy_logging_data(struct ksnap * cv_seg, uint8_t * destination_page,
+                       struct snapshot_pte_list * entry,
+                       struct cv_logging_entry * logging_entry){
+
+    uint64_t line_version, page_version;
+    struct snapshot_pte_list * line_entry;
+    int line_index=0;
+    
+    if (cv_logging_is_full_page(logging_entry) && !cv_per_page_version_logging_page_entry_is_max_version(cv_seg->ppv, entry->page_index)){
+        //a full page can only be copied if its the latest entry (considering both pages and lines). Otherwise, we need
+        //to go line by line and only copy stuff that is not outdated.
+        printk(KERN_INFO "Whoops! Need to go line by line, index: %d!\n", entry->page_index);
+        page_version=cv_per_page_version_logging_get_full_page_version(cv_seg->ppv, entry->page_index);
+        cv_per_page_logging_entry_line_for_each(cv_seg->ppv,entry->page_index,
+                                                line_entry,line_version){
+            if (page_version>line_version){
+                //the page is newer
+                printk(KERN_INFO "copy the page in here....%d, %lu, %lu\n", line_index, line_version, page_version);
+                
+                memcpy(destination_page + (CV_LOGGING_LOG_SIZE*line_index),
+                        logging_entry->data + (CV_LOGGING_LOG_SIZE*line_index),
+                        CV_LOGGING_LOG_SIZE); 
+            }
+            else{
+                printk(KERN_INFO "HOLD OFF");
+            }
+            line_index++;
+        }
+        printk(KERN_INFO "broke out of here!!!!\n");
+    }
+    else{
+        //copy the data
+        memcpy(destination_page + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
+               logging_entry->data,
+               logging_entry->data_len);
+    }
+}
+
 
 void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint64_t target_version_input, int defer_work){
   //struct vm_area_struct * master_vma;
@@ -325,13 +363,19 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                     logging_status_entry=cv_logging_page_status_lookup(cv_user, tmp_pte_list->page_index);
                     BUG_ON(logging_status_entry==NULL);
                 }
-                //copy the data
-                memcpy( ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
-                       logging_entry->data,
-                       logging_entry->data_len);
+
+                /* memcpy( ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index), */
+                /*         logging_entry->data, */
+                /*         logging_entry->data_len); */
+
+                 copy_logging_data(cv_seg,
+                                   (uint8_t *)pfn_to_kaddr(logging_status_entry->pfn),
+                                   tmp_pte_list,
+                                   logging_entry);
+                
 
                 if (tmp_pte_list->page_index==12){
-                    printk(KERN_EMERG "memcpy %p %p %lu %lu data %d, pid %d, logging_entry %p, version %lu\n",
+                    printk(KERN_INFO "memcpy %p %p %lu %lu data %d, pid %d, logging_entry %p, version %lu\n",
                            ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
                            logging_entry->data,
                            logging_entry->data_len,

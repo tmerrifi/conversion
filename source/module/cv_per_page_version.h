@@ -12,7 +12,7 @@ struct cv_per_page_logging_entry_line{
 };
 
 struct cv_per_page_logging_entry{
-    struct cv_per_page_logging_entry_line lines[PAGE_SIZE/CV_LOGGING_LOG_SIZE];
+    struct cv_per_page_logging_entry_line lines[CV_LOGGING_LINES_PER_PAGE];
     struct snapshot_pte_list * page_entry;
     uint64_t page_version;
     uint64_t max_version;
@@ -40,6 +40,18 @@ struct cv_per_page_version_wait_list_entry{
 
 #define __CV_PPV_SAFE 1
 #define __CV_PPV_UNSAFE 2
+
+#define cv_per_page_logging_entry_line_for_each(ppv, page_index,l,v)  \
+    struct cv_per_page_logging_entry * __pp_logging_entry__ = ppv->entries[page_index].logging_entry; \
+    int __i__=0;\
+    v=__pp_logging_entry__->lines[__i__].version; \
+    for (;\
+         __i__<CV_LOGGING_LINES_PER_PAGE;\
+         __i__++,v=__pp_logging_entry__->lines[__i__].version,\
+             l=__pp_logging_entry__->lines[__i__].line_entry)
+
+
+
 
 struct cv_per_page_version * cv_per_page_version_init(uint32_t page_count);
 
@@ -87,5 +99,9 @@ struct snapshot_pte_list * cv_per_page_version_get_logging_page_entry(struct cv_
 
 void cv_per_page_version_clear_logging_line_entry(struct cv_per_page_version * ppv, uint32_t page_index,
                                                   uint32_t line_index);
+
+int cv_per_page_version_logging_page_entry_is_max_version(struct cv_per_page_version * ppv, uint32_t page_index);
+
+uint64_t cv_per_page_version_logging_get_full_page_version(struct cv_per_page_version * ppv, uint32_t page_index);
 
 #endif

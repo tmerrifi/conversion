@@ -46,8 +46,8 @@ void __remove_old_logging_page(struct ksnap * cv_seg, struct snapshot_pte_list *
     for (;i<PAGE_SIZE/CV_LOGGING_LOG_SIZE;i++){
         old_entry=cv_per_page_version_get_logging_line_entry(cv_seg->ppv, page_index, i);
         if (old_entry){
-            printk(KERN_EMERG "found old logging entry in ppv, page %d, index %d, pid %d, old entry %p\n",
-                   page_index, i, current->pid, old_entry);
+            /* printk(KERN_EMERG "found old logging entry in ppv, page %d, index %d, pid %d, old entry %p\n", */
+            /*        page_index, i, current->pid, old_entry); */
             old_entry->obsolete_version=our_version_number;
             cv_per_page_version_clear_logging_line_entry(cv_seg->ppv, page_index, i);
         }
@@ -131,19 +131,19 @@ void __merge_full_page_with_cache_lines(struct cv_logging_entry * logging_entry,
                                logging_entry->data,
                                latest_logging_entry->data,
                                CV_LOGGING_MERGE_WORDS);
-            if (entry->page_index==12){
-                printk(KERN_EMERG "merge full page with cache lines... pid: %d, cache line %lu\n", current->pid, latest_logging_entry->line_index);
-            }
+            /* if (entry->page_index==12){ */
+            /*     printk(KERN_EMERG "merge full page with cache lines... pid: %d, cache line %lu\n", current->pid, latest_logging_entry->line_index); */
+            /* } */
         }
     }
 }
 
 void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct snapshot_pte_list * entry,
                              struct vm_area_struct * vma,
-                             struct ksnap * cv_seg, struct ksnap_user_data * cv_user, uint64_t our_version_number){
+                             struct ksnap * cv_seg, struct ksnap_user_data * cv_user,
+                             uint64_t our_version_number, struct cv_logging_page_status_entry * logging_page_status){
     struct snapshot_pte_list * latest_entry;
     struct cv_logging_entry * latest_logging_entry=NULL;
-    struct cv_logging_page_status_entry * logging_page_status;
     
     char * latest, * local, * ref;
     uint64_t latest_version_num;
@@ -153,14 +153,14 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                                                                      logging_entry->line_index, &latest_version_num,
                                                                      cv_logging_is_full_page(logging_entry));
     
-    logging_page_status = cv_logging_page_status_lookup(cv_user, entry->page_index);
+    //logging_page_status = cv_logging_page_status_lookup(cv_user, entry->page_index);
 
     uint8_t * data_addr = ((uint8_t*)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX;
 
-    if (entry->page_index==12){
-        printk(KERN_EMERG "committing logging entry our version %lu, latest %lu, line index %lu\n", 
-               cv_user->version_num, latest_version_num, logging_entry->line_index); 
-    }
+    /* if (entry->page_index==12){ */
+    /*     printk(KERN_EMERG "committing logging entry our version %lu, latest %lu, line index %lu\n",  */
+    /*            cv_user->version_num, latest_version_num, logging_entry->line_index);  */
+    /* } */
         
     if (latest_version_num > cv_user->version_num){
         if (latest_entry){
@@ -173,9 +173,9 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
         //are we a full page or just a cache line?
         if (cv_logging_is_full_page(logging_entry)){
 
-            if (entry->page_index==12){
-                printk(KERN_EMERG "committing full page, pid: %d\n", current->pid);
-            }
+            /* if (entry->page_index==12){ */
+            /*     printk(KERN_EMERG "committing full page, pid: %d\n", current->pid); */
+            /* } */
 
             
             //there are two possibilities here. Firstly, the latest version committed
@@ -190,20 +190,19 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                                    latest_logging_entry->data,
                                    PAGE_SIZE);
                 //now copy the full page into the entry data
-                if (latest_entry->page_index==12){
-                    printk(KERN_EMERG "merged logging (full) page DONE, pid: %d, page index: %d\n",
-                           current->pid, latest_entry->page_index);
-                }
+                /* if (latest_entry->page_index==12){ */
+                /*     printk(KERN_EMERG "merged logging (full) page DONE, pid: %d, page index: %d\n", */
+                /*            current->pid, latest_entry->page_index); */
+                /* } */
             }
             else{
-                if (entry->page_index==12){
-                    printk(KERN_EMERG "SLOW merging logging (full) page, pid: %d, page index: %d\n",
-                           current->pid, entry->page_index);
-                }
+                /* if (entry->page_index==12){ */
+                /*     printk(KERN_EMERG "SLOW merging logging (full) page, pid: %d, page index: %d\n", */
+                /*            current->pid, entry->page_index); */
+                /* } */
                 //need to traverse all of the lines and merge :(
                 __merge_full_page_with_cache_lines(logging_entry, logging_page_status, entry, cv_seg, cv_user);
             }
-            
         }
         else{
             //we are committing a small (cache line) entry
@@ -220,23 +219,23 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                                logging_entry->data,
                                latest,
                                CV_LOGGING_MERGE_WORDS);
-            if (entry->page_index==12){
-                printk(KERN_EMERG "merged logging page, pid: %d, page index: %d\n", 
-                       current->pid, latest_entry->page_index);
-            }
+            /* if (entry->page_index==12){ */
+            /*     printk(KERN_EMERG "merged logging page, pid: %d, page index: %d\n",  */
+            /*            current->pid, latest_entry->page_index); */
+            /* } */
         }
     }
     //we need to copy our new data into our entry
     memcpy(logging_entry->data, (uint8_t *)logging_entry->addr, logging_entry->data_len);
 
-    if (cv_logging_is_full_page(logging_entry)){
-        int i=0;
-        int sum=0;
-        int * ptr=(int *)logging_entry->data;
-        sum_page(ptr, i, sum);
-        /* printk(KERN_EMERG "committing our data...pid: %d, sum: %d\n", */
-        /*        current->pid, sum); */
-    }
+    /* if (cv_logging_is_full_page(logging_entry)){ */
+    /*     int i=0; */
+    /*     int sum=0; */
+    /*     int * ptr=(int *)logging_entry->data; */
+    /*     sum_page(ptr, i, sum); */
+    /*     printk(KERN_EMERG "committing our data...pid: %d, sum: %d\n", */
+    /*            current->pid, sum); */
+    /* } */
            
     
     if (cv_logging_is_full_page(logging_entry)){
@@ -249,6 +248,7 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
         //printk(KERN_EMERG "done committing and write protecting page, pid: %d, page index: %d\n",
         //     current->pid, latest_entry->page_index);
         __remove_old_logging_page(cv_seg, entry, entry->page_index, our_version_number);
+        BUG_ON(logging_page_status->logging_writes > 0);
     }
     else{
         /* printk(KERN_EMERG "done committing line, pid: %d, page index: %d, line index: %d, our_version: %lu, latest_version: %lu, old version: %lu\n", */
@@ -257,15 +257,16 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
         //        
         logging_page_status->lines[logging_entry->line_index]=NULL;
         __remove_old_logging_line(cv_seg, entry, entry->page_index, logging_entry->line_index, our_version_number);
+        logging_page_status->logging_writes=0;
+        logging_page_status->entries_allocated--;
     }
 
-    logging_page_status->logging_writes=0;
     //update the ppv with our version...do this *after* we make the old entry obsolete.
     cv_per_page_version_update_logging_entry(cv_seg->ppv, entry->page_index, entry, our_version_number, logging_entry->line_index);
 
 
     if (entry->page_index==12){
-        printk(KERN_EMERG "commit %p %p %lu %lu data %d, pid %d, logging_entry %p, version %lu\n",
+        printk(KERN_INFO "commit %p %p %lu %lu data %d, pid %d, logging_entry %p, version %lu\n",
                ((uint8_t *)pfn_to_kaddr(logging_page_status->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
                logging_entry->data,
                logging_entry->data_len,
@@ -552,6 +553,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   our_version_entry->committer=vma;
 
   int counter_tmp=0;
+  struct cv_logging_page_status_entry * logging_page_status=NULL;
   
   //Now we need to traverse our dirty list, and commit
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
@@ -563,10 +565,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
           if (cv_per_page_is_logging_page(cv_seg->ppv, pte_entry->page_index)){
               //migrate to a logging page
               cv_commit_migrate_page_to_logging(vma, cv_user, cv_seg, pte_entry, our_version_number);
-              //do a logging commit instead
-              //printk(KERN_EMERG "2 %d %p\n", current->pid, pte_entry);
+              //grab the user logging page status objoct
+              logging_page_status = cv_logging_page_status_lookup(cv_user, pte_entry->page_index);
               cv_commit_logging_entry(cv_list_entry_get_logging_entry(pte_entry), pte_entry, vma,
-                                      cv_seg, cv_user, our_version_number);
+                                      cv_seg, cv_user, our_version_number, logging_page_status);
               //printk(KERN_EMERG "2e %d %p\n", current->pid, pte_entry);
           }
           else{
@@ -587,11 +589,17 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
       }
       else{
           //do logging stuff in here!
-          //printk(KERN_EMERG "10 %d %d %lu %p\n", current->pid, pte_entry->page_index, our_version_number, pte_entry);
+          //grab the user logging page status objoct
+          logging_page_status = cv_logging_page_status_lookup(cv_user, pte_entry->page_index);
           cv_commit_logging_entry(cv_list_entry_get_logging_entry(pte_entry), pte_entry, vma,
-                                  cv_seg, cv_user, our_version_number);
-          //printk(KERN_EMERG "10e %d %d %lu %p\n", current->pid, pte_entry->page_index, our_version_number, pte_entry);
-          cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
+                                  cv_seg, cv_user, our_version_number, logging_page_status);
+          if (logging_page_status->entries_allocated==0){
+              cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
+          }
+          else{
+              printk(KERN_INFO "avoiding updating actual....pid %d, page index %d, entries allocated %d\n",
+                     current->pid, pte_entry->page_index, logging_page_status->entries_allocated);
+          }
           list_del(pos);
           list_add(pos, &our_version_entry->pte_list->list);
           conv_dirty_delete_lookup(cv_user, pte_entry->page_index,
@@ -614,22 +622,18 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
               if (cv_per_page_is_logging_page(cv_seg->ppv, pte_entry->page_index)){
                   //migrate to a logging page
                   cv_commit_migrate_page_to_logging(vma, cv_user, cv_seg, pte_entry, our_version_number);
+                  //grab the user logging page status objoct
+                  logging_page_status = cv_logging_page_status_lookup(cv_user, pte_entry->page_index);
                   //do a logging commit instead
-                  //printk(KERN_EMERG "1 %d %p\n", current->pid, pte_entry);
                   cv_commit_logging_entry(cv_list_entry_get_logging_entry(pte_entry), pte_entry, vma,
-                                          cv_seg, cv_user, our_version_number);
-                  //printk(KERN_EMERG "1e %d\n", current->pid);
+                                          cv_seg, cv_user, our_version_number, logging_page_status);
               }
               else{
-                  //printk(KERN_EMERG "3 %d %p\n", current->pid, pte_entry);
                   should_migrate=cv_commit_do_logging_migration_check(vma, pte_entry);
-                  //printk(KERN_EMERG "3e %d\n", current->pid);
                   //do page commit here
                   cv_commit_page(cv_list_entry_get_page_entry(pte_entry), vma, our_version_number, pte_entry->page_index, pte_entry->checkpoint);
                   if (should_migrate){
-                      //printk(KERN_EMERG "4 %d %p\n", current->pid, pte_entry);
                       cv_commit_migrate_page_to_logging(vma, cv_user, cv_seg, pte_entry, our_version_number);
-                      //printk(KERN_EMERG "4e %d\n", current->pid);
                   }
               }
               //remove from the waitlist
@@ -642,10 +646,20 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
           }
           else{
               //do logging stuff in here!
-              //printk(KERN_EMERG "5 %d %d %lu %p\n", current->pid, pte_entry->page_index, our_version_number, pte_entry);
+              //grab the user logging page status objoct
+              logging_page_status = cv_logging_page_status_lookup(cv_user, pte_entry->page_index);
               cv_commit_logging_entry(cv_list_entry_get_logging_entry(pte_entry), pte_entry, vma,
-                                      cv_seg, cv_user, our_version_number);
-              cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
+                                      cv_seg, cv_user, our_version_number, logging_page_status);
+              //what happens if we are committing multiple logging entries for this page? Without this check, we will release
+              //the page level lock and waiting threads will begin to commit. That is not ideal. :)
+              if (logging_page_status->entries_allocated==0){
+                  cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
+              }
+              else{
+                  printk(KERN_INFO "avoiding updating actual....pid %d, page index %d, logging writes %d, entries allocated %d\n",
+                         current->pid, pte_entry->page_index, logging_page_status->logging_writes, logging_page_status->entries_allocated);
+              }
+
               //printk(KERN_EMERG "5e %d %d %lu\n", current->pid, pte_entry->page_index, our_version_number);              
               list_del(&pte_entry->list);
               list_add(&pte_entry->list, &our_version_entry->pte_list->list);
@@ -721,10 +735,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   }
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
-  #ifdef CONV_LOGGING_ON
+  //  #ifdef CONV_LOGGING_ON
     printk(KSNAP_LOG_LEVEL "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
 	   current->pid, cv_seg, committed_pages, our_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);
-#endif
+//#endif
 
 }
 

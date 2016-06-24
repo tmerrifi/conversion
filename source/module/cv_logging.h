@@ -37,6 +37,8 @@ struct cv_logging_page_status_entry;
 
 #define CV_LOGGING_MERGE_WORDS (CV_LOGGING_LOG_SIZE/sizeof(uint64_t))
 
+#define CV_LOGGING_LINES_PER_PAGE (PAGE_SIZE/CV_LOGGING_LOG_SIZE)
+
 #define cv_logging_should_switch(bits) ((bits & CV_LOGGING_SWITCH_BITMASK)==CV_LOGGING_SWITCH_BITMASK)
 
 #define cv_logging_is_full_page(e) (e->data_len>=PAGE_SIZE)

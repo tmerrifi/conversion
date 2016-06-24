@@ -151,6 +151,7 @@ struct cv_logging_page_status_entry{
     unsigned long pfn;
     pte_t * pte;
     uint32_t logging_writes;
+    uint32_t entries_allocated;
     struct snapshot_pte_list * lines[PAGE_SIZE/CV_LOGGING_LOG_SIZE];
     struct snapshot_pte_list * page_entry;
 };
