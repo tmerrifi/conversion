@@ -380,7 +380,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                            logging_entry->data,
                            logging_entry->data_len,
                            logging_entry->line_index,
-                           *(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + 1119), current->pid, logging_entry,
+                           *(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + 2421), current->pid, logging_entry,
                            latest_version_entry->version_num);
                 }
             }

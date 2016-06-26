@@ -58,6 +58,7 @@ void run(conv_seg * array_seg, int id){
           int index = (rand()%(ARRAY_SIZE_BYTES/NUM_OF_THREADS)) + start_index;
           array[index]++;
           debug_array[index]++;
+          //printf("i: %d, pid %d, i %d\n", index, getpid(), i);
       }
       
       conv_fence(array_seg);

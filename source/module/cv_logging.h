@@ -77,7 +77,7 @@ struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * 
 
 void cv_merge_line(uint8_t * local, uint8_t * ref, uint8_t * latest);
 
-#define cv_logging_page_status_to_kaddr(e,li) ((uint8_t *)pfn_to_kaddr(e->pfn) + li )
+#define cv_logging_page_status_to_kaddr(e,li) ((uint8_t *)pfn_to_kaddr(e->pfn) + (li * CV_LOGGING_LOG_SIZE) )
 
 uint8_t * cv_logging_allocate_data_entry(int data_len, struct ksnap * cv_seg);
 
@@ -86,5 +86,8 @@ void cv_logging_free_data_entry(int data_len, struct ksnap * cv_seg, void * data
 
 
 #define sum_page(ptr,i,sum) for(i=0;i<PAGE_SIZE/sizeof(int);i++){sum+=*ptr++;}
+
+#define CV_LOGGING_DEBUG_PRINT_LINE(linedata,l) printk(KERN_INFO "LINE %d: %lx %lx %lx %lx %lx %lx %lx %lx", \
+                                                   l,linedata[0],linedata[1],linedata[2],linedata[3],linedata[4],linedata[5],linedata[6],linedata[7]);
 
 #endif

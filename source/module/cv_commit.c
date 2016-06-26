@@ -119,6 +119,10 @@ void __merge_full_page_with_cache_lines(struct cv_logging_entry * logging_entry,
     //a full page is being committed *AFTER* one or more lines have been committed. Meaning we have to walk
     int i=0;
     uint64_t latest_version_num;
+    uint8_t * data;
+    uint8_t * debug_data;
+    uint8_t * ref_data;
+    
     for (;i<(PAGE_SIZE/CV_LOGGING_LOG_SIZE);i++){
         //check each cacheline to see if the version is newer
         if (cv_per_page_version_get_logging_line_entry_version(cv_seg->ppv,entry->page_index,i) > cv_user->version_num){
@@ -126,14 +130,34 @@ void __merge_full_page_with_cache_lines(struct cv_logging_entry * logging_entry,
             BUG_ON(latest_entry==NULL);
             struct cv_logging_entry * latest_logging_entry = cv_list_entry_get_logging_entry(latest_entry);
             BUG_ON(latest_logging_entry==NULL);
+            data=(uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status, latest_logging_entry->line_index);
+            ref_data=logging_entry->data + (i*CV_LOGGING_LOG_SIZE);
+            
+            debug_data=(uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status, 0);
+            
+            if (entry->page_index==12){
+                printk(KERN_EMERG "merge full page 1 with cache lines... pid: %d, cache line %lu, data %d, %d, huh??? %d, %d\n",
+                       current->pid, latest_logging_entry->line_index, debug_data[2421],
+                       logging_entry->line_index, latest_logging_entry->data[53], data[53]);
+                if (latest_logging_entry->line_index==37){
+                    CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *)data), 37); //local
+                    CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *)latest_logging_entry->data), 37); //committed
+                    CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *)ref_data), 37); //reference
+                }
+            }
             //whelp...gotta merge
-            cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status, logging_entry->line_index),
-                               logging_entry->data,
+            cv_three_way_merge(data,
+                               ref_data,
                                latest_logging_entry->data,
                                CV_LOGGING_MERGE_WORDS);
-            /* if (entry->page_index==12){ */
-            /*     printk(KERN_EMERG "merge full page with cache lines... pid: %d, cache line %lu\n", current->pid, latest_logging_entry->line_index); */
-            /* } */
+            if (entry->page_index==12){
+                printk(KERN_EMERG "merge full page 2 with cache lines... pid: %d, cache line %lu, data %d, %d\n",
+                       current->pid, latest_logging_entry->line_index, debug_data[2421], data[2421]);
+                if (latest_logging_entry->line_index==37){
+                    CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *)data), 37); //local
+                }
+
+            }
         }
     }
 }
@@ -196,10 +220,11 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                 /* } */
             }
             else{
-                /* if (entry->page_index==12){ */
-                /*     printk(KERN_EMERG "SLOW merging logging (full) page, pid: %d, page index: %d\n", */
-                /*            current->pid, entry->page_index); */
-                /* } */
+                if (entry->page_index==12){
+                    uint8_t * tmpdata=(uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status, logging_entry->line_index);
+                    printk(KERN_EMERG "SLOW merging logging (full) page, pid: %d, page index: %d, data %d\n",
+                           current->pid, entry->page_index, tmpdata[2421]);
+                }
                 //need to traverse all of the lines and merge :(
                 __merge_full_page_with_cache_lines(logging_entry, logging_page_status, entry, cv_seg, cv_user);
             }
@@ -266,12 +291,16 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
 
 
     if (entry->page_index==12){
-        printk(KERN_INFO "commit %p %p %lu %lu data %d, pid %d, logging_entry %p, version %lu\n",
+        printk(KERN_INFO "commit addr %p data %p data_len %lu line_index %lu data %d, pid %d, logging_entry %p, version %lu\n",
                ((uint8_t *)pfn_to_kaddr(logging_page_status->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
                logging_entry->data,
                logging_entry->data_len,
                logging_entry->line_index,
-               *(((uint8_t *)pfn_to_kaddr(logging_page_status->pfn)) + 1119), current->pid, logging_entry, our_version_number);
+               *(((uint8_t *)pfn_to_kaddr(logging_page_status->pfn)) + 2421), current->pid, logging_entry, our_version_number);
+
+        if (logging_entry->line_index==37){
+            CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *)logging_entry->data), 37);
+        }
     }
 
 
@@ -596,10 +625,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
           if (logging_page_status->entries_allocated==0){
               cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
           }
-          else{
-              printk(KERN_INFO "avoiding updating actual....pid %d, page index %d, entries allocated %d\n",
-                     current->pid, pte_entry->page_index, logging_page_status->entries_allocated);
-          }
+          /* else{ */
+          /*     printk(KERN_INFO "avoiding updating actual....pid %d, page index %d, entries allocated %d\n", */
+          /*            current->pid, pte_entry->page_index, logging_page_status->entries_allocated); */
+          /* } */
           list_del(pos);
           list_add(pos, &our_version_entry->pte_list->list);
           conv_dirty_delete_lookup(cv_user, pte_entry->page_index,
@@ -655,10 +684,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
               if (logging_page_status->entries_allocated==0){
                   cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
               }
-              else{
-                  printk(KERN_INFO "avoiding updating actual....pid %d, page index %d, logging writes %d, entries allocated %d\n",
-                         current->pid, pte_entry->page_index, logging_page_status->logging_writes, logging_page_status->entries_allocated);
-              }
+              /* else{ */
+              /*     printk(KERN_INFO "avoiding updating actual....pid %d, page index %d, logging writes %d, entries allocated %d\n", */
+              /*            current->pid, pte_entry->page_index, logging_page_status->logging_writes, logging_page_status->entries_allocated); */
+              /* } */
 
               //printk(KERN_EMERG "5e %d %d %lu\n", current->pid, pte_entry->page_index, our_version_number);              
               list_del(&pte_entry->list);

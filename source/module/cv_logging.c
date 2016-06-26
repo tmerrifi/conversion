@@ -176,6 +176,10 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
             /*        current->pid, entry->page_index, logging_entry_old->line_index, i, entry, entry_old); */
             //copy the reference data over
             memcpy(logging_entry->data + i*CV_LOGGING_LOG_SIZE, logging_entry_old->data, CV_LOGGING_LOG_SIZE);
+            if (entry->page_index==12){
+                printk(KERN_INFO "copying.....!!!!!");
+                CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *)logging_entry->data), 37); //reference
+            }
             //remove from dirty list
             list_del(&entry_old->list);
             //remove from dirty list lookup
@@ -308,9 +312,11 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     }
         
     if (!handled){
-        /* printk(KERN_EMERG "cow page index: %d, pid: %d, data: %d\n", */
-        /*        dirty_list_entry->page_index, current->pid, */
-        /*        *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX ); */
+        if (page_index==12){
+            printk(KERN_EMERG "cow page index: %d, pid: %d, data: %d\n",
+                   dirty_list_entry->page_index, current->pid,
+                   *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX );
+        }
         cv_logging_cow_page_fault(vma, dirty_list_entry, logging_entry, logging_status_entry, faulting_addr, logging_status_entry->pte);
         logging_status_entry->logging_writes=0;
         logging_status_entry->entries_allocated=0;
