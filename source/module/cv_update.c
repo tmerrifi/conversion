@@ -150,24 +150,20 @@ void copy_logging_data(struct ksnap * cv_seg, uint8_t * destination_page,
     if (cv_logging_is_full_page(logging_entry) && !cv_per_page_version_logging_page_entry_is_max_version(cv_seg->ppv, entry->page_index)){
         //a full page can only be copied if its the latest entry (considering both pages and lines). Otherwise, we need
         //to go line by line and only copy stuff that is not outdated.
-        printk(KERN_INFO "Whoops! Need to go line by line, index: %d!\n", entry->page_index);
+        //printk(KERN_INFO "Whoops! Need to go line by line, index: %d!\n", entry->page_index);
         page_version=cv_per_page_version_logging_get_full_page_version(cv_seg->ppv, entry->page_index);
         cv_per_page_logging_entry_line_for_each(cv_seg->ppv,entry->page_index,
                                                 line_entry,line_version){
             if (page_version>line_version){
                 //the page is newer
-                printk(KERN_INFO "copy the page in here....%d, %lu, %lu\n", line_index, line_version, page_version);
+                //printk(KERN_INFO "copy the page in here....%d, %lu, %lu\n", line_index, line_version, page_version);
                 
                 memcpy(destination_page + (CV_LOGGING_LOG_SIZE*line_index),
                         logging_entry->data + (CV_LOGGING_LOG_SIZE*line_index),
                         CV_LOGGING_LOG_SIZE); 
             }
-            else{
-                printk(KERN_INFO "HOLD OFF");
-            }
             line_index++;
         }
-        printk(KERN_INFO "broke out of here!!!!\n");
     }
     else{
         //copy the data
@@ -338,9 +334,26 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
             }
         }
         else{
+            
             //LOGGING CODE
             logging_entry = cv_list_entry_get_logging_entry(tmp_pte_list);
             dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index, logging_entry->line_index, 1);
+
+
+            
+            if (tmp_pte_list->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){
+                printk(KERN_INFO "memcpy %p %d %d pid %d, logging_entry %p, version %lu, entry %p, %lu\n",
+                       logging_entry->data,
+                       logging_entry->data_len,
+                       logging_entry->line_index,
+                       current->pid,
+                       logging_entry,
+                       latest_version_entry->version_num,
+                       tmp_pte_list,
+                       tmp_pte_list->obsolete_version);
+            }
+
+            
             //check to see if the current guy is obsolete
             if (tmp_pte_list->obsolete_version <= target_version_number){
                 /* printk(KERN_EMERG "UPDATE of logging page SKIP 1 ...%d %d %lu %lu", */
@@ -368,21 +381,14 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 /*         logging_entry->data, */
                 /*         logging_entry->data_len); */
 
-                 copy_logging_data(cv_seg,
-                                   (uint8_t *)pfn_to_kaddr(logging_status_entry->pfn),
-                                   tmp_pte_list,
-                                   logging_entry);
+                uint8_t old_data = *(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + LOGGING_DEBUG_INDEX);
+                
+                copy_logging_data(cv_seg,
+                                  (uint8_t *)pfn_to_kaddr(logging_status_entry->pfn),
+                                  tmp_pte_list,
+                                  logging_entry);
                 
 
-                if (tmp_pte_list->page_index==12){
-                    printk(KERN_INFO "memcpy %p %p %lu %lu data %d, pid %d, logging_entry %p, version %lu\n",
-                           ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
-                           logging_entry->data,
-                           logging_entry->data_len,
-                           logging_entry->line_index,
-                           *(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + 2421), current->pid, logging_entry,
-                           latest_version_entry->version_num);
-                }
             }
         }
       }

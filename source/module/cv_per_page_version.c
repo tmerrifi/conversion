@@ -193,9 +193,9 @@ struct snapshot_pte_list * cv_per_page_version_get_logging_entry_and_version(str
         return NULL;
     }
     else{
-        if (page_index==12){
-            printk(KERN_EMERG "returning the line version, %lu, max version is %lu\n", pp_logging_entry->lines[line_index].version, pp_logging_entry->max_version);
-        }
+        /* if (page_index==12){ */
+        /*     printk(KERN_EMERG "returning the line version, %lu, max version is %lu\n", pp_logging_entry->lines[line_index].version, pp_logging_entry->max_version); */
+        /* } */
         //returning the line entry
         *version_num = pp_logging_entry->lines[line_index].version;
         return pp_logging_entry->lines[line_index].line_entry;

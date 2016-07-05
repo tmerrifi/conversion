@@ -82,8 +82,10 @@
 
 #define LOGGING_SIZE_BYTES (64*8) //one cache line
 
-#define LOGGING_DEBUG_PAGE_INDEX 91
-#define LOGGING_DEBUG_INDEX 2421
+#define LOGGING_DEBUG_PAGE_INDEX 12
+#define LOGGING_DEBUG_INDEX 3629
+#define LOGGING_DEBUG_LINE 56
+
 
 struct cv_logging_data_entry{
     uint8_t data[LOGGING_SIZE_BYTES];
