@@ -59,22 +59,45 @@ uint32_t __commit_page_wait_status(struct cv_per_page_version * ppv, uint32_t pa
 
 //call this while holding mutex
 void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struct snapshot_pte_list * wait_list, 
-			      struct cv_per_page_version * ppv, uint64_t revision_number){
+			      struct cv_per_page_version * ppv, struct ksnap_user_data * cv_user, uint64_t revision_number){
   struct list_head * pos, * tmp_pos;
   struct snapshot_pte_list * pte_entry;
-
+  //we store this first entry that we encountered per-page for logging entries. This will point to that.
+  struct snapshot_pte_list * original_entry_for_logging;
+  struct cv_logging_page_status_entry * logging_status_entry;
+  
   //loop through all our dirty pages
   list_for_each_safe(pos, tmp_pos, &dirty_pages_list->list){
       //get the pte_entry
       pte_entry = list_entry(pos, struct snapshot_pte_list, list);
-      //double check and make sure that we aren't just dealing with a redundant logging entry for the same page
-      if (pte_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING &&
-          ppv->entries[pte_entry->page_index].interest_version==revision_number){
-          continue;
-      }
       //if the interest and actual aren't equal, we need to store the interest and move it into the right list
       if (__commit_page_status(ppv, pte_entry->page_index)==__CV_PPV_UNSAFE){
-          pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version; //keep this so we can wait on interest to match actual later...
+          if (pte_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING){
+              //grab the logging status for this page, so we can keep track of what version we're waiting on
+              logging_status_entry=cv_logging_page_status_lookup(cv_user, pte_entry->page_index);
+              //if the versions are the same, we've already been here for this page.
+              if(ppv->entries[pte_entry->page_index].interest_version==revision_number){
+                  if(logging_status_entry->wait_entry==NULL){
+                      //we don't need to do any more work, because there's no other thread committing that we need to worry about,
+                      //plus the interest version has already been set
+                      continue;
+                  }
+                  else{
+                      //set the wait_revsion equal to the first guy through
+                      pte_entry->wait_revision = logging_status_entry->wait_entry->wait_revision;
+                  }
+              }
+              else{
+                  //we are the first guy through, so set the wait entry to notify any logging entries for this page that come later
+                  logging_status_entry->wait_entry = pte_entry;
+                  //keep this so we can wait on interest to match actual later...
+                  pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version; 
+              }
+          }
+          else{
+              //keep this so we can wait on interest to match actual later...
+              pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version; 
+          }
           //add it to the wait list
           list_del(&pte_entry->list);
           INIT_LIST_HEAD(&pte_entry->list);

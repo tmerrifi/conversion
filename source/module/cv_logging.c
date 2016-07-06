@@ -110,6 +110,7 @@ struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * 
     entry->pfn=pfn;
     entry->logging_writes=0;
     entry->entries_allocated=0;
+    entry->wait_entry=NULL;
     memset(entry->lines, 0, (PAGE_SIZE/CV_LOGGING_LOG_SIZE) * sizeof(struct snapshot_pte_list *));
     entry->page_entry=NULL;
     return entry;
@@ -274,7 +275,7 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         logging_entry->addr = (faulting_addr & CV_LOGGING_LOG_MASK);
         logging_entry->data_len = CV_LOGGING_LOG_SIZE;
         logging_entry->line_index = cv_logging_line_index(faulting_addr);
-        logging_entry->data = cv_logging_allocate_data_entry(CV_LOGGING_LOG_SIZE, cv_seg);
+        logging_entry->data = NULL;        
         //just adding this to the lookup so if we find it later we can throw BUG();
         conv_add_dirty_page_to_lookup(vma,dirty_list_entry, page_index, logging_entry->line_index, 0);
         INIT_LIST_HEAD(&dirty_list_entry->list);
@@ -289,9 +290,12 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     }
     
     if (logging_status_entry->logging_writes < CV_LOGGING_WRITES_THRESHOLD){
-        //allocate some space to hold the data
-        memcpy(logging_entry->data,cv_logging_line_start(faulting_addr),CV_LOGGING_LOG_SIZE);
-        uint8_t * kaddr_faulting = pfn_to_kaddr(logging_status_entry->pfn) + (faulting_addr & (~PAGE_MASK));
+        //allocate some space to hold the reference data...but only do it the first time for this entry
+        if (logging_entry->data==NULL){
+            logging_entry->data = cv_logging_allocate_data_entry(CV_LOGGING_LOG_SIZE, cv_seg);
+            memcpy(logging_entry->data,cv_logging_line_start(faulting_addr),CV_LOGGING_LOG_SIZE);
+        }
+        uint8_t * kaddr_faulting = pfn_to_kaddr(logging_status_entry->pfn) + (faulting_addr & (~PAGE_MASK));        
         if ((write_width=interpret(regs->ip, CV_LOGGING_INSTRUCTION_MAX_WIDTH, kaddr_faulting, regs))){
             cv_logging_set_dirty(logging_entry);
             logging_status_entry->logging_writes++;

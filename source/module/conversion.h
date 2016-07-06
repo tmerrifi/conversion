@@ -156,6 +156,7 @@ struct cv_logging_page_status_entry{
     uint32_t entries_allocated;
     struct snapshot_pte_list * lines[PAGE_SIZE/CV_LOGGING_LOG_SIZE];
     struct snapshot_pte_list * page_entry;
+    struct snapshot_pte_list * wait_entry;
 };
 
 struct ksnap{

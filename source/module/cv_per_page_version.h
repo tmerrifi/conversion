@@ -16,6 +16,7 @@ struct cv_per_page_logging_entry{
     struct snapshot_pte_list * page_entry;
     uint64_t page_version;
     uint64_t max_version;
+    struct snapshot_pte_list * wait_entry;
 };
 
 struct cv_per_page_version_entry{
@@ -56,7 +57,7 @@ struct cv_per_page_version_wait_list_entry{
 struct cv_per_page_version * cv_per_page_version_init(uint32_t page_count);
 
 void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struct snapshot_pte_list * wait_list, 
-			      struct cv_per_page_version * ppv, uint64_t revision_number);
+			      struct cv_per_page_version * ppv, struct ksnap_user_data * cv_user, uint64_t revision_number);
 
 struct snapshot_pte_list * cv_per_page_version_walk_unsafe(struct snapshot_pte_list * wait_list, struct cv_per_page_version * ppv);
 

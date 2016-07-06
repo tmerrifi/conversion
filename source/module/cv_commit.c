@@ -155,7 +155,6 @@ void __merge_full_page_with_cache_lines(struct cv_logging_entry * logging_entry,
     int i=0;
     uint64_t latest_version_num;
     uint8_t * data;
-    uint8_t * debug_data;
     uint8_t * ref_data;
     
     for (;i<(PAGE_SIZE/CV_LOGGING_LOG_SIZE);i++){
@@ -622,7 +621,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   //setup the new "next" version
   cv_seg->uncommitted_version_entry = next_version_entry;
   cv_per_page_version_walk(cv_user->dirty_pages_list, wait_list,
-			   cv_seg->ppv, our_version_number);
+			   cv_seg->ppv, cv_user, our_version_number);
   //we've linearized this version...we can mark it as such for interested parties in userspace
   cv_meta_set_linearized_version(vma, our_version_number);
   spin_unlock(&cv_seg->lock);
