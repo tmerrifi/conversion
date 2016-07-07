@@ -1,3 +1,5 @@
+#include <linux/rmap.h>
+
 
 #include "conversion.h"
 #include "cv_garbage.h"
@@ -12,8 +14,42 @@ void __cv_garbage_free_page(struct page * p){
     put_page(p);
 }
 
+void cv_gc_logging_page_status_entries(struct ksnap_user_data * cv_user){
+    const int array_size=8;
+    int i;
+    struct page * local_page;
+    
+    struct cv_logging_page_status_entry * entries[array_size];
+    while(1){
+        int count = radix_tree_gang_lookup(&cv_user->logging_page_status,(void **)entries, 0, array_size);
+        if (count==0){
+            break;
+        }
+        else{
+            for (i=0;i<count;i++){
+                //grab the pfn
+                local_page=pfn_to_page(entries[i]->pfn);
+                page_remove_rmap(local_page);
+                __cv_garbage_free_page(local_page);
+                conv_debug_memory_free(entries[i]); 
+                radix_tree_delete(&cv_user->logging_page_status, entries[i]->page_index);
+                kfree(entries[i]);
+            }
+        }
+    }
+}
+
+void __gc_logging_entry(struct cv_logging_entry * logging_entry, struct ksnap * cv_seg, uint64_t obsolete_version){
+    //this check seems fishy to me. Why is it here??
+    if (obsolete_version < cv_seg->committed_version_num){
+        conv_debug_memory_free(logging_entry->data);
+        cv_logging_free_data_entry(logging_entry->data_len, cv_seg, logging_entry->data);
+    }
+}
+
 int __gc_page(struct cv_page_entry * page_entry, struct ksnap * cv_seg, uint64_t obsolete_version){
     struct page * the_page;
+    //this check seems fishy to me. Why is it here??
     if (obsolete_version < cv_seg->committed_version_num){
         the_page = pfn_to_page(page_entry->pfn);
         __cv_garbage_free_page(the_page);
@@ -47,13 +83,9 @@ void cv_garbage_final(struct ksnap * cv_seg){
             }
             else{
                 //handle logging entry
-                //logging_entry=cv_list_entry_get_logging_entry(pte_list_entry);
-                /* if (logging_entry->data_len==PAGE_SIZE){ */
-                /*     kfree(logging_entry->data); */
-                /* } */
-                /* else{ */
-                /*     //need to free to slab allocator */
-                /* } */
+                logging_entry=cv_list_entry_get_logging_entry(pte_list_entry);
+                conv_debug_memory_free(logging_entry->data);
+                cv_logging_free_data_entry(logging_entry->data_len, cv_seg, logging_entry->data);
             }
             list_del(pte_list_entry_pos);
             kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
@@ -114,16 +146,14 @@ void cv_garbage_collection(struct work_struct * work){
               }
               if (pte_list_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING &&
                   __gc_page(cv_list_entry_get_page_entry(pte_list_entry),cv_seg,pte_list_entry->obsolete_version)){
-                  //collect a page
-                  ++collected_count;
-                  version_list_entry->num_of_entries--;
-                  list_del(pte_list_entry_pos);
-                  kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
               }
               else if (pte_list_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING){
-                  //BUG();
+                  __gc_logging_entry(cv_list_entry_get_logging_entry(pte_list_entry), cv_seg, pte_list_entry->obsolete_version);
               }
-
+              collected_count++;
+              version_list_entry->num_of_entries--;
+              list_del(pte_list_entry_pos);
+              kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
           }
           //list_del(version_list_pos);
           //kfree(version_list_entry);

@@ -113,6 +113,7 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     //need to block other threads from potentially updating to our page. That's just too much complexity to avoid this one
     //time cost
     new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, logging_entry->addr);
+    conv_debug_memory_alloc(new_page);
     __SetPageUptodate(new_page);
     page_add_new_anon_rmap(new_page, vma, logging_entry->addr);
     //printk(KERN_EMERG "__migrate in update 2, page: %d, pid: %d", new_page, current->pid);
@@ -123,7 +124,7 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     kunmap_atomic(kaddr, KM_USER0);
     //printk(KERN_EMERG "__migrate in update 3, page: %d, pid: %d", new_page, current->pid);
     //now update the local logging data structure
-    logging_status_entry = cv_logging_page_status_entry_init(pte, page_to_pfn(new_page));
+    logging_status_entry = cv_logging_page_status_entry_init(pte, page_to_pfn(new_page), entry->page_index);
     //insert this page into our local logging ds
     if (cv_logging_page_status_insert(cv_user, logging_status_entry, entry->page_index)<0){
         BUG();

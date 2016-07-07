@@ -450,7 +450,8 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     struct cv_page_entry * page_entry = cv_list_entry_get_page_entry(pte_list_entry);
     //do this before we blow away the data
     struct cv_logging_page_status_entry * logging_entry = cv_logging_page_status_entry_init(page_entry->pte,
-                                                                                            page_entry->pfn);
+                                                                                            page_entry->pfn,
+                                                                                            pte_list_entry->page_index);
     //grab the ref page for copying later
     ref_page = page_entry->ref_page;
     
@@ -468,6 +469,8 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     pte_list_entry->type=CV_DIRTY_LIST_ENTRY_TYPE_LOGGING;
     //allocate some memory
     pte_list_entry->logging_entry.data = (uint8_t *)kmalloc(PAGE_SIZE, GFP_KERNEL);
+    conv_debug_memory_alloc(pte_list_entry->logging_entry.data);
+    
     pte_list_entry->logging_entry.data_len = PAGE_SIZE;
     pte_list_entry->logging_entry.addr = local_addr;
     pte_list_entry->logging_entry.line_index = 0;

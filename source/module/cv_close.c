@@ -26,6 +26,9 @@ void cv_close(struct vm_area_struct * vma){
   struct ksnap * cv = (struct ksnap *)mapping->ksnap_data;
   struct ksnap_user_data * cv_user = ksnap_vma_to_userdata(vma);
 
+  //clear local logging page status
+  cv_gc_logging_page_status_entries(cv_user);
+  
   spin_lock(&cv->lock);
   if (vma->vm_file->f_mapping->ksnap_data == NULL){
     goto unlock_and_leave;

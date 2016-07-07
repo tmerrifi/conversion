@@ -154,6 +154,7 @@ struct cv_logging_page_status_entry{
     pte_t * pte;
     uint32_t logging_writes;
     uint32_t entries_allocated;
+    unsigned long page_index;
     struct snapshot_pte_list * lines[PAGE_SIZE/CV_LOGGING_LOG_SIZE];
     struct snapshot_pte_list * page_entry;
     struct snapshot_pte_list * wait_entry;
@@ -297,6 +298,18 @@ void conv_checkpoint(struct vm_area_struct * vma);
 
 #define conv_debug_logging_is_line(page_index, line_index) \
     (page_index==LOGGING_DEBUG_PAGE_INDEX && line_index==LOGGING_DEBUG_INDEX)
+
+#ifdef CV_DEBUG_MEMORY_ALLOC
+#define conv_debug_memory_alloc(ptr)\
+    printk(KERN_INFO "allocate: %s %d %p\n", __FILE__, __LINE__, ptr);
+#define conv_debug_memory_free(ptr)\
+    printk(KERN_INFO "free: %s %d %p\n", __FILE__, __LINE__, ptr);
+#else
+#define conv_debug_memory_alloc(ptr)
+#define conv_debug_memory_free(ptr)
+#endif
+
+
 
 void cv_logging_line_debug_print(struct snapshot_pte_list * dirty_list_entry,
                                  struct cv_logging_entry * logging_entry,

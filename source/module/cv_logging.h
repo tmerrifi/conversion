@@ -69,11 +69,11 @@ unsigned long cv_logging_get_index(unsigned long addr, unsigned long page_index,
 
 /*functions that work with the page_status_entry data structure. That keeps track of each thread's local logging pages*/
 
-int cv_logging_page_status_insert(struct ksnap_user_data * cv_user, struct cv_logging_page_status_entry * entry, unsigned long index);
+int cv_logging_page_status_insert(struct ksnap_user_data * cv_user, struct cv_logging_page_status_entry * entry, unsigned long page_index);
 
-struct cv_logging_page_status_entry * cv_logging_page_status_lookup(struct ksnap_user_data * cv_user, unsigned long index);
+struct cv_logging_page_status_entry * cv_logging_page_status_lookup(struct ksnap_user_data * cv_user, unsigned long page_index);
 
-struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * pte, unsigned long pfn);
+struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * pte, unsigned long pfn, unsigned long page_index);
 
 void cv_merge_line(uint8_t * local, uint8_t * ref, uint8_t * latest);
 
@@ -87,7 +87,7 @@ void cv_logging_free_data_entry(int data_len, struct ksnap * cv_seg, void * data
 
 #define sum_page(ptr,i,sum) for(i=0;i<PAGE_SIZE/sizeof(int);i++){sum+=*ptr++;}
 
-#define CV_LOGGING_DEBUG_PRINT_LINE(linedata,l) printk(KERN_INFO "LINE %d: %lx %lx %lx %lx %lx %lx %lx %lx", \
+#define CV_LOGGING_DEBUG_PRINT_LINE(linedata,l) printk(KERN_INFO "LINE %d: %llx %llx %llx %llx %llx %llx %llx %llx", \
                                                    l,linedata[0],linedata[1],linedata[2],linedata[3],linedata[4],linedata[5],linedata[6],linedata[7]);
 
 #endif

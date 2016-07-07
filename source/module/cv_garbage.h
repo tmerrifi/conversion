@@ -20,4 +20,6 @@ struct cv_garbage_work{
 void cv_garbage_final(struct ksnap * cv_seg);
 void cv_garbage_collection(struct work_struct * work);
 
+void cv_gc_logging_page_status_entries(struct ksnap_user_data * cv_user);
+
 #endif

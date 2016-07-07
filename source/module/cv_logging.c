@@ -62,11 +62,14 @@ uint8_t * cv_logging_allocate_data_entry(int data_len, struct ksnap * cv_seg){
 }
 
 void cv_logging_free_data_entry(int data_len, struct ksnap * cv_seg, void * data){
-    if (data_len==PAGE_SIZE){
-        return kfree(data);
+    if (data==NULL){
+        return;
+    }
+    else if (data_len==PAGE_SIZE){
+        kfree(data);
     }    
     else{
-        return kmem_cache_free(cv_seg->logging_data_entry_mem_cache, data);
+        kmem_cache_free(cv_seg->logging_data_entry_mem_cache, data);
     }
 }
 
@@ -104,8 +107,9 @@ int cv_logging_page_status_insert(struct ksnap_user_data * cv_user,struct cv_log
     return radix_tree_lookup(&cv_user->logging_page_status, index);
 }
 
-struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * pte, unsigned long pfn){
+struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * pte, unsigned long pfn, unsigned long page_index){
     struct cv_logging_page_status_entry * entry = kmalloc(sizeof(struct cv_logging_page_status_entry), GFP_KERNEL);
+    conv_debug_memory_alloc(entry);
     entry->pte=pte;
     entry->pfn=pfn;
     entry->logging_writes=0;
@@ -113,6 +117,7 @@ struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * 
     entry->wait_entry=NULL;
     memset(entry->lines, 0, (PAGE_SIZE/CV_LOGGING_LOG_SIZE) * sizeof(struct snapshot_pte_list *));
     entry->page_entry=NULL;
+    entry->page_index=page_index;
     return entry;
 }
 
@@ -157,6 +162,7 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
 
     
     logging_entry->data=cv_logging_allocate_data_entry(PAGE_SIZE, cv_seg);
+    conv_debug_memory_alloc(logging_entry->data);
     logging_entry->addr=(faulting_addr & PAGE_MASK);
     logging_entry->data_len=PAGE_SIZE;
     logging_entry->line_index=0;
@@ -293,6 +299,7 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         //allocate some space to hold the reference data...but only do it the first time for this entry
         if (logging_entry->data==NULL){
             logging_entry->data = cv_logging_allocate_data_entry(CV_LOGGING_LOG_SIZE, cv_seg);
+            conv_debug_memory_alloc(logging_entry->data);            
             memcpy(logging_entry->data,cv_logging_line_start(faulting_addr),CV_LOGGING_LOG_SIZE);
         }
         uint8_t * kaddr_faulting = pfn_to_kaddr(logging_status_entry->pfn) + (faulting_addr & (~PAGE_MASK));        
