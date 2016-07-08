@@ -27,10 +27,6 @@ void cv_gc_logging_page_status_entries(struct ksnap_user_data * cv_user){
         }
         else{
             for (i=0;i<count;i++){
-                //grab the pfn
-                local_page=pfn_to_page(entries[i]->pfn);
-                page_remove_rmap(local_page);
-                __cv_garbage_free_page(local_page);
                 conv_debug_memory_free(entries[i]); 
                 radix_tree_delete(&cv_user->logging_page_status, entries[i]->page_index);
                 kfree(entries[i]);
