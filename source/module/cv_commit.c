@@ -538,7 +538,10 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
     /* printk(KERN_EMERG "is logging page %d, should check %d\n", */
     /*        cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index), */
     /*        cv_user->committed_non_logging_entries++ % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES); */
-    
+
+#ifdef CV_LOGGING_DISABLED
+    return 0;
+#else
     //don't want to do this too often - its kinda expensive!
     if (!cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index) &&
         cv_user->committed_non_logging_entries++ % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES == 0){
@@ -562,8 +565,8 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
             cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 0);
         }
     }
-
     return result;
+#endif //CV_LOGGING_DISABLED
 }
 
 /*This is the main commit function. */
