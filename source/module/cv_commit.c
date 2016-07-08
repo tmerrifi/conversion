@@ -251,7 +251,7 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                 cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status, logging_entry->line_index),
                                    logging_entry->data,
                                    latest_logging_entry->data,
-                                   PAGE_SIZE);
+                                   (PAGE_SIZE/sizeof(uint64_t)));
                 //now copy the full page into the entry data
                 /* if (latest_entry->page_index==12){ */
                 /*     printk(KERN_EMERG "merged logging (full) page DONE, pid: %d, page index: %d\n", */
