@@ -283,7 +283,8 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         logging_entry->line_index = cv_logging_line_index(faulting_addr);
         logging_entry->data = NULL;        
         //just adding this to the lookup so if we find it later we can throw BUG();
-        conv_add_dirty_page_to_lookup(vma,dirty_list_entry, page_index, logging_entry->line_index, 0);
+        //conv_add_dirty_page_to_lookup(vma,dirty_list_entry, page_index, logging_entry->line_index, 0);
+        
         INIT_LIST_HEAD(&dirty_list_entry->list);
         /*now we need to add the pte to the list */
         list_add_tail(&dirty_list_entry->list, &cv_user->dirty_pages_list->list);
