@@ -399,7 +399,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   ud_set_input_buffer(&dis, bytes, bytesLength);
   ud_set_mode(&dis, 64);
   ud_set_vendor(&dis, UD_VENDOR_INTEL);
-  ud_set_syntax(&dis, UD_SYN_INTEL);
+  //ud_set_syntax(&dis, UD_SYN_INTEL);
     
   const unsigned lengthInBytes = ud_disassemble(&dis);
   if (0 == lengthInBytes) {
