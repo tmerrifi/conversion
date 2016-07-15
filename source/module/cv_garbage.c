@@ -38,7 +38,6 @@ void cv_gc_logging_page_status_entries(struct ksnap_user_data * cv_user){
 void __gc_logging_entry(struct cv_logging_entry * logging_entry, struct ksnap * cv_seg, uint64_t obsolete_version){
     //this check seems fishy to me. Why is it here??
     if (obsolete_version < cv_seg->committed_version_num){
-        conv_debug_memory_free(logging_entry->data);
         cv_logging_free_data_entry(logging_entry->data_len, cv_seg, logging_entry->data);
     }
 }
@@ -80,7 +79,6 @@ void cv_garbage_final(struct ksnap * cv_seg){
             else{
                 //handle logging entry
                 logging_entry=cv_list_entry_get_logging_entry(pte_list_entry);
-                conv_debug_memory_free(logging_entry->data);
                 cv_logging_free_data_entry(logging_entry->data_len, cv_seg, logging_entry->data);
             }
             list_del(pte_list_entry_pos);

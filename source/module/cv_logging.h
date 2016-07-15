@@ -87,7 +87,7 @@ void cv_logging_free_data_entry(int data_len, struct ksnap * cv_seg, void * data
 
 #define sum_page(ptr,i,sum) for(i=0;i<PAGE_SIZE/sizeof(int);i++){sum+=*ptr++;}
 
-#define CV_LOGGING_DEBUG_PRINT_LINE(linedata,l) printk(KERN_INFO "LINE %d: %llx %llx %llx %llx %llx %llx %llx %llx", \
+#define CV_LOGGING_DEBUG_PRINT_LINE(linedata,l) printk(KERN_EMERG "LINE %d: %llx %llx %llx %llx %llx %llx %llx %llx", \
                                                    l,linedata[0],linedata[1],linedata[2],linedata[3],linedata[4],linedata[5],linedata[6],linedata[7]);
 
 #endif

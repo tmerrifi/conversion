@@ -82,9 +82,9 @@
 
 #define LOGGING_SIZE_BYTES (64*8) //one cache line
 
-#define LOGGING_DEBUG_PAGE_INDEX 12
-#define LOGGING_DEBUG_INDEX 3629
-#define LOGGING_DEBUG_LINE 56
+#define LOGGING_DEBUG_PAGE_INDEX 0
+#define LOGGING_DEBUG_INDEX 0
+#define LOGGING_DEBUG_LINE 0
 
 
 struct cv_logging_data_entry{
@@ -301,9 +301,9 @@ void conv_checkpoint(struct vm_area_struct * vma);
 
 #ifdef CV_DEBUG_MEMORY_ALLOC
 #define conv_debug_memory_alloc(ptr)\
-    printk(KERN_INFO "allocate: %s %d %p\n", __FILE__, __LINE__, ptr);
+    printk(KERN_EMERG "allocate: %s %d %p\n", __FILE__, __LINE__, ptr);
 #define conv_debug_memory_free(ptr)\
-    printk(KERN_INFO "free: %s %d %p\n", __FILE__, __LINE__, ptr);
+    printk(KERN_EMERG "free: %s %d %p\n", __FILE__, __LINE__, ptr);
 #else
 #define conv_debug_memory_alloc(ptr)
 #define conv_debug_memory_free(ptr)

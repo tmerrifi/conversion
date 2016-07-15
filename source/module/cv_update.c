@@ -338,21 +338,19 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
             
             //LOGGING CODE
             logging_entry = cv_list_entry_get_logging_entry(tmp_pte_list);
-            dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index, logging_entry->line_index, 1);
-
-
+            dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index, logging_entry->line_index, cv_logging_is_full_page(logging_entry));
             
-            if (tmp_pte_list->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){
-                printk(KERN_INFO "memcpy %p %d %d pid %d, logging_entry %p, version %lu, entry %p, %lu\n",
-                       logging_entry->data,
-                       logging_entry->data_len,
-                       logging_entry->line_index,
-                       current->pid,
-                       logging_entry,
-                       latest_version_entry->version_num,
-                       tmp_pte_list,
-                       tmp_pte_list->obsolete_version);
-            }
+            /* if (tmp_pte_list->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){ */
+            /*     printk(KERN_INFO "memcpy %p %d %d pid %d, logging_entry %p, version %lu, entry %p, %lu\n", */
+            /*            logging_entry->data, */
+            /*            logging_entry->data_len, */
+            /*            logging_entry->line_index, */
+            /*            current->pid, */
+            /*            logging_entry, */
+            /*            latest_version_entry->version_num, */
+            /*            tmp_pte_list, */
+            /*            tmp_pte_list->obsolete_version); */
+            /* } */
 
             
             //check to see if the current guy is obsolete
@@ -362,10 +360,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 /*        tmp_pte_list->obsolete_version, target_version_number); */
                 continue;
             }
-            else if (dirty_entry){
-                BUG();
-            }
-            else{
+            /* else if (dirty_entry){ */
+            /*     BUG(); */
+            /* } */
+            else if (!dirty_entry){
                 /* printk(KERN_EMERG "UPDATE of logging page...%d %d version %lu addr %p %x", */
                 /*        current->pid, tmp_pte_list->page_index, latest_version_entry->version_num, */
                 /*        logging_entry->addr & (~PAGE_MASK), (CV_LOGGING_LOG_SIZE * logging_entry->line_index)); */

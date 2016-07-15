@@ -278,24 +278,24 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                 //its a line
                 latest = latest_logging_entry->data;
             }
-            if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){
-                uint8_t * local_data = (uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index);
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) local_data) ,LOGGING_DEBUG_LINE);
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) logging_entry->data) ,LOGGING_DEBUG_LINE);
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) latest) ,LOGGING_DEBUG_LINE);
-            }
+            /* if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){ */
+            /*     uint8_t * local_data = (uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) local_data) ,LOGGING_DEBUG_LINE); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) logging_entry->data) ,LOGGING_DEBUG_LINE); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) latest) ,LOGGING_DEBUG_LINE); */
+            /* } */
             //do the merge
             cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index),
                                logging_entry->data,
                                latest,
                                CV_LOGGING_MERGE_WORDS);
 
-            if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){
-                uint8_t * local_data = (uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index);
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) local_data) ,LOGGING_DEBUG_LINE);
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) logging_entry->data) ,LOGGING_DEBUG_LINE);
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) latest) ,LOGGING_DEBUG_LINE);
-            }
+            /* if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){ */
+            /*     uint8_t * local_data = (uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) local_data) ,LOGGING_DEBUG_LINE); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) logging_entry->data) ,LOGGING_DEBUG_LINE); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) latest) ,LOGGING_DEBUG_LINE); */
+            /* } */
         }
     }
     //we need to copy our new data into our entry
@@ -340,26 +340,26 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
 
     /*****DEBUGGING DATA******************/
     //    if (entry->page_index==12){
-    if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){
+    /* if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){ */
 
-        printk(KERN_INFO "commit addr %p data %p data_len %lu line_index %lu data %d, pid %d, logging_entry %p, version %lu, d %d entry %p, %lu, wait %lu\n",
-               ((uint8_t *)pfn_to_kaddr(logging_page_status->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index),
-               logging_entry->data,
-               logging_entry->data_len,
-               logging_entry->line_index,
-               *(((uint8_t *)pfn_to_kaddr(logging_page_status->pfn)) + LOGGING_DEBUG_INDEX),
-               current->pid,
-               logging_entry,
-               our_version_number,
-               *(((uint8_t *)logging_entry->data) + (LOGGING_DEBUG_INDEX % 64)),
-               entry,
-               entry->obsolete_version,
-               entry->wait_revision);
+    /*     printk(KERN_INFO "commit addr %p data %p data_len %lu line_index %lu data %d, pid %d, logging_entry %p, version %lu, d %d entry %p, %lu, wait %lu\n", */
+    /*            ((uint8_t *)pfn_to_kaddr(logging_page_status->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index), */
+    /*            logging_entry->data, */
+    /*            logging_entry->data_len, */
+    /*            logging_entry->line_index, */
+    /*            *(((uint8_t *)pfn_to_kaddr(logging_page_status->pfn)) + LOGGING_DEBUG_INDEX), */
+    /*            current->pid, */
+    /*            logging_entry, */
+    /*            our_version_number, */
+    /*            *(((uint8_t *)logging_entry->data) + (LOGGING_DEBUG_INDEX % 64)), */
+    /*            entry, */
+    /*            entry->obsolete_version, */
+    /*            entry->wait_revision); */
 
-        /* if (logging_entry->line_index==37){ */
-        /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *)logging_entry->data), 37); */
-        /* } */
-    }
+    /*     /\* if (logging_entry->line_index==37){ *\/ */
+    /*     /\*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *)logging_entry->data), 37); *\/ */
+    /*     /\* } *\/ */
+    /* } */
     /*****END DEBUGGING DATA******************/
 
     
@@ -535,9 +535,9 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
     cv_user=ksnap_vma_to_userdata(vma);
     cv_seg=ksnap_vma_to_ksnap(vma);
 
-    /* printk(KERN_EMERG "is logging page %d, should check %d\n", */
+    /* printk(KERN_EMERG "is logging page %d, should check %d, %d\n", */
     /*        cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index), */
-    /*        cv_user->committed_non_logging_entries++ % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES); */
+    /*        ((cv_user->committed_non_logging_entries++) % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES), CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES); */
 
 #ifdef CV_LOGGING_DISABLED
     return 0;
@@ -545,14 +545,14 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
     //don't want to do this too often - its kinda expensive!
     if (!cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index) &&
         cv_user->committed_non_logging_entries++ % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES == 0){
-        //printk(KERN_EMERG "doing a logging migration check...pid: %d\n", current->pid);
         page_entry = cv_list_entry_get_page_entry(pte_list_entry);
         //first get the address of our page
         local_addr=__compute_local_addr_for_diff(vma, page_entry->pfn, pte_list_entry->page_index, pte_list_entry->checkpoint);
+        //printk(KERN_EMERG "doing a logging migration check...pid: %d %d diff? %d\n", current->pid, pte_list_entry->page_index, cv_logging_diff_64(local_addr, page_entry->ref_page));
         //now do a diff to see how many 64bit words changed
         if ((diff=cv_logging_diff_64(local_addr, page_entry->ref_page))<=CV_LOGGING_DIFF_THRESHOLD_64){
-            /* printk(KERN_EMERG "doing a logging migration check...diff %d...pid: %d...bitmap %lu\n", diff,current->pid, */
-            /*      cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index) & 0xFUL); */
+            //printk(KERN_EMERG "doing a logging migration check...diff %d...pid: %d...bitmap %lu\n", diff,current->pid,
+            //   cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index) & 0xFUL);
             cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 1);
             //should we switch over to logging?
             if (cv_logging_should_switch(cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index))){
@@ -696,7 +696,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
           list_del(pos);
           list_add(pos, &our_version_entry->pte_list->list);
           conv_dirty_delete_lookup(cv_user, pte_entry->page_index,
-                                   cv_list_entry_get_logging_entry(pte_entry)->line_index, 0);
+                                   cv_list_entry_get_logging_entry(pte_entry)->line_index,
+                                   cv_logging_is_full_page(cv_list_entry_get_logging_entry(pte_entry)));
           ++committed_pages;
       }
   }
@@ -757,7 +758,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
               list_del(&pte_entry->list);
               list_add(&pte_entry->list, &our_version_entry->pte_list->list);
               conv_dirty_delete_lookup(cv_user, pte_entry->page_index,
-                                       cv_list_entry_get_logging_entry(pte_entry)->line_index, 0);
+                                       cv_list_entry_get_logging_entry(pte_entry)->line_index, cv_logging_is_full_page(cv_list_entry_get_logging_entry(pte_entry)));
           }
       }
   }
