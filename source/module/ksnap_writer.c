@@ -38,6 +38,21 @@ void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_
     }
 }
 
+struct snapshot_pte_list * conv_dirty_search_lookup_line_and_page(struct ksnap_user_data * cv_user_data,
+                                                    unsigned long page_index, unsigned long line_index){
+    struct snapshot_pte_list * result;
+    //start with the line index
+    unsigned long index = cv_logging_get_index(page_index, line_index, 0);
+    //printk(KERN_EMERG "lookup at index %lu, pid: %d\n", index, current->pid);
+    result = radix_tree_lookup(&cv_user_data->dirty_list_lookup, index);
+    if (!result){
+        //try with pages
+        index = cv_logging_get_index(page_index, line_index, 1);
+        result = radix_tree_lookup(&cv_user_data->dirty_list_lookup, index);
+    }
+    return result;
+}
+
 struct snapshot_pte_list * conv_dirty_search_lookup(struct ksnap_user_data * cv_user_data,
                                                     unsigned long page_index, unsigned long line_index, uint8_t is_page_level){
     unsigned long index = cv_logging_get_index(page_index, line_index, is_page_level);

@@ -21,4 +21,8 @@ void ksnap_revert_dirty_list(struct vm_area_struct * vma, struct address_space *
 void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte_list * new_dirty_entry,
                                    unsigned long page_index, unsigned long line_index, uint8_t is_page_level);
 
+struct snapshot_pte_list * conv_dirty_search_lookup_line_and_page(struct ksnap_user_data * cv_user_data,
+                                                                  unsigned long page_index, unsigned long line_index);
+
+
 #endif

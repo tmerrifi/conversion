@@ -338,7 +338,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
             
             //LOGGING CODE
             logging_entry = cv_list_entry_get_logging_entry(tmp_pte_list);
-            dirty_entry=conv_dirty_search_lookup(cv_user, tmp_pte_list->page_index, logging_entry->line_index, cv_logging_is_full_page(logging_entry));
+            dirty_entry=conv_dirty_search_lookup_line_and_page(cv_user, tmp_pte_list->page_index, logging_entry->line_index);
             
             /* if (tmp_pte_list->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){ */
             /*     printk(KERN_INFO "memcpy %p %d %d pid %d, logging_entry %p, version %lu, entry %p, %lu\n", */
