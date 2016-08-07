@@ -73,7 +73,8 @@ int cv_logging_page_status_insert(struct ksnap_user_data * cv_user, struct cv_lo
 
 struct cv_logging_page_status_entry * cv_logging_page_status_lookup(struct ksnap_user_data * cv_user, unsigned long page_index);
 
-struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * pte, unsigned long pfn, unsigned long page_index);
+struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * pte, unsigned long pfn,
+                                                                        unsigned long page_index, uint64_t version_num);
 
 void cv_merge_line(uint8_t * local, uint8_t * ref, uint8_t * latest);
 
@@ -83,11 +84,33 @@ uint8_t * cv_logging_allocate_data_entry(int data_len, struct ksnap * cv_seg);
 
 void cv_logging_free_data_entry(int data_len, struct ksnap * cv_seg, void * data);
 
-
+struct page * cv_logging_cow_page(struct vm_area_struct * vma, pte_t * pte, unsigned long faulting_addr);
 
 #define sum_page(ptr,i,sum) for(i=0;i<PAGE_SIZE/sizeof(int);i++){sum+=*ptr++;}
 
-#define CV_LOGGING_DEBUG_PRINT_LINE(linedata,l) printk(KERN_EMERG "LINE %d: %llx %llx %llx %llx %llx %llx %llx %llx", \
-                                                   l,linedata[0],linedata[1],linedata[2],linedata[3],linedata[4],linedata[5],linedata[6],linedata[7]);
+#ifdef CV_MEMTRACE_DEBUG
+#define CV_LOGGING_DEBUG_PRINT_LINE(linedata,p,l,msg)                   \
+    if (p==3)\
+    printk(KERN_INFO "memtrace: %d %s, line: %d, page: %d data %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | \
+%d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d  \n", \
+           current->pid,(msg),l,p,                                      \
+        (linedata)[0],(linedata)[1],(linedata)[2],(linedata)[3],(linedata)[4],(linedata)[5],(linedata)[6],(linedata)[7], \
+           (linedata)[8],(linedata)[9],(linedata)[10],(linedata)[11],(linedata)[12],(linedata)[13],(linedata)[14],(linedata)[15], \
+    (linedata)[16],(linedata)[17],(linedata)[18],(linedata)[19],(linedata)[20],(linedata)[21],(linedata)[22],(linedata)[23], \
+        (linedata)[24],(linedata)[25],(linedata)[26],(linedata)[27],(linedata)[28],(linedata)[29],(linedata)[30],(linedata)[31], \
+        (linedata)[32],(linedata)[33],(linedata)[34],(linedata)[35],(linedata)[36],(linedata)[37],(linedata)[38],(linedata)[39], \
+        (linedata)[40],(linedata)[41],(linedata)[42],(linedata)[43],(linedata)[44],(linedata)[45],(linedata)[46],(linedata)[47], \
+        (linedata)[48],(linedata)[49],(linedata)[50],(linedata)[51],(linedata)[52],(linedata)[53],(linedata)[54],(linedata)[55], \
+    (linedata)[56],(linedata)[57],(linedata)[58],(linedata)[59],(linedata)[60],(linedata)[61],(linedata)[62],(linedata)[63]);
+
+    /* else{ \ */
+    /* trace_printk("memtrace: nope\n");\ */
+    /* } */
+
+#else
+#define CV_LOGGING_DEBUG_PRINT_LINE(linedata,p,l,msg)   \
+    
+#endif
+
 
 #endif

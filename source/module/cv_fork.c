@@ -22,6 +22,15 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
 
     struct ksnap * cv_seg=ksnap_vma_to_userdata(old_vma)->cv_seg;
 
+    struct ksnap_user_data * cv_user_old = ksnap_vma_to_userdata(old_vma);
+
+    cv_user_old->forked_version_num=cv_user_old->version_num;
+
+#ifdef CONV_LOGGING_ON
+    printk(KERN_EMERG "cv_fork: forking, pid %d, version %lu, new_vma %p, forked version num %lu\n",
+           current->pid, cv_user_old->version_num, new_vma, cv_user_old->forked_version_num);
+#endif
+    
     new_vma->ksnap_user_data=kmalloc(sizeof(struct ksnap_user_data), GFP_KERNEL);
     memcpy(new_vma->ksnap_user_data, old_vma->ksnap_user_data, sizeof(struct ksnap_user_data));
     
@@ -33,7 +42,8 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
     ksnap_vma_to_userdata(new_vma)->dirty_pages_list = _snapshot_create_pte_list();
     ksnap_vma_to_userdata(new_vma)->status = CV_USER_STATUS_AWAKE;
     ksnap_vma_to_userdata(new_vma)->committed_non_logging_entries = 0;
-
+    ksnap_vma_to_userdata(new_vma)->forked_version_num = 0;
+    
     cv_defer_work_init(&ksnap_vma_to_userdata(new_vma)->defer_work);
 
     cv_profiling_begin(&ksnap_vma_to_userdata(new_vma)->profiling_info, ksnap_vma_to_userdata(new_vma)->id);

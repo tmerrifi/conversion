@@ -108,7 +108,8 @@ int cv_logging_page_status_insert(struct ksnap_user_data * cv_user,struct cv_log
     return radix_tree_lookup(&cv_user->logging_page_status, index);
 }
 
-struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * pte, unsigned long pfn, unsigned long page_index){
+struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * pte, unsigned long pfn,
+                                                                        unsigned long page_index, uint64_t version_num){
     struct cv_logging_page_status_entry * entry = kmalloc(sizeof(struct cv_logging_page_status_entry), GFP_KERNEL);
     conv_debug_memory_alloc(entry);
     entry->pte=pte;
@@ -119,6 +120,7 @@ struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * 
     memset(entry->lines, 0, (PAGE_SIZE/CV_LOGGING_LOG_SIZE) * sizeof(struct snapshot_pte_list *));
     entry->page_entry=NULL;
     entry->page_index=page_index;
+    entry->cow_version=version_num;
     return entry;
 }
 
@@ -140,17 +142,57 @@ void cv_merge_line(uint8_t * local, uint8_t * ref, uint8_t * latest){
     cv_three_way_merge(local, ref, latest, CV_LOGGING_LOG_SIZE/sizeof(uint64_t) );
 }
 
+//this funtion does not flush the tlb!!!
+struct page * cv_logging_cow_page(struct vm_area_struct * vma, pte_t * pte, unsigned long faulting_addr){
+    struct page * new_page, * old_page;
+    pte_t new_pte_entry;
+    uint8_t * kaddr;
+    unsigned long page_addr=faulting_addr & PAGE_MASK;
+    
+    //get the old page
+    old_page = pte_page(*pte);
+    //allocate a new page
+    new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, page_addr);
+    conv_debug_memory_alloc(new_page);
+    __SetPageUptodate(new_page);
+    //add it to rmap
+    page_add_new_anon_rmap(new_page, vma, page_addr);
+    /* //do the copy */
+    kaddr = (uint8_t *)kmap_atomic(new_page, KM_USER0);
+    memcpy(kaddr,(uint8_t *)page_addr,PAGE_SIZE);
+    kunmap_atomic(kaddr, KM_USER0);
+    //updating the pte with the new PFN and flush the TLB
+    new_pte_entry = mk_pte(new_page, vma->vm_page_prot);
+    set_pte(pte, new_pte_entry);
+    //deal with the old page
+    page_remove_rmap(old_page);
+    put_page(old_page);
+#ifdef CONV_LOGGING_ON
+    printk(KERN_EMERG "cv_logging: CoW'd oldpage: %p, newpage: %p, pid: %d\n",
+           old_page, new_page, current->pid);
+#endif
+    //return the new pfn
+    
+    return new_page;
+}
+
 void cv_logging_cow_page_fault(struct vm_area_struct * vma,
                                struct snapshot_pte_list * entry,
                                struct cv_logging_entry * logging_entry,
                                struct cv_logging_page_status_entry * logging_status_entry,
-                               unsigned long faulting_addr, pte_t * pte){
+                               unsigned long faulting_addr, pte_t * pte, int force_cow_page){
     pte_t page_table_e;
     int i=0;
 
     struct ksnap * cv_seg=ksnap_vma_to_ksnap(vma);
     struct ksnap_user_data * cv_user=ksnap_vma_to_userdata(vma);
 
+    if (force_cow_page){
+        struct page * new_page = cv_logging_cow_page(vma, pte, faulting_addr);
+        logging_status_entry->pfn=page_to_pfn(new_page);
+        logging_status_entry->cow_version=cv_user->version_num;
+    }
+    
     if (cv_logging_is_full_page(logging_entry) && conv_is_checkpointed_logging_entry(logging_entry)){
         //this is a special case, because the rest of this function assumes we are
         //transitioning from a logging entry to a page level entry. If this is a checkpointed
@@ -164,11 +206,6 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
     //unless its been checkpointed, there's no reason this should happen
     BUG_ON(cv_logging_is_full_page(logging_entry));
     
-    /* if (logging_entry->data){ */
-    /*     cv_logging_free_data_entry(logging_entry->data_len, cv_seg, logging_entry->data); */
-    /* } */
-    //zero out the logging status entry ptr
-    //logging_status_entry->lines[logging_entry->line_index]=NULL;
     //remove from the lookup too
     conv_dirty_delete_lookup(cv_user, entry->page_index,
                              logging_entry->line_index, 0);
@@ -186,7 +223,10 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
     if (logging_entry->data!=NULL){
         //we reuse this entry, so we need to copy over our old data
         memcpy(new_data + CV_LOGGING_LOG_SIZE * logging_entry->line_index, logging_entry->data, CV_LOGGING_LOG_SIZE);
-        //CV_LOGGING_DEBUG_PRINT_LINE(((uint64_t *)(new_data + CV_LOGGING_LOG_SIZE * logging_entry->line_index)), logging_entry->line_index);
+        CV_LOGGING_DEBUG_PRINT_LINE(((uint8_t *)(new_data + CV_LOGGING_LOG_SIZE * logging_entry->line_index)),
+                                    entry->page_index,
+                                    logging_entry->line_index,
+                                    "cv_logging: copy old");
         //free the old data
         cv_logging_free_data_entry(CV_LOGGING_LOG_SIZE, cv_seg, logging_entry->data);
     }
@@ -230,7 +270,10 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
             /*        current->pid, entry->page_index, logging_entry_old->line_index, i, entry, entry_old); */
             //copy the reference data over
             memcpy(logging_entry->data + i*CV_LOGGING_LOG_SIZE, logging_entry_old->data, CV_LOGGING_LOG_SIZE);
-            //CV_LOGGING_DEBUG_PRINT_LINE(((uint64_t *)logging_entry_old->data), logging_entry->line_index);
+            CV_LOGGING_DEBUG_PRINT_LINE(((uint8_t *)logging_entry_old->data),
+                                        entry->page_index,
+                                        logging_entry->line_index,
+                                        "cv_logging : copy over ref");
             //if there's checkpoint data, we need that too
             if (conv_is_checkpointed_logging_entry(logging_entry_old)){
                 //its possible that we haven't actually allocated space to store the local checkpoint data for the page
@@ -317,8 +360,9 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     struct cv_logging_entry * logging_entry;
     uint64_t write_width=0;
     int handled=0;
-    uint32_t page_index = (faulting_addr - vma->vm_start)/PAGE_SIZE;
-    uint32_t line_index = cv_logging_line_index(faulting_addr);
+    uint32_t page_index=(faulting_addr - vma->vm_start)/PAGE_SIZE;
+    uint32_t line_index=cv_logging_line_index(faulting_addr);
+    int force_cow_page=0;
     
     struct cv_logging_page_status_entry * logging_status_entry = cv_logging_page_status_lookup(cv_user, page_index);
     //printk(KERN_EMERG "logging fault, pid: %d, page index: %d, data %d, addr %p\n",
@@ -327,6 +371,17 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     if (!logging_status_entry){
         return 0;
     }
+
+    //we need to check and see if we've forked a new thread lately. If we have, then we can't just
+    //modify this "private" page because another thread might be using it as a reference page. So we
+    //have to CoW our private page.
+    if (logging_status_entry->cow_version < cv_user->forked_version_num){
+#ifdef CONV_LOGGING_ON
+        printk(KERN_EMERG "cv_logging: forcing a cow, pid: %d, page: %d\n", current->pid, page_index);
+#endif
+        force_cow_page=1;
+    }
+    
     //is there already a dirty entry for this line?
     dirty_list_entry=conv_dirty_search_lookup(cv_user, page_index,
                                               cv_logging_line_index(faulting_addr), 0);
@@ -367,7 +422,9 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     }
 
     //cv_logging_is_full_page will be true if this page was checkpointed
-    if (!cv_logging_is_full_page(logging_entry) && logging_status_entry->logging_writes < CV_LOGGING_WRITES_THRESHOLD){
+    if (!cv_logging_is_full_page(logging_entry) &&
+        logging_status_entry->logging_writes < CV_LOGGING_WRITES_THRESHOLD &&
+        !force_cow_page){
         //allocate some space to hold the reference data...but only do it the first time for this entry
         if (logging_entry->data==NULL){
             logging_entry->data = cv_logging_allocate_data_entry(CV_LOGGING_LOG_SIZE, cv_seg);
@@ -376,9 +433,15 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         }
         uint8_t * kaddr_faulting = pfn_to_kaddr(logging_status_entry->pfn) + (faulting_addr & (~PAGE_MASK));
         /* printk(KERN_EMERG "before interpret....\n"); */
-        /* CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) ((size_t)kaddr_faulting & CV_LOGGING_LOG_MASK)), LOGGING_DEBUG_LINE); */
+        CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) ((size_t)kaddr_faulting & CV_LOGGING_LOG_MASK)),
+                                     page_index,
+                                     logging_entry->line_index,
+                                     "cv_logging: before interpret");
         /* printk(KERN_EMERG "OG data...\n"); */
-        /* CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *)logging_entry->data), LOGGING_DEBUG_LINE); */
+        CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *)logging_entry->data),
+                                     page_index,
+                                     logging_entry->line_index,                                     
+                                     "cv_logging: before interpret refdata");
         
         if ((write_width=interpret(regs->ip, CV_LOGGING_INSTRUCTION_MAX_WIDTH, kaddr_faulting, regs))){
             cv_logging_set_dirty(logging_entry);
@@ -387,12 +450,10 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
             //cv_logging_free_data_entry(CV_LOGGING_LOG_SIZE, cv_seg, logging_entry->data);
             //store this in our logging status entry so we can easily find it later if we switch to page-level
             logging_status_entry->lines[logging_entry->line_index]=dirty_list_entry;
-            if (page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){
-                /* printk(KERN_INFO "LOGGING FAULT: interpret succeeded! pid: %d, index %lu, logging_writes %d\n", */
-                /*        current->pid, logging_entry->line_index, logging_status_entry->logging_writes); */
-                /* CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) ((size_t)kaddr_faulting & CV_LOGGING_LOG_MASK)), LOGGING_DEBUG_LINE); */
-                /* CV_LOGGING_DEBUG_PRINT_LINE( ((uint64_t *) ((size_t)kaddr_faulting & CV_LOGGING_LOG_MASK)), LOGGING_DEBUG_LINE); */
-            }
+            CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) ((size_t)kaddr_faulting & CV_LOGGING_LOG_MASK)),
+                                         page_index,
+                                         logging_entry->line_index,
+                                         "cv_logging: after interpret");
             
             //we succeeded, figure out if we wrote to more than one cache line
             BUG_ON(cv_logging_line_start(faulting_addr) + write_width > cv_logging_line_start(faulting_addr) + CV_LOGGING_LOG_SIZE);
@@ -406,7 +467,9 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         /*            dirty_list_entry->page_index, current->pid, */
         /*            *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX ); */
         /* } */
-        cv_logging_cow_page_fault(vma, dirty_list_entry, logging_entry, logging_status_entry, faulting_addr, logging_status_entry->pte);
+        cv_logging_cow_page_fault(vma, dirty_list_entry, logging_entry,
+                                  logging_status_entry, faulting_addr,
+                                  logging_status_entry->pte, force_cow_page);
         logging_status_entry->logging_writes=0;
         logging_status_entry->entries_allocated=0;
         

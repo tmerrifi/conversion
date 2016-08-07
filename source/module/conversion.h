@@ -82,9 +82,9 @@
 
 #define LOGGING_SIZE_BYTES (64*8) //one cache line
 
-#define LOGGING_DEBUG_PAGE_INDEX 0
+#define LOGGING_DEBUG_PAGE_INDEX 3
 #define LOGGING_DEBUG_INDEX 0
-#define LOGGING_DEBUG_LINE 0
+#define LOGGING_DEBUG_LINE 2
 
 
 struct cv_logging_data_entry{
@@ -155,6 +155,7 @@ struct cv_logging_page_status_entry{
     uint32_t logging_writes;
     uint32_t entries_allocated;
     unsigned long page_index;
+    uint64_t cow_version; //we use this to keep track of the last time we COW'd, which happens after we've forked
     struct snapshot_pte_list * lines[PAGE_SIZE/CV_LOGGING_LOG_SIZE];
     struct snapshot_pte_list * page_entry;
     struct snapshot_pte_list * wait_entry;
@@ -243,6 +244,7 @@ struct ksnap_user_data{
     /********LOGGING STUFF********/
     struct radix_tree_root logging_page_status;
     /******************************/
+    uint64_t forked_version_num; //we track the last forked version number so we can CoW logging pages if we need to.
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/

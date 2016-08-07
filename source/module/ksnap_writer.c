@@ -34,7 +34,6 @@ void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_
             radix_tree_delete(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index);
             radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
         }
-        //printk(KERN_EMERG "added entry at index %lu, pid: %d\n", index, current->pid);
     }
 }
 
@@ -43,7 +42,6 @@ struct snapshot_pte_list * conv_dirty_search_lookup_line_and_page(struct ksnap_u
     struct snapshot_pte_list * result;
     //start with the line index
     unsigned long index = cv_logging_get_index(page_index, line_index, 0);
-    //printk(KERN_EMERG "lookup at index %lu, pid: %d\n", index, current->pid);
     result = radix_tree_lookup(&cv_user_data->dirty_list_lookup, index);
     if (!result){
         //try with pages
@@ -135,6 +133,20 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       cv_user_data->dirty_pages_list_count++;
       cv_page_debugging_clear_flags(new_page,counter);
       cv_memory_accounting_inc_pages(ksnap_segment);
+
+
+#ifdef CONV_LOGGING_ON
+      /*DEBUGGING*/
+      if (cv_page->ref_page){
+          uint8_t * ref_kaddr = (uint8_t *)kmap_atomic(cv_page->ref_page, KM_USER0);
+          printk(KERN_INFO "COW pid: %d ref_page page: %d page %p, new_page %p, version %lu\n",
+                 current->pid, pte_list_entry->page_index, cv_page->ref_page, new_page, cv_user_data->version_num);
+          CV_LOGGING_DEBUG_PRINT_LINE(ref_kaddr + (CV_LOGGING_LOG_SIZE * 2), pte_list_entry->page_index, 0, "ksnap_write: COW");
+          kunmap_atomic(ref_kaddr, KM_USER0);
+      }
+      /**************/
+#endif
+      
   }
   CV_HOOKS_COW(cv_seg, cv_user_data, new_page->index);
 }

@@ -168,7 +168,7 @@ void __merge_full_page_with_cache_lines(struct cv_logging_entry * logging_entry,
             ref_data=logging_entry->data + (i*CV_LOGGING_LOG_SIZE);
 
             /*************DEBUGGING CODE***************************/
-            /* uint8_t * debug_data=(uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status, 0); */            
+            /* uint8_t * debug_data=(uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status, 0);             */
             /* if (entry->page_index==12){ */
             /*     printk(KERN_EMERG "merge full page 1 with cache lines... pid: %d, cache line %lu, data %d, %d, huh??? %d, %d\n", */
             /*            current->pid, latest_logging_entry->line_index, debug_data[2421], */
@@ -180,12 +180,36 @@ void __merge_full_page_with_cache_lines(struct cv_logging_entry * logging_entry,
             /*     } */
             /* } */
             /*************END DEBUGGING CODE***************************/
+
+            CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)data,
+                                        entry->page_index,
+                                        i,
+                                        "cv_commit before merge");
+
+
+            CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)latest_logging_entry->data,
+                                        entry->page_index,
+                                        i,
+                                        "cv_commit before merge latest");
+
+            CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)ref_data,
+                                        entry->page_index,
+                                        i,
+                                        "cv_commit before merge ref");
+
+            
             
             //whelp...gotta merge
             cv_three_way_merge(data,
                                ref_data,
                                latest_logging_entry->data,
                                CV_LOGGING_MERGE_WORDS);
+
+            CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)data,
+                                        entry->page_index,
+                                        i,
+                                        "cv_commit after merge");
+
 
             /*************DEBUGGING CODE***************************/
             /* if (entry->page_index==12){ */
@@ -337,6 +361,23 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
     //update the ppv with our version...do this *after* we make the old entry obsolete.
     cv_per_page_version_update_logging_entry(cv_seg->ppv, entry->page_index, entry, our_version_number, logging_entry->line_index);
 
+    char str[200];
+    sprintf(str, "cv_commit : v : %lu", our_version_number);
+    
+    if (!cv_logging_is_full_page(logging_entry)){
+        CV_LOGGING_DEBUG_PRINT_LINE(((uint8_t *)logging_entry->data),
+                                    entry->page_index,
+                                    logging_entry->line_index,
+                                    str);
+    }
+    else{
+        CV_LOGGING_DEBUG_PRINT_LINE(((uint8_t *)logging_entry->data) + CV_LOGGING_LOG_SIZE * 2,
+                                    entry->page_index,
+                                    logging_entry->line_index,
+                                    str);
+
+    }
+    
 
     /*****DEBUGGING DATA******************/
     //    if (entry->page_index==12){
@@ -391,6 +432,10 @@ void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_st
   committed_entry = cv_list_entry_get_page_entry(cv_per_page_version_get_version_entry(
                                                                                        cv_seg->ppv,
                                                                                        page_index));
+
+#ifdef CONV_LOGGING_ON
+  printk(KERN_INFO "cv_commit: COMMITTING PAGE %p, pid %d, version %lu, index: %d\n", page, current->pid, our_revision, page_index);
+#endif
   
   if (committed_entry && pfn_to_page(committed_entry->pfn) != version_list_entry->ref_page){
       local_addr=__compute_local_addr_for_diff(vma, version_list_entry->pfn, page_index, checkpointed);
@@ -409,6 +454,9 @@ void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_st
       cv_stats_inc_merged_pages(&cv_seg->cv_stats);
       cv_profiling_add_value(&cv_user->profiling_info,page_index,CV_PROFILING_VALUE_TYPE_MERGE);
       CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, page_index, CV_HOOKS_COMMIT_ENTRY_MERGE);
+#ifdef CONV_LOGGING_ON
+      printk(KERN_INFO "cv_commit: MERGING COMMITTING PAGE %p, pid %d, version %lu, index: %d\n", page, current->pid, our_revision, page_index);
+#endif
   }
   else{
       cv_profiling_add_value(&cv_user->profiling_info,page_index,CV_PROFILING_VALUE_TYPE_COMMIT);
@@ -451,9 +499,15 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     //do this before we blow away the data
     struct cv_logging_page_status_entry * logging_entry = cv_logging_page_status_entry_init(page_entry->pte,
                                                                                             page_entry->pfn,
-                                                                                            pte_list_entry->page_index);
+                                                                                            pte_list_entry->page_index,
+                                                                                            cv_user->version_num);           
     //grab the ref page for copying later
     ref_page = page_entry->ref_page;
+
+#ifdef CONV_LOGGING_ON
+    printk(KERN_INFO "migrating pid: %d page: %d and page is: %p, ref page is: %p, vma: %p",
+           current->pid,pte_list_entry->page_index,pfn_to_page(page_entry->pfn), ref_page, vma);
+#endif
     
     //compute the local addr of our page
     local_addr=__compute_local_addr_for_diff(vma, page_entry->pfn,
@@ -502,7 +556,11 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
         uint8_t * ref_kaddr = (uint8_t *)kmap_atomic(ref_page, KM_USER0);
         memcpy(pte_list_entry->logging_entry.data,ref_kaddr,PAGE_SIZE);
         kunmap_atomic(ref_kaddr, KM_USER0);
-        //printk(KERN_EMERG "copying ref page %d\n", current->pid);
+        CV_LOGGING_DEBUG_PRINT_LINE(pte_list_entry->logging_entry.data + (CV_LOGGING_LOG_SIZE * 2), pte_list_entry->page_index, 0, "cv_commit: migrating");
+#ifdef CONV_LOGGING_ON
+        printk(KERN_EMERG "copying ref page %d, page: %d ref %p\n",
+               current->pid, pte_list_entry->page_index, ref_page);
+#endif
     }
     
     //insert this page into our local logging ds

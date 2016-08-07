@@ -93,9 +93,9 @@ void ksnap_merge(struct page * latest_page, uint8_t * local, struct page * ref_p
       BUG();
   }
 
-#ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL "pid %d MERGING %lu %p %lu %p %d\n", current->pid, page_to_pfn(latest_page), local, page_to_pfn(ref_page), ref_page, ref_page->index);
-#endif
+  //#ifdef CONV_LOGGING_ON
+  trace_printk(KSNAP_LOG_LEVEL "pid %d MERGING %lu %p %lu %p %d\n", current->pid, page_to_pfn(latest_page), local, page_to_pfn(ref_page), ref_page, ref_page->index);
+  //#endif
 
   cv_three_way_merge(local, ref, latest, (PAGE_SIZE/sizeof(uint64_t)));
   
