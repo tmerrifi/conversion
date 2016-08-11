@@ -106,7 +106,7 @@ unsigned int __compute_dirty_list_length(unsigned int meta_data_pages){
     return (meta_data_pages - 1) * ((KSNAP_PAGE_SIZE/sizeof(unsigned long)) - 10);
 }
 
-unsigned int conv_get_linearized_version_num(conv_seg * seg){
+uint64_t conv_get_linearized_version_num(conv_seg * seg){
     return __get_meta_shared_page(seg)->linearized_version_num;
 }
 
@@ -265,7 +265,7 @@ void conv_partial_background_update(conv_seg * seg){
     }
 }
 
-unsigned int conv_get_partial_version_num(conv_seg * seg){
+uint64_t conv_get_partial_version_num(conv_seg * seg){
     return __get_meta_local_page(seg)->partial_version_num;
 }
 

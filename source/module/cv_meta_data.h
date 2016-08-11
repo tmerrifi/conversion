@@ -10,8 +10,8 @@ struct ksnap_meta_data_local{
     unsigned char dirty_list_mode; //bitmap or list
     unsigned int dirty_page_count; 
     unsigned int dirty_list_size; //
-    unsigned int snapshot_version_num; //the current version number
-    unsigned int partial_version_num; //set after doing a partial update
+    uint64_t snapshot_version_num; //the current version number
+    uint64_t partial_version_num; //set after doing a partial update
     unsigned int updated_pages; //the number of pages updated by the last update
     unsigned int partial_updated_unique_pages; //unique updated pages from multiple calls to partial_update
     unsigned int merged_pages; //the number of pages updated by the last update
@@ -19,8 +19,8 @@ struct ksnap_meta_data_local{
 };
 
 struct ksnap_meta_data_shared{
-    unsigned int snapshot_version_num;
-    unsigned int linearized_version_num; /*a version number set once a commit has been linearized*/
+    uint64_t snapshot_version_num;
+    uint64_t linearized_version_num; /*a version number set once a commit has been linearized*/
     unsigned int logical_page_count; /*How many pages in our segment have *some* physical frame that has been committed.*/
 };
 
@@ -39,7 +39,7 @@ void cv_meta_inc_logical_page_count(struct vm_area_struct * vma);
 
 void cv_meta_dec_logical_page_count(struct vm_area_struct * vma);
 
-void cv_meta_set_partial_version_num(struct vm_area_struct * vma, unsigned int version);
+void cv_meta_set_partial_version_num(struct vm_area_struct * vma, uint64_t version);
 
 void cv_meta_set_dirty_page_count(struct vm_area_struct * vma, uint32_t count);
 
@@ -63,13 +63,13 @@ void ksnap_meta_add_dirty_page(struct vm_area_struct * vma, unsigned long cow_pa
 
 void ksnap_meta_clear_dirty(struct vm_area_struct * vma);
 
-void ksnap_meta_set_local_version(struct vm_area_struct * vma, unsigned int current_version);
+void ksnap_meta_set_local_version(struct vm_area_struct * vma, uint64_t current_version);
 
-unsigned int ksnap_meta_get_local_version(struct vm_area_struct * vma);
+uint64_t ksnap_meta_get_local_version(struct vm_area_struct * vma);
 
-unsigned int ksnap_meta_get_shared_version(struct vm_area_struct * vma );
+uint64_t ksnap_meta_get_shared_version(struct vm_area_struct * vma );
 
-unsigned int cv_meta_get_linearized_version(struct vm_area_struct * vma);
+uint64_t cv_meta_get_linearized_version(struct vm_area_struct * vma);
 
 void cv_meta_inc_linearized_version(struct vm_area_struct * vma);
 

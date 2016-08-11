@@ -28,8 +28,8 @@ struct ksnap_meta_data_local{
     unsigned char dirty_list_mode; //bitmap or list
     unsigned int dirty_page_count; 
     unsigned int dirty_list_size; //how many pages can we fit in it?
-    unsigned int snapshot_version_num; //the current version number
-    unsigned int partial_version_num; //set after doing a partial update
+    uint64_t snapshot_version_num; //the current version number
+    uint64_t partial_version_num; //set after doing a partial update
     unsigned int updated_pages; //the number of pages updated by the last update
     unsigned int partial_updated_unique_pages; //unique updated pages from multiple calls to partial_update
     unsigned int merged_pages; //the number of pages updated by the last update
@@ -37,8 +37,8 @@ struct ksnap_meta_data_local{
 };
 
 struct ksnap_meta_data_shared{
-    unsigned int snapshot_version_num;
-    unsigned int linearized_version_num; /*a version number set once a commit has been linearized*/
+    uint64_t snapshot_version_num;
+    uint64_t linearized_version_num; /*a version number set once a commit has been linearized*/
     unsigned int logical_page_count; /*How many pages in our segment have *some* physical frame that has been committed.*/
 };
 
@@ -147,8 +147,8 @@ struct ksnap_dirty_list_entry{
      //some specialized functions used for DMT (deterministic multi-threading)
      void conv_set_partial_updated_unique_pages(conv_seg * seg, unsigned int val);
      unsigned int conv_get_partial_updated_unique_pages(conv_seg * seg);
-     unsigned int conv_get_partial_version_num(conv_seg * seg);
-     unsigned int conv_get_linearized_version_num(conv_seg * seg);
+     uint64_t conv_get_partial_version_num(conv_seg * seg);
+     uint64_t conv_get_linearized_version_num(conv_seg * seg);
 
      
      void conv_clear_local_stats(conv_seg * seg);

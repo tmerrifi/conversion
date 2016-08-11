@@ -72,7 +72,7 @@ void cv_meta_set_merged_page_count(struct vm_area_struct * vma, uint32_t count){
     meta_data->merged_pages=count;
 }
 
-void cv_meta_set_partial_version_num(struct vm_area_struct * vma, unsigned int version){
+void cv_meta_set_partial_version_num(struct vm_area_struct * vma, uint64_t version){
     struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
     meta_data->partial_version_num=version;
 }
@@ -96,12 +96,12 @@ struct ksnap_dirty_list_entry * __get_dirty_list(struct vm_area_struct * vma,  s
   return dirty_list;
 }
 
-void ksnap_meta_set_local_version(struct vm_area_struct * vma, unsigned int current_version){
+void ksnap_meta_set_local_version(struct vm_area_struct * vma, uint64_t current_version){
   struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
   meta_data->snapshot_version_num=current_version;
 }
 
-unsigned int ksnap_meta_get_local_version(struct vm_area_struct * vma){
+uint64_t ksnap_meta_get_local_version(struct vm_area_struct * vma){
   struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
   return meta_data->snapshot_version_num;
 }
@@ -130,7 +130,7 @@ unsigned char ksnap_meta_search_dirty_list(struct vm_area_struct * vma, unsigned
   return result;
 }
 
-unsigned int cv_meta_get_linearized_version(struct vm_area_struct * vma){
+uint64_t cv_meta_get_linearized_version(struct vm_area_struct * vma){
   struct ksnap_meta_data_shared * meta_data = (struct ksnap_meta_data_shared *)(vma->vm_start - (PAGE_SIZE*META_SHARED_OFFSET_FROM_SEGMENT));
   return meta_data->linearized_version_num;
 }
@@ -148,7 +148,7 @@ void cv_meta_set_linearized_version(struct vm_area_struct * vma, uint64_t versio
 }
 
 
-unsigned int ksnap_meta_get_shared_version(struct vm_area_struct * vma){
+uint64_t ksnap_meta_get_shared_version(struct vm_area_struct * vma){
   struct ksnap_meta_data_shared * meta_data = (struct ksnap_meta_data_shared *)(vma->vm_start - (PAGE_SIZE*META_SHARED_OFFSET_FROM_SEGMENT));
   return meta_data->snapshot_version_num;
 }
