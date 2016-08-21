@@ -103,5 +103,18 @@ void ksnap_merge(struct page * latest_page, uint8_t * local, struct page * ref_p
   if (ref_page){
     kunmap_atomic(ref, KM_USER1);
   }
-
 }
+
+
+uint8_t * compute_local_addr_for_diff(struct vm_area_struct * vma, unsigned long pfn, unsigned long page_index, int checkpointed){
+    uint8_t * local_addr;
+    if (checkpointed){
+        //we do this because we modify our page and the current version is write-protected
+        local_addr=(uint8_t *)pfn_to_kaddr(pfn);
+    }
+    else{
+        local_addr=(uint8_t *)((page_index << PAGE_SHIFT) + vma->vm_start);
+    }
+    return local_addr;
+}
+

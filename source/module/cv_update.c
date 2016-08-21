@@ -230,6 +230,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   unsigned int first_update_after_partial;
   struct cv_logging_entry * logging_entry;
   struct cv_logging_page_status_entry * logging_status_entry;
+  uint8_t * local_addr;
   
   cv_stats_function_init();
   
@@ -330,8 +331,10 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 //we have to merge our changes with the committed stuff
                 if (dirty_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
                     dirty_entry_page=cv_list_entry_get_page_entry(dirty_entry);
+                    //printk(KERN_EMERG "pid %d, merging page %d\n", current->pid, tmp_pte_list->page_index);
+                    local_addr=compute_local_addr_for_diff(vma, dirty_entry_page->pfn, dirty_entry->page_index, dirty_entry->checkpoint);
                     ksnap_merge(pfn_to_page(page_entry->pfn), 
-                                (uint8_t *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start),
+                                local_addr,
                                 dirty_entry_page->ref_page, pfn_to_page(page_entry->pfn));
 #ifdef CONV_LOGGING_ON
                     printk(KERN_EMERG "    Update %d for segment %p, merge page index %d\n", current->pid, cv_seg, tmp_pte_list->page_index);

@@ -132,20 +132,6 @@ void __update_page_mapping(struct address_space * mapping, struct vm_area_struct
 }
 
 
-
-
-uint8_t * __compute_local_addr_for_diff(struct vm_area_struct * vma, unsigned long pfn, unsigned long page_index, int checkpointed){
-    uint8_t * local_addr;
-    if (checkpointed){
-        //we do this because we modify our page and the current version is write-protected
-        local_addr=(uint8_t *)pfn_to_kaddr(pfn);
-    }
-    else{
-        local_addr=(uint8_t *)((page_index << PAGE_SHIFT) + vma->vm_start);
-    }
-    return local_addr;
-}
-
 void __merge_full_page_with_cache_lines(struct cv_logging_entry * logging_entry,
                                         struct cv_logging_page_status_entry * logging_page_status,
                                         struct snapshot_pte_list * entry,
@@ -438,7 +424,7 @@ void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_st
 #endif
   
   if (committed_entry && pfn_to_page(committed_entry->pfn) != version_list_entry->ref_page){
-      local_addr=__compute_local_addr_for_diff(vma, version_list_entry->pfn, page_index, checkpointed);
+      local_addr=compute_local_addr_for_diff(vma, version_list_entry->pfn, page_index, checkpointed);
       /*if (checkpointed){
           //we do this because we modify our page and the current version is write-protected
           local_addr=(uint8_t *)pfn_to_kaddr(version_list_entry->pfn);
@@ -505,12 +491,12 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     ref_page = page_entry->ref_page;
 
 #ifdef CONV_LOGGING_ON
-    printk(KERN_INFO "migrating pid: %d page: %d and page is: %p, ref page is: %p, vma: %p",
+    printk(KERN_EMERG "migrating pid: %d page: %d and page is: %p, ref page is: %p, vma: %p",
            current->pid,pte_list_entry->page_index,pfn_to_page(page_entry->pfn), ref_page, vma);
 #endif
     
     //compute the local addr of our page
-    local_addr=__compute_local_addr_for_diff(vma, page_entry->pfn,
+    local_addr=compute_local_addr_for_diff(vma, page_entry->pfn,
                                              pte_list_entry->page_index,
                                              pte_list_entry->checkpoint);
 
@@ -549,6 +535,7 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
         memcpy(pte_list_entry->logging_entry.data, local_addr, PAGE_SIZE);
         //incrememnt the totoal number of logging pages
         atomic_inc(&cv_seg->logging_pages_count);
+        trace_printk("new logging page....%d\n", atomic_read(&cv_seg->logging_pages_count));
     }
     else{
         //still need to memcpy, but from a ref page
@@ -605,7 +592,7 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
         cv_user->committed_non_logging_entries++ % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES == 0){
         page_entry = cv_list_entry_get_page_entry(pte_list_entry);
         //first get the address of our page
-        local_addr=__compute_local_addr_for_diff(vma, page_entry->pfn, pte_list_entry->page_index, pte_list_entry->checkpoint);
+        local_addr=compute_local_addr_for_diff(vma, page_entry->pfn, pte_list_entry->page_index, pte_list_entry->checkpoint);
         //printk(KERN_EMERG "doing a logging migration check...pid: %d %d diff? %d\n", current->pid, pte_list_entry->page_index, cv_logging_diff_64(local_addr, page_entry->ref_page));
         //now do a diff to see how many 64bit words changed
         if ((diff=cv_logging_diff_64(local_addr, page_entry->ref_page))<=CV_LOGGING_DIFF_THRESHOLD_64){
@@ -888,7 +875,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
 #ifdef CONV_LOGGING_ON
-    printk(KSNAP_LOG_LEVEL "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
+    trace_printk(KSNAP_LOG_LEVEL "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
 	   current->pid, cv_seg, committed_pages, our_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);
 #endif
 
