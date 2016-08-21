@@ -140,9 +140,7 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
 
 #ifdef CONV_LOGGING_ON
     printk(KERN_EMERG "cv_update: migrate page, new page %p, old page %p, pid: %d\n", new_page, old_page, current->pid);
-#endif
-    
-    //printk(KERN_EMERG "__migrate in update 4, page: %d, pid: %d", new_page, current->pid);
+#endif    
 }
 
 void copy_logging_data(struct vm_area_struct * vma,
