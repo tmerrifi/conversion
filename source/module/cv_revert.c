@@ -50,7 +50,6 @@ int __revert_page(struct cv_page_entry * page_entry, struct snapshot_pte_list * 
             conv_dirty_delete_lookup(cv_user, page_index, 0, 1);
             //remove this entry
             list_del(pos);
-            cv_meta_dec_dirty_page_count(vma);
         }
         return 1;
     }
@@ -141,5 +140,5 @@ void conv_revert(struct vm_area_struct * vma){
     //printk(KERN_EMERG "done reverting..%d\n", current->pid);
     cv_user->partial_version_num=0;
     cv_meta_set_partial_version_num(vma, 0);
-
+    cv_meta_set_dirty_page_count(vma, 0); 
 }

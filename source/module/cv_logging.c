@@ -372,6 +372,8 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         return 0;
     }
 
+    cv_meta_inc_dirty_page_count(vma);
+    
     //we need to check and see if we've forked a new thread lately. If we have, then we can't just
     //modify this "private" page because another thread might be using it as a reference page. So we
     //have to CoW our private page.
@@ -414,6 +416,7 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         /*now we need to add the pte to the list */
         list_add_tail(&dirty_list_entry->list, &cv_user->dirty_pages_list->list);
         logging_status_entry->entries_allocated++;
+        //we do this in order to export dirty "pages" to user space. we should really rename this to something else
     }
     else{
         //just grab the logging entry otherwise
