@@ -78,7 +78,7 @@ int __pte_copy_entry (pte_t * pte, unsigned long pfn, unsigned long index,
 	//is this page mapped into our address space?
 	if (!page_count(page)){
 	  printk("page was freed out from under us\n");
-	  printk(KSNAP_LOG_LEVEL "%lu  %lu index: %lu, intended index %lu pfn %lu\n", 
+	  printk(KERN_INFO "%lu  %lu index: %lu, intended index %lu pfn %lu\n", 
 		 page->snap_page_debug[10], page->snap_page_debug[11], page->index, index, pfn);
 	  BUG();
 	}
@@ -113,7 +113,7 @@ int  __pte_copy_entry_defer (pte_t * pte, unsigned long pfn, unsigned long index
     //is this page alive and well?
     /*if (!page_count(page)){
         printk("page was freed out from under us\n");
-        printk(KSNAP_LOG_LEVEL "%lu  %lu index: %lu, intended index %lu pfn %lu\n", 
+        printk(KERN_INFO "%lu  %lu index: %lu, intended index %lu pfn %lu\n", 
                page->snap_page_debug[10], page->snap_page_debug[11], page->index, index, pfn);
         BUG();
         }*/
@@ -177,7 +177,7 @@ void do_deferred_pte_entry_update(struct cv_defer_work_entry * entry){
 	//is this page mapped into our address space?
 	if (!page_count(page)){
 	  printk("page was freed out from under us\n");
-	  printk(KSNAP_LOG_LEVEL "%lu  %lu index: %lu, intended index %lu pfn %lu\n", 
+	  printk(KERN_INFO "%lu  %lu index: %lu, intended index %lu pfn %lu\n", 
 		 page->snap_page_debug[10], page->snap_page_debug[11], page->index, entry->index, entry->pfn);
 	  BUG();
 	}

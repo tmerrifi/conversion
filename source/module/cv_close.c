@@ -65,6 +65,6 @@ void cv_close(struct vm_area_struct * vma){
 
 
 #ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL "Closing process %d\n", current->pid);
+  printk(KERN_INFO "Closing process %d\n", current->pid);
 #endif
 }

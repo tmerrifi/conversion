@@ -89,12 +89,12 @@ void ksnap_merge(struct page * latest_page, uint8_t * local, struct page * ref_p
   latest = kmap_atomic(latest_page, KM_USER0);
 
   if (!ref || !latest){
-      printk(KSNAP_LOG_LEVEL "failed to map ref %p or latest %p\n", ref, latest);
+      printk(KERN_INFO "failed to map ref %p or latest %p\n", ref, latest);
       BUG();
   }
 
   //#ifdef CONV_LOGGING_ON
-  trace_printk(KSNAP_LOG_LEVEL "pid %d MERGING %lu %p %lu %p %d\n", current->pid, page_to_pfn(latest_page), local, page_to_pfn(ref_page), ref_page, ref_page->index);
+  trace_printk(KERN_INFO "pid %d MERGING %lu %p %lu %p %d\n", current->pid, page_to_pfn(latest_page), local, page_to_pfn(ref_page), ref_page, ref_page->index);
   //#endif
 
   cv_three_way_merge(local, ref, latest, (PAGE_SIZE/sizeof(uint64_t)));

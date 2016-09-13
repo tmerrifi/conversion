@@ -38,10 +38,10 @@
 void __debug_print_dirty_list(struct ksnap_user_data * cv_user){
   struct snapshot_pte_list * pte_entry;
   struct list_head * pos, * tmp_pos; //pointers for iterating
-  printk(KSNAP_LOG_LEVEL "DIRTY LIST FOR %d\n", current->pid);
+  CV_LOG_MESSAGE( "DIRTY LIST FOR %d\n", current->pid);
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
-    printk(KSNAP_LOG_LEVEL "      dirty..... index %lu pfn\n", pte_entry->page_index);
+    CV_LOG_MESSAGE( "      dirty..... index %lu pfn\n", pte_entry->page_index);
   }
 }
 
@@ -139,7 +139,8 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     put_page(old_page);
 
 #ifdef CONV_LOGGING_ON
-    printk(KERN_EMERG "cv_update: migrate page, new page %p, old page %p, pid: %d\n", new_page, old_page, current->pid);
+    printk(KERN_EMERG "cv_update: migrate page, new page %p, old page %p, pid: %d, pfn %llu, local_addr %p\n",
+           new_page, old_page, current->pid, page_to_pfn(new_page), local_addr);
 #endif    
 }
 
@@ -173,17 +174,37 @@ void copy_logging_data(struct vm_area_struct * vma,
         //need to set destination_page * again since we've changed it.
         destination_page=(uint8_t *)pfn_to_kaddr(logging_status_entry->pfn);
     }
-    
+
+    //a full page can only be copied if its the latest entry (considering both pages and lines). Otherwise, we need
+    //to go line by line and only copy stuff that is not outdated.
     if (cv_logging_is_full_page(logging_entry) && !cv_per_page_version_logging_page_entry_is_max_version(cv_seg->ppv, entry->page_index)){
-        //a full page can only be copied if its the latest entry (considering both pages and lines). Otherwise, we need
-        //to go line by line and only copy stuff that is not outdated.
-        //printk(KERN_INFO "Whoops! Need to go line by line, index: %d!\n", entry->page_index);
+        //check to see if a full page has been committed since we last committed/updated
+        /* if (cv_per_page_version_logging_get_full_page_version(cv_seg->ppv, entry->page_index) > cv_user->version_num){ */
+        /*     //grab the last committed page */
+        /*     struct snapshot_pte_list * latest_committed_page_entry = cv_per_page_version_get_logging_page_entry(cv_seg->ppv, */
+        /*                                                                                                         entry->page_index); */
+        /*     //grab the actual data */
+        /*     uint8_t * latest_data = cv_list_entry_get_logging_entry(latest_committed_page_entry)->data; */
+        /*     //first copy the whole page */
+        /*     memcpy(destination_page, */
+        /*            latest_data, */
+        /*            PAGE_SIZE); */
+
+        /*     CV_LOGGING_DEBUG_PRINT_LINE(destination_page + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE), */
+        /*                                 entry->page_index, */
+        /*                                 LOGGING_DEBUG_LINE, */
+        /*                                 "cv_update.c: after whole page copy "); */
+        /* } */
+
+
+        
         page_version=cv_per_page_version_logging_get_full_page_version(cv_seg->ppv, entry->page_index);
         cv_per_page_logging_entry_line_for_each(cv_seg->ppv,entry->page_index,
                                                 line_entry,line_version){
             if (page_version>line_version){
                 //the page is newer
-                //printk(KERN_INFO "copy the page in here....%d, %lu, %lu\n", line_index, line_version, page_version);
+                CV_LOG_MESSAGE( "cv_update: %d copy the page in here....pi %d li %d, %lu, %lu, %p\n",
+                       current->pid, entry->page_index, line_index, line_version, page_version, destination_page);
 
                 memcpy(destination_page + (CV_LOGGING_LOG_SIZE*line_index),
                         logging_entry->data + (CV_LOGGING_LOG_SIZE*line_index),
@@ -236,11 +257,11 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   
   cv_stats_start(mapping_to_ksnap(mapping), 0, update_latency);
   if (vma==NULL || vma->vm_mm == NULL || vma->vm_file==NULL || vma->vm_file->f_mapping==NULL){
-    printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: vma not setup right\n");
+    CV_LOG_MESSAGE( "CV UPDATE FAILED: vma not setup right\n");
   }
 
   if ((flags & CONV_UPDATE) && (flags & CONV_UPDATE_PARTIAL)){
-      printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: can't combine partial updates with merging\n");
+      CV_LOG_MESSAGE( "CV UPDATE FAILED: can't combine partial updates with merging\n");
   }
 
   mapping=vma->vm_file->f_mapping;
@@ -251,8 +272,9 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   
   first_update_after_partial=(!partial_update && cv_user->partial_version_num>0);
   if (cv_seg==NULL){
-    printk(KSNAP_LOG_LEVEL "CV UPDATE FAILED: segment is null for some reason, vma is %p vm_file %p f_mapping %p seg %p\n", 
+    CV_LOG_MESSAGE( "CV UPDATE FAILED: segment is null for some reason, vma is %p vm_file %p f_mapping %p seg %p\n", 
 	   vma, vma->vm_file, vma->vm_file->f_mapping, vma->vm_file->f_mapping->ksnap_data);
+    BUG();
   }
 
   //if the target was passed in....use that!
@@ -265,7 +287,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 
   if (target_version_number<=cv_user->version_num){
 #ifdef CONV_LOGGING_ON
-      printk(KSNAP_LOG_LEVEL "IN UPDATE %d for segment %p, left because we are fully up to date\n", current->pid, cv_seg);
+      CV_LOG_MESSAGE( "IN UPDATE %d for segment %p, left because we are fully up to date\n", current->pid, cv_seg);
 #endif
     return;
   }
@@ -273,7 +295,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   cv_profiling_op_begin(&cv_user->profiling_info, CV_PROFILING_OP_TYPE_UPDATE,target_version_number);
 
 #ifdef CONV_LOGGING_ON
-  printk(KSNAP_LOG_LEVEL "IN UPDATE %d for segment %p\n", current->pid,cv_seg);
+  CV_LOG_MESSAGE( "IN UPDATE %d for segment %p\n", current->pid,cv_seg);
 #endif
 
   //grab the head of the version list
@@ -302,14 +324,14 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
           continue;
       }
 #ifdef CONV_LOGGING_ON
-          printk(KERN_EMERG "    Update %d for segment %p, going for version %d, target is %d, target input %d\n", current->pid, cv_seg, latest_version_entry->version_num, target_version_number, target_version_input);
+          CV_LOG_MESSAGE( "    Update %d for segment %p, going for version %d, target is %d, target input %d\n", current->pid, cv_seg, latest_version_entry->version_num, target_version_number, target_version_input);
 #endif
       //OK, lets now walk the actual committed ptes
       list_for_each(pos, &latest_version_entry->pte_list->list){
 	//get the pte entry
 	tmp_pte_list = list_entry(pos, struct snapshot_pte_list, list);
 #ifdef CONV_LOGGING_ON
-        printk(KERN_EMERG ".........walking entry %p, pid %d, type %d, page id: %d, version %lu",
+        CV_LOG_MESSAGE( ".........walking entry %p, pid %d, type %d, page id: %d, version %lu",
                tmp_pte_list, current->pid, tmp_pte_list->type, tmp_pte_list->page_index, latest_version_entry->version_num);
 #endif
         if (tmp_pte_list->type == CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
@@ -320,7 +342,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_SKIPPED);
                 CV_HOOKS_UPDATE_ENTRY(cv_seg, cv_user, tmp_pte_list->page_index, CV_HOOKS_UPDATE_ENTRY_SKIP);
 #ifdef CONV_LOGGING_ON
-                printk(KERN_EMERG ".........walking entry %p, pid %d, type %d, page id: %d, version %lu",
+                CV_LOG_MESSAGE( ".........walking entry %p, pid %d, type %d, page id: %d, version %lu",
                        tmp_pte_list, current->pid, tmp_pte_list->type,
                        tmp_pte_list->page_index, latest_version_entry->version_num);
 #endif
@@ -331,13 +353,13 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 //we have to merge our changes with the committed stuff
                 if (dirty_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
                     dirty_entry_page=cv_list_entry_get_page_entry(dirty_entry);
-                    //printk(KERN_EMERG "pid %d, merging page %d\n", current->pid, tmp_pte_list->page_index);
+                    //CV_LOG_MESSAGE( "pid %d, merging page %d\n", current->pid, tmp_pte_list->page_index);
                     local_addr=compute_local_addr_for_diff(vma, dirty_entry_page->pfn, dirty_entry->page_index, dirty_entry->checkpoint);
                     ksnap_merge(pfn_to_page(page_entry->pfn), 
                                 local_addr,
                                 dirty_entry_page->ref_page, pfn_to_page(page_entry->pfn));
 #ifdef CONV_LOGGING_ON
-                    printk(KERN_EMERG "    Update %d for segment %p, merge page index %d\n", current->pid, cv_seg, tmp_pte_list->page_index);
+                    CV_LOG_MESSAGE( "    Update %d for segment %p, merge page index %d\n", current->pid, cv_seg, tmp_pte_list->page_index);
 #endif
                     cv_stats_inc_merged_pages(&cv_seg->cv_stats);
                     merge_count++;
@@ -355,7 +377,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_UPDATE);
                 pte_copy_entry (page_entry->pte, page_entry->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page, defer_work, cv_user);
 #ifdef CONV_LOGGING_ON
-                printk(KERN_EMERG "    Update %d for segment %p, update page index %d, page is %p \n", 
+                CV_LOG_MESSAGE( "    Update %d for segment %p, update page index %d, page is %p \n", 
                        current->pid, cv_seg, tmp_pte_list->page_index, page_entry);
 #endif
                 cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 2, commit_waitlist_latency);
@@ -372,13 +394,15 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
             }
         }
         else{
-            
+#ifdef CONV_LOGGING_ON
+            CV_LOG_MESSAGE( "Updating logging entry, %d", current->pid);
+#endif
             //LOGGING CODE
             logging_entry = cv_list_entry_get_logging_entry(tmp_pte_list);
             dirty_entry=conv_dirty_search_lookup_line_and_page(cv_user, tmp_pte_list->page_index, logging_entry->line_index);
             
             /* if (tmp_pte_list->page_index==LOGGING_DEBUG_PAGE_INDEX && logging_entry->line_index==LOGGING_DEBUG_LINE){ */
-            /*     printk(KERN_INFO "memcpy %p %d %d pid %d, logging_entry %p, version %lu, entry %p, %lu\n", */
+            /*     CV_LOG_MESSAGE( "memcpy %p %d %d pid %d, logging_entry %p, version %lu, entry %p, %lu\n", */
             /*            logging_entry->data, */
             /*            logging_entry->data_len, */
             /*            logging_entry->line_index, */
@@ -392,7 +416,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
             //check to see if the current guy is obsolete
             if (tmp_pte_list->obsolete_version <= target_version_number){
 #ifdef CONV_LOGGING_ON
-                printk(KERN_EMERG "cv_update of logging page SKIP 1 ...%d %d %lu %lu",
+                CV_LOG_MESSAGE( "cv_update of logging page SKIP 1 ...%d %d %lu %lu",
                        current->pid, tmp_pte_list->page_index,
                        tmp_pte_list->obsolete_version, target_version_number);
 #endif
@@ -407,7 +431,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
               entries for this page...so we avoid merging.*/
             if (!dirty_entry && cv_logging_is_full_page(logging_entry) && logging_status_entry && logging_status_entry->entries_allocated > 0){
 #ifdef CONV_LOGGING_ON
-                printk(KERN_EMERG "cv_update of logging page SKIP 2 ...%d %d %lu %lu",
+                CV_LOG_MESSAGE( "cv_update of logging page SKIP 2 ...%d %d %lu %lu",
                        current->pid, tmp_pte_list->page_index,
                        tmp_pte_list->obsolete_version, target_version_number);
 #endif
@@ -418,9 +442,12 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
             /*     BUG(); */
             /* } */
             else if (!dirty_entry){
-                /* printk(KERN_EMERG "UPDATE of logging page...%d %d version %lu addr %p %x", */
-                /*        current->pid, tmp_pte_list->page_index, latest_version_entry->version_num, */
-                /*        logging_entry->addr & (~PAGE_MASK), (CV_LOGGING_LOG_SIZE * logging_entry->line_index)); */
+#ifdef CONV_LOGGING_ON
+                CV_LOG_MESSAGE( "UPDATE of logging page...%d %d version %lu addr %p %x %p %p %d",
+                       current->pid, tmp_pte_list->page_index, latest_version_entry->version_num,
+                       logging_entry->addr, (CV_LOGGING_LOG_SIZE * logging_entry->line_index), logging_entry,
+                       tmp_pte_list, cv_logging_is_full_page(logging_entry));
+#endif
                 //ok do the update
                 logging_status_entry=cv_logging_page_status_lookup(cv_user, tmp_pte_list->page_index);
                 if (!logging_status_entry){
@@ -430,10 +457,6 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                     BUG_ON(logging_status_entry==NULL);
                 }
 
-                /* memcpy( ((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + (CV_LOGGING_LOG_SIZE * logging_entry->line_index), */
-                /*         logging_entry->data, */
-                /*         logging_entry->data_len); */
-
                 uint8_t old_data = *(((uint8_t *)pfn_to_kaddr(logging_status_entry->pfn)) + LOGGING_DEBUG_INDEX);
                 
                 copy_logging_data(vma, cv_seg, cv_user,
@@ -442,24 +465,37 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                                   logging_entry, logging_status_entry);
                 
                 CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)(pfn_to_kaddr(logging_status_entry->pfn))
-                                            + (CV_LOGGING_LOG_SIZE *
-                                               ((!cv_logging_is_full_page(logging_entry)) ?
-                                                logging_entry->line_index : LOGGING_DEBUG_LINE)),
+                                            + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
                                             tmp_pte_list->page_index,
-                                            logging_entry->line_index,
+                                            LOGGING_DEBUG_LINE,
                                             "cv_update.c: after update ");
 
 
-                CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)(logging_entry->data)
-                                            + (CV_LOGGING_LOG_SIZE *
-                                               ((!cv_logging_is_full_page(logging_entry)) ?
-                                                logging_entry->line_index : LOGGING_DEBUG_LINE)),
+                CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start)
+                                            + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
                                             tmp_pte_list->page_index,
-                                            logging_entry->line_index,
-                                            "cv_update.c: after update logging data ");
+                                            LOGGING_DEBUG_LINE,
+                                            "cv_update.c: after update local addr ");
+
+                uint8_t * loggingdata_tmp = (cv_logging_is_full_page(logging_entry)) ?
+                    (uint8_t *)(logging_entry->data) + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE) :
+                    (uint8_t *)(logging_entry->data);
+                
+                CV_LOGGING_DEBUG_PRINT_LINE( loggingdata_tmp,
+                                             tmp_pte_list->page_index,
+                                             LOGGING_DEBUG_LINE,
+                                             "cv_update.c: logging_entry data ");
+                
+                pte_t * tmp_pte = pte_get_entry_from_address(vma->vm_mm,((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start));
+
+#ifdef CONV_LOGGING_ON  
+                CV_LOG_MESSAGE( "cv_update pte comparison: %llu, %llu, data %p",
+                       (tmp_pte) ? pte_pfn(*tmp_pte) : 0, logging_status_entry->pfn, logging_entry->data);
+#endif
+                
 
 #ifdef CONV_LOGGING_ON
-                printk(KERN_EMERG "cv_update: pid: %d, entry is %p, version: %lu, page-index: %d, is full page: %d\n",
+                CV_LOG_MESSAGE( "cv_update: pid: %d, entry is %p, version: %lu, page-index: %d, is full page: %d\n",
                        current->pid, tmp_pte_list, latest_version_entry->version_num,
                        tmp_pte_list->page_index, cv_logging_is_full_page(logging_entry));
 #endif
@@ -467,7 +503,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
         }
       }
 #ifdef CONV_LOGGING_ON
-      printk(KERN_EMERG "  Updated to version %d\n", latest_version_entry->version_num);
+      CV_LOG_MESSAGE( "  Updated to version %d\n", latest_version_entry->version_num);
 #endif
       //done traversing a list of ptes
       new_list = pos_outer;
@@ -496,11 +532,11 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     }
   }
 #ifdef CONV_LOGGING_ON
-    printk(KSNAP_LOG_LEVEL "UPDATE for segment %p: pid %d updated to version %llu old version %llu and merged %d pages and updated %d \
-pages target_input %lu committed version %llu ignored %d, keep current %d, first_update %d, partial pages %d\n", 
+    CV_LOG_MESSAGE( "UPDATE for segment %p: pid %d updated to version %llu old version %llu and merged %d pages and updated %d \
+pages target_input %lu committed version %llu ignored %d, keep current %d, first_update %d, partial pages %d, our version: %lu\n", 
            cv_seg, current->pid, target_version_number, old_version, merge_count, gotten_pages, 
            target_version_input, atomic64_read(&cv_seg->committed_version_atomic), ignored_pages, 
-           keep_current_version, first_update_after_partial, cv_meta_get_partial_updated_unique_pages(vma));
+           keep_current_version, first_update_after_partial, cv_meta_get_partial_updated_unique_pages(vma), cv_user->version_num);
 
 #endif
 

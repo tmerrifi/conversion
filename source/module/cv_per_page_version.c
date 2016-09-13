@@ -91,12 +91,18 @@ void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struc
                   //we are the first guy through, so set the wait entry to notify any logging entries for this page that come later
                   logging_status_entry->wait_entry = pte_entry;
                   //keep this so we can wait on interest to match actual later...
-                  pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version; 
+                  pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version;
+#ifdef CONV_LOGGING_ON
+                  printk( KERN_INFO "....here1, wait index %d, pid %d, version %llu\n", pte_entry->page_index, current->pid, pte_entry->wait_revision);
+#endif
               }
           }
           else{
               //keep this so we can wait on interest to match actual later...
-              pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version; 
+              pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version;
+#ifdef CONV_LOGGING_ON
+              printk( KERN_INFO "....here2, wait index %d, pid %d, version %llu\n", pte_entry->page_index, current->pid, pte_entry->wait_revision);
+#endif
           }
           //add it to the wait list
           list_del(&pte_entry->list);
@@ -105,6 +111,9 @@ void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struc
       }
       //regardless, set our own interest level
       ppv->entries[pte_entry->page_index].interest_version=revision_number;
+#ifdef CONV_LOGGING_ON
+      printk( KERN_INFO "....here3, set interest index %d, pid %d, version %llu\n", pte_entry->page_index, current->pid, revision_number);
+#endif
   }
 }
 
@@ -130,7 +139,7 @@ void cv_per_page_version_walk_unsafe_debug(struct snapshot_pte_list * wait_list,
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
     //check commit status
     if (__commit_page_wait_status(ppv, pte_entry->page_index, pte_entry->wait_revision) == __CV_PPV_UNSAFE){
-        printk(KERN_EMERG ".....unsafe %d: wait %llu actual %llu %p pid %d",
+        printk(KERN_INFO ".....unsafe %d: wait %llu actual %llu %p pid %d, page_index %d",
                pte_entry->page_index,
                pte_entry->wait_revision,
                ppv->entries[pte_entry->page_index].actual_version,
@@ -144,7 +153,7 @@ void cv_per_page_version_walk_unsafe_debug(struct snapshot_pte_list * wait_list,
 
 
 void cv_per_page_version_update_version_entry(struct cv_per_page_version * ppv, struct snapshot_pte_list * version_list_entry){
-  ppv->entries[version_list_entry->page_index].version_list_entry=version_list_entry;
+    ppv->entries[version_list_entry->page_index].version_list_entry=version_list_entry;
 }
 
 struct snapshot_pte_list * cv_per_page_version_get_version_entry(struct cv_per_page_version * ppv, uint32_t index){
@@ -152,7 +161,10 @@ struct snapshot_pte_list * cv_per_page_version_get_version_entry(struct cv_per_p
 }
 
 void cv_per_page_version_update_actual_version(struct cv_per_page_version * ppv, uint32_t index, uint64_t version){
-  ppv->entries[index].actual_version=version;
+#ifdef CONV_LOGGING_ON
+    printk(KERN_INFO ".....update actual, page: %d, version %llu, pid: %d\n", index, version, current->pid);
+#endif
+    ppv->entries[index].actual_version=version;
 }
 
 /*****LOGGING FUNCTIONS************/

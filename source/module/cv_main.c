@@ -206,7 +206,6 @@ int init_module(void)
     
     register_die_notifier(&nmi_snap_nb);
     ksnap_merge_init();
-    printk(KSNAP_LOG_LEVEL "vfork!! %d\n", __NR_vfork);
     return 0;
 }
 

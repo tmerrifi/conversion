@@ -49,7 +49,7 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   struct address_space * mapping = vma->vm_file->f_mapping;
   
   if (vma->ksnap_user_data){
-    printk(KSNAP_LOG_LEVEL "this happened!!!! %p\n", mapping->ksnap_data);
+    printk(KERN_INFO "this happened!!!! %p\n", mapping->ksnap_data);
     return -EBADF;
   }
 

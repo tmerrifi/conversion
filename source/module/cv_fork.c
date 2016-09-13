@@ -26,10 +26,8 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
 
     cv_user_old->forked_version_num=cv_user_old->version_num;
 
-#ifdef CONV_LOGGING_ON
-    printk(KERN_EMERG "cv_fork: forking, pid %d, version %lu, new_vma %p, forked version num %lu\n",
+    CV_LOG_MESSAGE("cv_fork: forking, pid %d, version %lu, new_vma %p, forked version num %lu\n",
            current->pid, cv_user_old->version_num, new_vma, cv_user_old->forked_version_num);
-#endif
     
     new_vma->ksnap_user_data=kmalloc(sizeof(struct ksnap_user_data), GFP_KERNEL);
     memcpy(new_vma->ksnap_user_data, old_vma->ksnap_user_data, sizeof(struct ksnap_user_data));
@@ -59,10 +57,7 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
     //calling anon_vma_prepare in the case that we don't have an anon_vma, bug if it returns non-zero;
     BUG_ON(anon_vma_prepare(new_vma));
     
-#ifdef CONV_LOGGING_ON
-    printk(KSNAP_LOG_LEVEL "New process pid %d new vma %p user %p list %p old vma %p....vm file %p mapping %p seg %p\n", 
+    CV_LOG_MESSAGE("New process pid %d new vma %p user %p list %p old vma %p....vm file %p mapping %p seg %p\n", 
            current->pid, new_vma, ksnap_vma_to_userdata(new_vma), 
-           ksnap_vma_to_userdata(new_vma)->dirty_pages_list, old_vma, new_vma->vm_file, new_vma->vm_file->f_mapping, new_vma->vm_file->f_mapping->ksnap_data);
-#endif
-    
+           ksnap_vma_to_userdata(new_vma)->dirty_pages_list, old_vma, new_vma->vm_file, new_vma->vm_file->f_mapping, new_vma->vm_file->f_mapping->ksnap_data);    
 }

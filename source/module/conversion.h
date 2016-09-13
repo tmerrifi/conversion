@@ -74,7 +74,7 @@
 
 #define MAX_VERSION_NUM 100000000000ULL
 
-#define KSNAP_LOG_LEVEL KERN_EMERG
+#define CV_LOG_LEVEL KERN_EMERG
 
 #define CV_USER_STATUS_AWAKE 1
 
@@ -82,9 +82,9 @@
 
 #define LOGGING_SIZE_BYTES (64*8) //one cache line
 
-#define LOGGING_DEBUG_PAGE_INDEX 3
+#define LOGGING_DEBUG_PAGE_INDEX 0
 #define LOGGING_DEBUG_INDEX 0
-#define LOGGING_DEBUG_LINE 2
+#define LOGGING_DEBUG_LINE 1
 
 
 struct cv_logging_data_entry{
@@ -316,5 +316,13 @@ void conv_checkpoint(struct vm_area_struct * vma);
 void cv_logging_line_debug_print(struct snapshot_pte_list * dirty_list_entry,
                                  struct cv_logging_entry * logging_entry,
                                  char * message);
+
+#ifdef CONV_LOGGING_ON
+#define CV_LOG_MESSAGE(...) printk(CV_LOG_LEVEL __VA_ARGS__)
+#elif CONV_LOGGING_ON_TRACE
+#define CV_LOG_MESSAGE(...) trace_printk(CV_LOG_LEVEL __VA_ARGS__)
+#else
+#define CV_LOG_MESSAGE(...)
+#endif
 
 #endif

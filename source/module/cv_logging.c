@@ -1,4 +1,3 @@
-
 #include <linux/kernel.h>	/* Needed for KERN_INFO */
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -34,7 +33,7 @@ int cv_logging_diff_64(uint8_t * local, struct page * ref_page){
   }
 
   if (!ref){
-      printk(KSNAP_LOG_LEVEL "failed to map ref %p\n", ref);
+      CV_LOG_MESSAGE( "failed to map ref %p\n", ref);
       BUG();
   }
 
@@ -78,21 +77,21 @@ void cv_logging_free_data_entry(int data_len, struct ksnap * cv_seg, void * data
 void cv_logging_print_stats(struct ksnap * cv_seg){
     int i=0;
 
-    printk(KERN_EMERG "****LOGGING STATS*****");
-    printk(KERN_EMERG "pages: %d\n", atomic_read(&cv_seg->logging_pages_count));
-    printk(KERN_EMERG "**************************");
-    /*    printk(KERN_EMERG "******Opcode stats**********");
+    CV_LOG_MESSAGE( "****LOGGING STATS*****");
+    CV_LOG_MESSAGE( "pages: %d\n", atomic_read(&cv_seg->logging_pages_count));
+    CV_LOG_MESSAGE( "**************************");
+    /*    CV_LOG_MESSAGE( "******Opcode stats**********");
 
     for (;i<256;i++){
         if (cv_seg->logging_stats_opcode[i] > 0){
-            printk(KERN_EMERG "one byte opcode %x %d\n", i, cv_seg->logging_stats_opcode[i]);
+            CV_LOG_MESSAGE( "one byte opcode %x %d\n", i, cv_seg->logging_stats_opcode[i]);
         }
         if (cv_seg->logging_stats_opcode_two[i] > 0){
-            printk(KERN_EMERG "two byte opcode %x %d\n", i, cv_seg->logging_stats_opcode_two[i]);
+            CV_LOG_MESSAGE( "two byte opcode %x %d\n", i, cv_seg->logging_stats_opcode_two[i]);
         }
     }
         
-    printk(KERN_EMERG "**************************");*/
+    CV_LOG_MESSAGE( "**************************");*/
 }
 
 int cv_logging_page_status_insert(struct ksnap_user_data * cv_user,struct cv_logging_page_status_entry * entry, unsigned long index){
@@ -168,7 +167,7 @@ struct page * cv_logging_cow_page(struct vm_area_struct * vma, pte_t * pte, unsi
     page_remove_rmap(old_page);
     put_page(old_page);
 #ifdef CONV_LOGGING_ON
-    printk(KERN_EMERG "cv_logging: CoW'd oldpage: %p, newpage: %p, pid: %d\n",
+    CV_LOG_MESSAGE( "cv_logging: CoW'd oldpage: %p, newpage: %p, pid: %d\n",
            old_page, new_page, current->pid);
 #endif
     //return the new pfn
@@ -218,6 +217,9 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
     //now do the copy of the ENTIRE page
     memcpy(new_data, (uint8_t *)(faulting_addr & PAGE_MASK), PAGE_SIZE);
 
+    CV_LOGGING_DEBUG_PRINT_LINE(new_data + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
+                                entry->page_index, logging_entry->line_index, "cv_logging: new_data is....");
+    
     //its possible that the logging_entry is NULL if we've exceeded the number of writes we can perform for
     //a page but this is the first attempted write for this cache line
     if (logging_entry->data!=NULL){
@@ -233,15 +235,31 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
     
     //point to the new data
     logging_entry->data=new_data;
-    
+
     //is there checkpoint data to deal with????
     if (conv_is_checkpointed_logging_entry(logging_entry)){
         uint8_t * new_checkpoint_data=cv_logging_allocate_data_entry(PAGE_SIZE, cv_seg);
         conv_debug_memory_alloc(new_checkpoint_data);
+        CV_LOGGING_DEBUG_PRINT_LINE(new_checkpoint_data + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE), entry->page_index,
+                                    LOGGING_DEBUG_LINE, "cv_logging: newcheckpoint loggingdata 1");
+
         //start with the current page
         memcpy(new_checkpoint_data, new_data, PAGE_SIZE);
-        memcpy(new_checkpoint_data + CV_LOGGING_LOG_SIZE * logging_entry->line_index, logging_entry->data, CV_LOGGING_LOG_SIZE);
-        //printk(KERN_EMERG "old checkpoint data .... %p\n", logging_entry->local_checkpoint_data);
+        CV_LOGGING_DEBUG_PRINT_LINE(new_checkpoint_data + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE), entry->page_index,
+                                    LOGGING_DEBUG_LINE, "cv_logging: newcheckpoint loggingdata 2");
+
+        //copy over the local checkpoint data for this entry
+        memcpy(new_checkpoint_data + CV_LOGGING_LOG_SIZE * logging_entry->line_index,
+               logging_entry->local_checkpoint_data,
+               CV_LOGGING_LOG_SIZE);
+
+        CV_LOGGING_DEBUG_PRINT_LINE(new_checkpoint_data + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE), entry->page_index,
+                                    LOGGING_DEBUG_LINE, "cv_logging: newcheckpoint loggingdata 3");
+
+        CV_LOGGING_DEBUG_PRINT_LINE(logging_entry->local_checkpoint_data, entry->page_index,
+                                    LOGGING_DEBUG_LINE, "cv_logging: oldcheckpoint");
+
+        
         //free the old checkpoint data
         cv_logging_free_data_entry(CV_LOGGING_LOG_SIZE, cv_seg, logging_entry->local_checkpoint_data);
         //now set the logging entry
@@ -262,11 +280,11 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
     for(;i<(PAGE_SIZE/CV_LOGGING_LOG_SIZE);i++){
         if (logging_status_entry->lines[i]){
             struct snapshot_pte_list * entry_old = logging_status_entry->lines[i];
-            /* printk(KERN_EMERG "copying the old stuff, pid: %d, page: %d, i: %d, entry: %p, entry_old %p\n", */
+            /* CV_LOG_MESSAGE( "copying the old stuff, pid: %d, page: %d, i: %d, entry: %p, entry_old %p\n", */
             /*        current->pid, entry->page_index, i, entry, entry_old); */
 
             struct cv_logging_entry * logging_entry_old = cv_list_entry_get_logging_entry(entry_old);
-            /* printk(KERN_EMERG "copying the old stuff, pid: %d, page: %d, line: %d, i: %d, entry: %p, entry_old %p\n", */
+            /* CV_LOG_MESSAGE( "copying the old stuff, pid: %d, page: %d, line: %d, i: %d, entry: %p, entry_old %p\n", */
             /*        current->pid, entry->page_index, logging_entry_old->line_index, i, entry, entry_old); */
             //copy the reference data over
             memcpy(logging_entry->data + i*CV_LOGGING_LOG_SIZE, logging_entry_old->data, CV_LOGGING_LOG_SIZE);
@@ -304,6 +322,8 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
             kmem_cache_free(cv_seg->pte_list_mem_cache, entry_old);
             //clear this entry
             logging_status_entry->lines[i]=NULL;
+            //remove count from dirty list
+            cv_meta_dec_dirty_page_count(vma);
         }
     }
     //add the new one (page level)
@@ -339,7 +359,7 @@ void cv_logging_line_debug_print(struct snapshot_pte_list * dirty_list_entry,
         for (;i<CV_LOGGING_LOG_SIZE;i++){
             j+=sprintf(str_arr + j, " %d:%x", i, *(addr+i));
         }
-        printk(KERN_INFO "DEBUG: %s - pid: %d, page: %d, entry %p, line: %d - data: %s\n",
+        CV_LOG_MESSAGE( "DEBUG: %s - pid: %d, page: %d, entry %p, line: %d - data: %s\n",
                message, current->pid, dirty_list_entry->page_index, logging_entry, logging_entry->line_index, str_arr);
         //}
         i=j=0;
@@ -347,7 +367,7 @@ void cv_logging_line_debug_print(struct snapshot_pte_list * dirty_list_entry,
         for (;i<CV_LOGGING_LOG_SIZE;i++){
             j+=sprintf(str_arr + j, " %d:%x", i, *(addr+i));
         }
-        printk(KERN_INFO "DEBUG-DATA: %s - pid: %d, page: %d, line: %d - data: %s\n",
+        CV_LOG_MESSAGE( "DEBUG-DATA: %s - pid: %d, page: %d, line: %d - data: %s\n",
                message, current->pid, dirty_list_entry->page_index, logging_entry->line_index, str_arr);
 
     }
@@ -365,21 +385,22 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     int force_cow_page=0;
     
     struct cv_logging_page_status_entry * logging_status_entry = cv_logging_page_status_lookup(cv_user, page_index);
-    //printk(KERN_EMERG "logging fault, pid: %d, page index: %d, data %d, addr %p\n",
-    //     current->pid, page_index, *((int *)faulting_addr), faulting_addr);
     
     if (!logging_status_entry){
         return 0;
     }
 
-    cv_meta_inc_dirty_page_count(vma);
+#ifdef CONV_LOGGING_ON
+    CV_LOG_MESSAGE( "cv_logging: logging fault, pid: %d, page index: %d, data %d, addr %p\n",
+           current->pid, page_index, *((int *)faulting_addr), faulting_addr);
+#endif
     
     //we need to check and see if we've forked a new thread lately. If we have, then we can't just
     //modify this "private" page because another thread might be using it as a reference page. So we
     //have to CoW our private page.
     if (logging_status_entry->cow_version < cv_user->forked_version_num){
 #ifdef CONV_LOGGING_ON
-        printk(KERN_EMERG "cv_logging: forcing a cow, pid: %d, page: %d\n", current->pid, page_index);
+        CV_LOG_MESSAGE( "cv_logging: forcing a cow, pid: %d, page: %d\n", current->pid, page_index);
 #endif
         force_cow_page=1;
     }
@@ -397,7 +418,7 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         //we've got a local logging entry, so we can proceed from here...
         /*create the new pte entry*/
         dirty_list_entry = kmem_cache_alloc(cv_seg->pte_list_mem_cache, GFP_KERNEL);
-        //printk(KERN_EMERG "allocating a new entry....%p\n", dirty_list_entry);
+        //CV_LOG_MESSAGE( "allocating a new entry....%p\n", dirty_list_entry);
         dirty_list_entry->type=CV_DIRTY_LIST_ENTRY_TYPE_LOGGING;
         dirty_list_entry->page_index = page_index;
         dirty_list_entry->obsolete_version=~(0x0);
@@ -417,11 +438,15 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         list_add_tail(&dirty_list_entry->list, &cv_user->dirty_pages_list->list);
         logging_status_entry->entries_allocated++;
         //we do this in order to export dirty "pages" to user space. we should really rename this to something else
+        cv_meta_inc_dirty_page_count(vma);
+#ifdef CONV_LOGGING_ON
+        CV_LOG_MESSAGE( "logging dirty page count %d %d %d\n", cv_meta_get_dirty_page_count(vma), page_index, current->pid);
+#endif
     }
     else{
         //just grab the logging entry otherwise
         logging_entry = cv_list_entry_get_logging_entry(dirty_list_entry);
-        //printk(KERN_EMERG "CV_LOGGING: entry already exists. pid: %d, cache_line: %d\n", current->pid, logging_entry->line_index);
+        //CV_LOG_MESSAGE( "CV_LOGGING: entry already exists. pid: %d, cache_line: %d\n", current->pid, logging_entry->line_index);
     }
 
     //cv_logging_is_full_page will be true if this page was checkpointed
@@ -435,12 +460,12 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
             memcpy(logging_entry->data,cv_logging_line_start(faulting_addr),CV_LOGGING_LOG_SIZE);
         }
         uint8_t * kaddr_faulting = pfn_to_kaddr(logging_status_entry->pfn) + (faulting_addr & (~PAGE_MASK));
-        /* printk(KERN_EMERG "before interpret....\n"); */
+        /* CV_LOG_MESSAGE( "before interpret....\n"); */
         CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) ((size_t)kaddr_faulting & CV_LOGGING_LOG_MASK)),
                                      page_index,
                                      logging_entry->line_index,
                                      "cv_logging: before interpret");
-        /* printk(KERN_EMERG "OG data...\n"); */
+        /* CV_LOG_MESSAGE( "OG data...\n"); */
         CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *)logging_entry->data),
                                      page_index,
                                      logging_entry->line_index,                                     
@@ -466,7 +491,7 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         
     if (!handled){
         /* if (page_index==12){ */
-        /*     printk(KERN_EMERG "cow page index: %d, pid: %d, data: %d\n", */
+        /*     CV_LOG_MESSAGE( "cow page index: %d, pid: %d, data: %d\n", */
         /*            dirty_list_entry->page_index, current->pid, */
         /*            *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX ); */
         /* } */
@@ -475,57 +500,13 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
                                   logging_status_entry->pte, force_cow_page);
         logging_status_entry->logging_writes=0;
         logging_status_entry->entries_allocated=0;
-        
-        /* printk(KERN_EMERG "cow page index: %d, pid: %d, data: %d\n", */
-        /*        dirty_list_entry->page_index, current->pid, */
-        /*        *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX); */
+#ifdef CONV_LOGGING_ON
+        CV_LOG_MESSAGE( "cow page index: %d, pid: %d, data: %d\n",
+               dirty_list_entry->page_index, current->pid,
+               *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX);
+        CV_LOG_MESSAGE( "logging COW dirty page count %d\n", cv_meta_get_dirty_page_count(vma));
+#endif
     }
-    cv_meta_inc_dirty_page_count(vma);
     cv_user->dirty_pages_list_count++;
     return 1;
 }
-
-void cv_logging_entry_lookup(struct ksnap * cv_seg){
-    
-}
-
-
-/*void cv_logging_instruction_stats(struct ksnap * cv_seg, struct ksnap_user_data * cv_user, unsigned long addr){
-    struct ud dis;
-    ud_init(&dis);
-    ud_set_mode(&dis,64);
-    ud_set_vendor(&dis,UD_VENDOR_INTEL);
-    ud_set_input_buffer(&dis, (uint8_t *)addr, 16);
-    ud_set_syntax(&dis,UD_SYN_INTEL);
-    int len = ud_disassemble(&dis);
-    int randnum;
-    get_random_bytes(&randnum,sizeof(int));
-    
-    if (len > 0 && randnum % 1024 == 0){
-        printk(KERN_INFO "ins: %s\n", ud_insn_asm(&dis));
-        //printk(KERN_INFO "ins: %s\n", ud_lookup_mnemonic(ud_insn_mnemonic(&dis)));
-    }
-    }*/
-
-
-/*void cv_logging_instruction_stats(struct ksnap * cv_seg, struct ksnap_user_data * cv_user, unsigned long addr){
-    struct insn instruction;
-    insn_init(&instruction, (void *)addr, 1);
-    insn_get_opcode(&instruction);
-    if (instruction.opcode.nbytes > 0){
-        spin_lock(&cv_seg->lock);
-        if (instruction.opcode.nbytes==1){
-            cv_seg->logging_stats_opcode[instruction.opcode.bytes[0] % 256]++;
-        }
-        else if (instruction.opcode.nbytes==2 && instruction.opcode.bytes[0]==0x0f){
-            cv_seg->logging_stats_opcode_two[instruction.opcode.bytes[1] % 256]++;
-        }
-        else{
-            cv_seg->logging_stats_opcode[0xd6]++;
-        }
-        spin_unlock(&cv_seg->lock);
-    }
-    
-    //opcode->bytes[0]
-    //opcode->nbytes = 1;
-    }*/

@@ -38,6 +38,10 @@ unsigned int cv_meta_inc_partial_updated_unique_pages(struct vm_area_struct * vm
     return meta_data->partial_updated_unique_pages;
 }
 
+uint32_t cv_meta_get_dirty_page_count(struct vm_area_struct * vma){
+  struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));
+  return meta_data->dirty_page_count;
+}
 
 void cv_meta_set_dirty_page_count(struct vm_area_struct * vma, uint32_t count){
   struct ksnap_meta_data_local * meta_data = (struct ksnap_meta_data_local *)(vma->vm_start - (PAGE_SIZE*META_LOCAL_OFFSET_FROM_SEGMENT));

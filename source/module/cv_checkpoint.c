@@ -31,6 +31,12 @@ int __checkpoint_page(struct cv_page_entry * page_entry, struct snapshot_pte_lis
         //set page_entry to be a checkpointed page_entry
         conv_set_checkpoint_page(page_entry, current_page);
         entry->checkpoint=1;
+
+        CV_LOG_MESSAGE("checkpointed...pid: %d, page: %d\n", current->pid, entry->page_index);
+
+        CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)pfn_to_kaddr(page_entry->pfn) + (CV_LOGGING_LOG_SIZE*LOGGING_DEBUG_LINE),
+                                        entry->page_index, LOGGING_DEBUG_LINE, "checkpointed page..");
+        
         return 1;
     }
 }
@@ -44,13 +50,27 @@ int __checkpoint_logging(struct cv_logging_entry * logging_entry, struct snapsho
     pte_t page_table_e;
     
     if (cv_logging_is_dirty(logging_entry)){
-        //printk(KERN_EMERG "check logging index: %d, pid: %d, entry: %p", entry->page_index, current->pid, entry);
+#ifdef CONV_LOGGING_ON
+        CV_LOG_MESSAGE("check logging index: %d, pid: %d, entry: %p", entry->page_index, current->pid, entry);
+#endif
         //just write over the old data
         if (!logging_entry->local_checkpoint_data){
             logging_entry->local_checkpoint_data=cv_logging_allocate_data_entry(logging_entry->data_len, cv_seg);
             conv_debug_memory_alloc(logging_entry->local_checkpoint_data);
         }
+
         memcpy(logging_entry->local_checkpoint_data, (uint8_t *)logging_entry->addr, logging_entry->data_len);
+
+        if (logging_entry->data_len==PAGE_SIZE){
+            CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->local_checkpoint_data + (CV_LOGGING_LOG_SIZE*LOGGING_DEBUG_LINE),
+                                        entry->page_index, LOGGING_DEBUG_LINE, "checkpointed..");
+        }
+        else{
+            CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->local_checkpoint_data,
+                                        entry->page_index, logging_entry->line_index, "checkpointed...");
+        }
+
+        
         cv_logging_clear_dirty(logging_entry);
         //if its a page level logging entry, we need to enable write protection again
         if (cv_logging_is_full_page(logging_entry)){
@@ -60,11 +80,11 @@ int __checkpoint_logging(struct cv_logging_entry * logging_entry, struct snapsho
             set_pte(logging_entry_status->pte, pte_wrprotect(page_table_e));
             __flush_tlb_one(logging_entry->addr);
         }
-        //printk(KERN_EMERG "is checkpointed??? %d\n", conv_is_checkpointed_logging_entry(logging_entry));
+        //CV_LOG_MESSAGE("is checkpointed??? %d\n", conv_is_checkpointed_logging_entry(logging_entry));
         return 1;
     }
     else{
-        //printk(KERN_EMERG "check logging NOT DIRTY index: %d, pid: %d", entry->page_index, current->pid);
+        //CV_LOG_MESSAGE("check logging NOT DIRTY index: %d, pid: %d", entry->page_index, current->pid);
         return 0;
     }
 }
@@ -75,7 +95,7 @@ void conv_checkpoint(struct vm_area_struct * vma){
     struct ksnap_user_data * cv_user=ksnap_vma_to_userdata(vma);
     int checkpointed_counter=0;
 
-    //printk(KERN_EMERG "checkpointing...%d\n", current->pid);
+    CV_LOG_MESSAGE("checkpointing...%d\n", current->pid);
     //walk through every entry
     list_for_each(pos, &cv_user->dirty_pages_list->list){
         entry = list_entry(pos, struct snapshot_pte_list, list);
@@ -92,7 +112,7 @@ void conv_checkpoint(struct vm_area_struct * vma){
                                  vma);
         }
     }
-    //printk(KERN_EMERG "done checkpointing...%d\n", current->pid);
+    CV_LOG_MESSAGE("done checkpointing...%d\n", current->pid);
     if (checkpointed_counter>0){
         flush_tlb();
     }

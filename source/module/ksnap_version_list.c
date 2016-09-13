@@ -58,24 +58,24 @@ void ksnap_version_list_debug_print(struct snapshot_version_list * version_list)
   struct snapshot_pte_list * page_entry;
   int count=0;
 
-  printk(KSNAP_LOG_LEVEL "\n\nDEBUG VERSION LIST: ");
+  printk(KERN_INFO "\n\nDEBUG VERSION LIST: ");
   if(version_list){
     list_for_each(version_entry_lh,&version_list->list){
       version_entry=list_entry( version_entry_lh, struct snapshot_version_list, list);
       //now loop through the page_list!
-      printk(KSNAP_LOG_LEVEL "\n version %d visible %d--->", version_entry->version_num, version_entry->visible);
+      printk(KERN_INFO "\n version %d visible %d--->", version_entry->version_num, version_entry->visible);
       if (version_entry && version_entry->pte_list){
 	list_for_each(page_entry_lh, &version_entry->pte_list->list){
 	  page_entry = list_entry(page_entry_lh, struct snapshot_pte_list, list);
 	  if (page_entry){
-	    printk(KSNAP_LOG_LEVEL "    %lu ,",page_entry->page_index);
+	    printk(KERN_INFO "    %lu ,",page_entry->page_index);
 	  }
 	  ++count;
 	}
       }
     }
   }
-  printk(KSNAP_LOG_LEVEL " : size is %d\n\n", count);
+  printk(KERN_INFO " : size is %d\n\n", count);
 }
 
 void remove_pte_entry_from_version_list(struct radix_tree_root * snapshot_page_tree, unsigned long index, struct ksnap * ksnap_segment){
@@ -89,7 +89,7 @@ void remove_pte_entry_from_version_list(struct radix_tree_root * snapshot_page_t
     pte_entry = list_entry(pte_entry_ls, struct snapshot_pte_list, list);
     
     /*if (pte_entry->page_index%50==0){
-      printk(KSNAP_LOG_LEVEL "PID %d REMOVING index %d page %p \n",
+      printk(KERN_INFO "PID %d REMOVING index %d page %p \n",
 	     current->pid, pte_entry->page_index, pfn_to_page(pte_entry->pfn));
 	     }*/
     list_del(pte_entry_ls);
