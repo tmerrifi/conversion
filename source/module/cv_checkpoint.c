@@ -8,6 +8,8 @@ int __checkpoint_page(struct cv_page_entry * page_entry, struct snapshot_pte_lis
     struct page * current_page, * old_checkpoint_page;
     pte_t page_table_e;
     pte_t * dest_pte;
+
+    struct ksnap_user_data * cv_user=ksnap_vma_to_userdata(vma);
     
     //grab the current page
     current_page = pfn_to_page(page_entry->pfn);
@@ -64,6 +66,8 @@ int __checkpoint_logging(struct cv_logging_entry * logging_entry, struct snapsho
         if (logging_entry->data_len==PAGE_SIZE){
             CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->local_checkpoint_data + (CV_LOGGING_LOG_SIZE*LOGGING_DEBUG_LINE),
                                         entry->page_index, LOGGING_DEBUG_LINE, "checkpointed..");
+            CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->data + (CV_LOGGING_LOG_SIZE*LOGGING_DEBUG_LINE),
+                                        entry->page_index, LOGGING_DEBUG_LINE, "ref data in check..");
         }
         else{
             CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->local_checkpoint_data,

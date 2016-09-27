@@ -90,8 +90,8 @@ struct page * cv_logging_cow_page(struct vm_area_struct * vma, pte_t * pte, unsi
 
 #ifdef CV_MEMTRACE_DEBUG
 #define CV_LOGGING_DEBUG_PRINT_LINE(linedata,p,l,msg)                   \
-    if (p==LOGGING_DEBUG_PAGE_INDEX && l==LOGGING_DEBUG_LINE)\
-    printk(KERN_EMERG "memtrace: %d %s, line: %d, page: %d, addr %p, data %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | \
+    if (linedata!=(uint8_t *)0xDEAD && p==LOGGING_DEBUG_PAGE_INDEX && l==LOGGING_DEBUG_LINE && (cv_user->id==3 || cv_user->id==4)) \
+        printk( KERN_INFO "memtrace: %d %s, line: %d, page: %d, addr %p, data %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | \
 %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d | %d %d %d %d %d %d %d %d  \n", \
            current->pid,(msg),l,p,linedata,                             \
         (linedata)[0],(linedata)[1],(linedata)[2],(linedata)[3],(linedata)[4],(linedata)[5],(linedata)[6],(linedata)[7], \
