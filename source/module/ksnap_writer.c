@@ -70,18 +70,18 @@ void ksnap_revert_dirty_list(struct vm_area_struct * vma, struct address_space *
 void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * old_page, pte_t * new_pte, unsigned long address){
   struct snapshot_pte_list * pte_list_entry, * dirty_pages_list;
   struct page * new_page, * checkpoint_page;
-  struct ksnap_user_data * cv_user_data;
+  struct ksnap_user_data * cv_user;
   struct ksnap * cv_seg;
   struct cv_page_entry * cv_page;
   int counter=0;
 
   cv_seg = ksnap_vma_to_ksnap(vma);
-  cv_user_data=ksnap_vma_to_userdata(vma);
+  cv_user=ksnap_vma_to_userdata(vma);
 
-  if (!cv_user_data->dirty_pages_list){
-    cv_user_data->dirty_pages_list = _snapshot_create_pte_list();
+  if (!cv_user->dirty_pages_list){
+    cv_user->dirty_pages_list = _snapshot_create_pte_list();
   }
-  dirty_pages_list = cv_user_data->dirty_pages_list;
+  dirty_pages_list = cv_user->dirty_pages_list;
   struct ksnap * ksnap_segment = ksnap_vma_to_ksnap(vma);
   /*grab the new page*/
   new_page=pte_page(*new_pte);
@@ -90,7 +90,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   }
 
   //is this page already in the dirty list? then this is the result of a checkpoint
-  if ((pte_list_entry=conv_dirty_search_lookup(cv_user_data, new_page->index, 0, 1))){
+  if ((pte_list_entry=conv_dirty_search_lookup(cv_user, new_page->index, 0, 1))){
       if (pte_list_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
           cv_page=cv_list_entry_get_page_entry(pte_list_entry);
           cv_page->pfn = pte_pfn(*new_pte);
@@ -124,7 +124,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       list_add_tail(&pte_list_entry->list, &dirty_pages_list->list);
       CV_LOG_MESSAGE(" %d added index %lu pfn %lu page %p", current->pid, pte_list_entry->page_index, cv_page->pfn, new_page);
       cv_meta_inc_dirty_page_count(vma);
-      cv_user_data->dirty_pages_list_count++;
+      cv_user->dirty_pages_list_count++;
       cv_page_debugging_clear_flags(new_page,counter);
       cv_memory_accounting_inc_pages(ksnap_segment);
 
@@ -134,7 +134,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       if (cv_page->ref_page){
           uint8_t * ref_kaddr = (uint8_t *)kmap_atomic(cv_page->ref_page, KM_USER0);
           CV_LOG_MESSAGE("COW pid: %d ref_page page: %d page %p, new_page %p, version %lu\n",
-                 current->pid, pte_list_entry->page_index, cv_page->ref_page, new_page, cv_user_data->version_num);
+                 current->pid, pte_list_entry->page_index, cv_page->ref_page, new_page, cv_user->version_num);
           CV_LOGGING_DEBUG_PRINT_LINE(ref_kaddr + (CV_LOGGING_LOG_SIZE * 2), pte_list_entry->page_index, 0, "ksnap_write: COW");
           kunmap_atomic(ref_kaddr, KM_USER0);
       }
@@ -142,5 +142,5 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
 #endif
       
   }
-  CV_HOOKS_COW(cv_seg, cv_user_data, new_page->index);
+  CV_HOOKS_COW(cv_seg, cv_user, new_page->index);
 }
