@@ -139,7 +139,7 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     put_page(old_page);
 
 #ifdef CONV_LOGGING_ON
-    printk(KERN_EMERG "cv_update: migrate page, new page %p, old page %p, pid: %d, pfn %llu, local_addr %p\n",
+    CV_LOG_MESSAGE("cv_update: migrate page, new page %p, old page %p, pid: %d, pfn %llu, local_addr %p\n",
            new_page, old_page, current->pid, page_to_pfn(new_page), local_addr);
 #endif    
 }
@@ -159,7 +159,7 @@ void copy_logging_data(struct vm_area_struct * vma,
     if (logging_status_entry->cow_version < cv_user->forked_version_num){
         //we need to cow our page because it might be in use by another forked process as a reference page...
 #ifdef CONV_LOGGING_ON
-        printk(KERN_EMERG "cv_update: CoW'd oldpage: pid: %d, page: %d\n", current->pid, entry->page_index);
+        CV_LOG_MESSAGE( "cv_update: CoW'd oldpage: pid: %d, page: %d\n", current->pid, entry->page_index);
 #endif
         struct page * new_page=cv_logging_cow_page(vma, logging_status_entry->pte, logging_entry->addr);
         //update the logging_status_entry structure

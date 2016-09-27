@@ -83,6 +83,13 @@ void __revert_logging(struct cv_logging_entry * logging_entry,
                conv_is_checkpointed_logging_entry(logging_entry), cv_meta_get_dirty_page_count(vma), logging_entry->line_index, logging_entry->data_len);
 #endif        
         if (conv_is_checkpointed_logging_entry(logging_entry)){
+            if (logging_entry->data_len==PAGE_SIZE){
+                CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->data + (CV_LOGGING_LOG_SIZE*LOGGING_DEBUG_LINE),
+                                            entry->page_index, LOGGING_DEBUG_LINE, "ref data before revert");
+
+            }
+
+            
             //roll back to the checkpoint
             memcpy(cv_logging_page_status_to_kaddr(logging_entry_status, logging_entry->line_index),
                    logging_entry->local_checkpoint_data,
@@ -91,13 +98,29 @@ void __revert_logging(struct cv_logging_entry * logging_entry,
             if (logging_entry->data_len==PAGE_SIZE){
                 CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->local_checkpoint_data + (CV_LOGGING_LOG_SIZE*LOGGING_DEBUG_LINE),
                                             entry->page_index, LOGGING_DEBUG_LINE, "reverted to..");
+                CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->data + (CV_LOGGING_LOG_SIZE*LOGGING_DEBUG_LINE),
+                                            entry->page_index, LOGGING_DEBUG_LINE, "reverted, ref data");
+
             }
             else{
                 CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->local_checkpoint_data,
                                             entry->page_index, logging_entry->line_index, "reverted to..");
+                CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->local_checkpoint_data,
+                                            entry->page_index, logging_entry->line_index, "reverted, ref data..");
+
             }
         }
         else{
+            
+            if (logging_entry->data_len==PAGE_SIZE){
+                CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->data + (CV_LOGGING_LOG_SIZE*LOGGING_DEBUG_LINE),
+                                            entry->page_index, LOGGING_DEBUG_LINE, "before reverted to from ref data..");
+            }
+            else{
+                CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->data,
+                                            entry->page_index, logging_entry->line_index, "before reverted to from ref data..");
+
+            }
             conv_dirty_delete_lookup(cv_user, entry->page_index, logging_entry->line_index, cv_logging_is_full_page(logging_entry));
             //remove this entry
             list_del(pos);
@@ -110,11 +133,11 @@ void __revert_logging(struct cv_logging_entry * logging_entry,
             
             if (logging_entry->data_len==PAGE_SIZE){
                 CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->data + (CV_LOGGING_LOG_SIZE*LOGGING_DEBUG_LINE),
-                                            entry->page_index, LOGGING_DEBUG_LINE, "reverted to..");
+                                            entry->page_index, LOGGING_DEBUG_LINE, "reverted to from ref data..");
             }
             else{
                 CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)logging_entry->data,
-                                            entry->page_index, logging_entry->line_index, "reverted to..");
+                                            entry->page_index, logging_entry->line_index, "reverted to from ref data..");
 
             }
         }
