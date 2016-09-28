@@ -197,6 +197,10 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
     }
     
     if (cv_logging_is_full_page(logging_entry) && conv_is_checkpointed_logging_entry(logging_entry)){
+
+        CV_LOGGING_DEBUG_PRINT_LINE(((uint8_t *)(faulting_addr & PAGE_MASK)) + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
+                                    entry->page_index, LOGGING_DEBUG_LINE, "cv_logging: Cow on checkpointed full page....");
+        
         //this is a special case, because the rest of this function assumes we are
         //transitioning from a logging entry to a page level entry. If this is a checkpointed
         //page then we don't have much work to do
