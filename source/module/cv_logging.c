@@ -52,7 +52,10 @@ int cv_logging_diff_64(uint8_t * local, struct page * ref_page){
 
 uint8_t * cv_logging_allocate_data_entry(int data_len, struct ksnap * cv_seg){
     if (data_len==PAGE_SIZE){
-        return (uint8_t *)kmalloc(PAGE_SIZE, GFP_KERNEL);
+        //return (uint8_t *)kmalloc(PAGE_SIZE, GFP_KERNEL);
+        struct page * new_page = alloc_page(GFP_KERNEL);
+        BUG_ON(new_page==NULL);
+        return (uint8_t *)page_address(new_page);
     }
     else{
         return (uint8_t *)kmem_cache_alloc(cv_seg->logging_data_entry_mem_cache, GFP_KERNEL);
@@ -65,7 +68,8 @@ void cv_logging_free_data_entry(int data_len, struct ksnap * cv_seg, void * data
     }
     else if (data_len==PAGE_SIZE){
         conv_debug_memory_free(data);
-        kfree(data);
+        //kfree(data);
+        free_page(data);
     }    
     else{
         conv_debug_memory_free(data);
