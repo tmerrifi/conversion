@@ -506,7 +506,7 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
     //switch the pte_list_entry to logging type
     pte_list_entry->type=CV_DIRTY_LIST_ENTRY_TYPE_LOGGING;
     //allocate some memory
-    pte_list_entry->logging_entry.data = (uint8_t *)kmalloc(PAGE_SIZE, GFP_KERNEL);
+    pte_list_entry->logging_entry.data = cv_logging_allocate_data_entry(PAGE_SIZE, cv_seg);
     conv_debug_memory_alloc(pte_list_entry->logging_entry.data);
     
     pte_list_entry->logging_entry.data_len = PAGE_SIZE;
