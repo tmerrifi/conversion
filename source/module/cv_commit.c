@@ -63,20 +63,6 @@ void __remove_old_logging_page(struct ksnap * cv_seg, struct snapshot_pte_list *
                 BUG();
             }
             
-            /* printk(KERN_EMERG "found old logging entry in ppv, page %d, index %d, pid %d, old entry %p\n", */
-            /*        page_index, i, current->pid, old_entry); */
-
-
-            /* if (page_index==LOGGING_DEBUG_PAGE_INDEX && i==LOGGING_DEBUG_LINE){             */
-            /*     uint64_t old_version = cv_per_page_version_get_logging_line_entry_version(cv_seg->ppv, */
-            /*                                                                               page_index, */
-            /*                                                                               i); */
-                
-            /*     if(old_version>our_version_number){ */
-            /*         printk(KERN_EMERG "pid %d, our_version %lu, old_version %lu \n", current->pid, our_version_number, old_version); */
-            /*         BUG(); */
-            /*     } */
-            /* } */
             
             old_entry->obsolete_version=our_version_number;
             cv_per_page_version_clear_logging_line_entry(cv_seg->ppv, page_index, i);
@@ -241,10 +227,10 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
 
     uint8_t * data_addr = ((uint8_t*)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX;
 
-#ifdef CONV_LOGGING_ON
-    CV_LOG_MESSAGE( "committing logging entry our version %lu, latest %lu, line index %lu, size %d, page index: %d\n",  
-           cv_user->version_num, latest_version_num, logging_entry->line_index, logging_entry->data_len, entry->page_index);  
-#endif
+    //#ifdef CONV_LOGGING_ON
+    printk(KERN_INFO "committing logging entry our version %lu, latest %lu, line index %lu, size %d, page index: %d, pid: %d\n",  
+           cv_user->version_num, latest_version_num, logging_entry->line_index, logging_entry->data_len, entry->page_index, current->pid);  
+    //#endif
 
     int debugging_offset = (cv_logging_is_full_page(logging_entry)) ? (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE) : 0;
     int debugging_line = (cv_logging_is_full_page(logging_entry)) ? LOGGING_DEBUG_LINE : logging_entry->line_index;
@@ -274,6 +260,9 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                 //now copy the full page into the entry data
                 CV_LOGGING_DEBUG_PRINT_LINE( (uint8_t *)latest_logging_entry->data + (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE),
                                              entry->page_index, LOGGING_DEBUG_LINE, "merge latestentry fullpage ");
+                CV_LOGGING_DEBUG_PRINT_LINE( (uint8_t *)logging_entry->data + (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE),
+                                             entry->page_index, LOGGING_DEBUG_LINE, "merge latestentry fullpage ref data");
+
             }
             else{
                 //need to traverse all of the lines and merge :(
@@ -901,10 +890,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   }
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
-#ifdef CONV_LOGGING_ON
-    CV_LOG_MESSAGE( "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
-	   current->pid, cv_seg, committed_pages, our_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);
-#endif
+  CV_LOG_MESSAGE( "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
+                  current->pid, cv_seg, committed_pages, our_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);
 
 }
 
