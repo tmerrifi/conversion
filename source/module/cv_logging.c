@@ -200,7 +200,7 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
         //this is a special case, because the rest of this function assumes we are
         //transitioning from a logging entry to a page level entry. If this is a checkpointed
         //page then we don't have much work to do
-        memcpy(logging_entry->data, (uint8_t *)cv_logging_line_start(faulting_addr), PAGE_SIZE);
+        memcpy(logging_entry->data, (uint8_t *)(faulting_addr & PAGE_MASK), PAGE_SIZE);
         //need to set the dirty bit
         cv_logging_set_dirty(logging_entry);
         goto write_protect;
