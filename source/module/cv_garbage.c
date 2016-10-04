@@ -35,16 +35,19 @@ void cv_gc_logging_page_status_entries(struct ksnap_user_data * cv_user){
     }
 }
 
-void __gc_logging_entry(struct cv_logging_entry * logging_entry, struct ksnap * cv_seg, uint64_t obsolete_version){
+int __gc_logging_entry(struct cv_logging_entry * logging_entry, struct ksnap * cv_seg, uint64_t obsolete_version){
     //this check seems fishy to me. Why is it here??
     if (obsolete_version < cv_seg->committed_version_num){
         cv_logging_free_data_entry(logging_entry->data_len, cv_seg, logging_entry->data);
+        return 1;
+    }
+    else{
+        return 0;
     }
 }
 
 int __gc_page(struct cv_page_entry * page_entry, struct ksnap * cv_seg, uint64_t obsolete_version){
     struct page * the_page;
-    //this check seems fishy to me. Why is it here??
     if (obsolete_version < cv_seg->committed_version_num){
         the_page = pfn_to_page(page_entry->pfn);
         __cv_garbage_free_page(the_page);
@@ -134,20 +137,25 @@ void cv_garbage_collection(struct work_struct * work){
       if (version_list_entry->version_num + 5ULL < low_version && version_list_pos->prev != &cv_seg->snapshot_pte_list->list ){
           list_for_each_safe(pte_list_entry_pos, pte_list_entry_pos_tmp, &version_list_entry->pte_list->list){
               pte_list_entry = list_entry(pte_list_entry_pos, struct snapshot_pte_list, list);
+              int result=0;
               //validate
               if (current_seq_num!=cv_seg->gc_seq_num){
                   goto out;
               }
-              if (pte_list_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING &&
-                  __gc_page(cv_list_entry_get_page_entry(pte_list_entry),cv_seg,pte_list_entry->obsolete_version)){
+              else if (pte_list_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
+                  result=__gc_page(cv_list_entry_get_page_entry(pte_list_entry),cv_seg,pte_list_entry->obsolete_version);
               }
               else if (pte_list_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING){
-                  __gc_logging_entry(cv_list_entry_get_logging_entry(pte_list_entry), cv_seg, pte_list_entry->obsolete_version);
+                  result=__gc_logging_entry(cv_list_entry_get_logging_entry(pte_list_entry), cv_seg, pte_list_entry->obsolete_version);
               }
-              collected_count++;
-              version_list_entry->num_of_entries--;
-              list_del(pte_list_entry_pos);
-              kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
+
+              if (result){
+                  /*we need to delete the entry*/
+                  collected_count++;
+                  version_list_entry->num_of_entries--;
+                  list_del(pte_list_entry_pos);
+                  kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
+              }
           }
           //list_del(version_list_pos);
           //kfree(version_list_entry);
