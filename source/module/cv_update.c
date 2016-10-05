@@ -116,12 +116,16 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     conv_debug_memory_alloc(new_page);
     __SetPageUptodate(new_page);
     page_add_new_anon_rmap(new_page, vma, logging_entry->addr);
-    //printk(KERN_EMERG "__migrate in update 2, page: %d, pid: %d", new_page, current->pid);
     //now do the Copy
     local_addr = logging_entry->addr & PAGE_MASK;
-    kaddr = (uint8_t *)kmap_atomic(new_page, KM_USER0);
-    memcpy(kaddr,local_addr,PAGE_SIZE);
-    kunmap_atomic(kaddr, KM_USER0);
+    if (follow_page(vma, local_addr, 0)){
+        kaddr = (uint8_t *)kmap_atomic(new_page, KM_USER0);
+        if (cv_user->id==1){
+            printk(KERN_EMERG " index: %d %p %p %p size: %d %p", entry->page_index, kaddr, local_addr, entry, logging_entry->data_len, (void *)vma->vm_start);
+        }
+        memcpy(kaddr,local_addr,PAGE_SIZE);
+        kunmap_atomic(kaddr, KM_USER0);
+    }
     //printk(KERN_EMERG "__migrate in update 3, page: %d, pid: %d", new_page, current->pid);
     //now update the local logging data structure
     logging_status_entry = cv_logging_page_status_entry_init(pte, page_to_pfn(new_page), entry->page_index, cv_user->version_num);
