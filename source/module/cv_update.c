@@ -120,9 +120,6 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     local_addr = logging_entry->addr & PAGE_MASK;
     if (follow_page(vma, local_addr, 0)){
         kaddr = (uint8_t *)kmap_atomic(new_page, KM_USER0);
-        if (cv_user->id==1){
-            printk(KERN_EMERG " index: %d %p %p %p size: %d %p", entry->page_index, kaddr, local_addr, entry, logging_entry->data_len, (void *)vma->vm_start);
-        }
         memcpy(kaddr,local_addr,PAGE_SIZE);
         kunmap_atomic(kaddr, KM_USER0);
     }
