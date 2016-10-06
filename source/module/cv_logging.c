@@ -394,23 +394,24 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     int allocated_new_entry=0;
     
     struct cv_logging_page_status_entry * logging_status_entry = cv_logging_page_status_lookup(cv_user, page_index);
+
+#ifdef LOGGING_LATENCY_TRACING    
+#define  tsc_size 10
+    unsigned long long tscs[tsc_size];
+    memset(tscs, 0, sizeof(unsigned long long) * tsc_size);
+    tscs[0]=native_read_tsc();
+#endif
     
     if (!logging_status_entry){
         return 0;
     }
-
-#ifdef CONV_LOGGING_ON
     CV_LOG_MESSAGE( "cv_logging: logging fault, pid: %d, page index: %d, data %d, addr %p\n",
            current->pid, page_index, *((int *)faulting_addr), faulting_addr);
-#endif
-    
     //we need to check and see if we've forked a new thread lately. If we have, then we can't just
     //modify this "private" page because another thread might be using it as a reference page. So we
     //have to CoW our private page.
     if (logging_status_entry->cow_version < cv_user->forked_version_num){
-#ifdef CONV_LOGGING_ON
         CV_LOG_MESSAGE( "cv_logging: forcing a cow, pid: %d, page: %d\n", current->pid, page_index);
-#endif
         force_cow_page=1;
     }
     
@@ -422,12 +423,19 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         dirty_list_entry=conv_dirty_search_lookup(cv_user, page_index,
                                                   0, 1);
     }
+
+#ifdef LOGGING_LATENCY_TRACING    
+    tscs[1]=native_read_tsc();
+#endif
+    
     //if no entry exists, need to allocate one
     if (!dirty_list_entry){
         //we've got a local logging entry, so we can proceed from here...
         /*create the new pte entry*/
         dirty_list_entry = kmem_cache_alloc(cv_seg->pte_list_mem_cache, GFP_KERNEL);
-        //CV_LOG_MESSAGE( "allocating a new entry....%p\n", dirty_list_entry);
+#ifdef LOGGING_LATENCY_TRACING    
+        tscs[2]=native_read_tsc();
+#endif
         dirty_list_entry->type=CV_DIRTY_LIST_ENTRY_TYPE_LOGGING;
         dirty_list_entry->page_index = page_index;
         dirty_list_entry->obsolete_version=~(0x0);
@@ -440,6 +448,9 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         logging_entry->line_index = cv_logging_line_index(faulting_addr);
         logging_entry->data = NULL;
         logging_entry->local_checkpoint_data = NULL;
+#ifdef LOGGING_LATENCY_TRACING    
+        tscs[3]=native_read_tsc();
+#endif
         //just adding this to the lookup so if we find it later we can throw BUG();
         conv_add_dirty_page_to_lookup(vma,dirty_list_entry, page_index, logging_entry->line_index, 0);
         INIT_LIST_HEAD(&dirty_list_entry->list);
@@ -448,17 +459,28 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         logging_status_entry->entries_allocated++;
         //we do this in order to export dirty "pages" to user space. we should really rename this to something else
         cv_meta_inc_dirty_page_count(vma);
-#ifdef CONV_LOGGING_ON
         CV_LOG_MESSAGE( "logging dirty page count %d %d %d\n", cv_meta_get_dirty_page_count(vma), page_index, current->pid);
-#endif
         allocated_new_entry=1;
+#ifdef LOGGING_LATENCY_TRACING    
+        tscs[4]=native_read_tsc();
+#endif
     }
     else{
+#ifdef LOGGING_LATENCY_TRACING    
+        tscs[2]=native_read_tsc();
+        tscs[3]=native_read_tsc();
+#endif
         //just grab the logging entry otherwise
         logging_entry = cv_list_entry_get_logging_entry(dirty_list_entry);
-        //CV_LOG_MESSAGE( "CV_LOGGING: entry already exists. pid: %d, cache_line: %d\n", current->pid, logging_entry->line_index);
+#ifdef LOGGING_LATENCY_TRACING    
+        tscs[4]=native_read_tsc();
+#endif
     }
 
+#ifdef LOGGING_LATENCY_TRACING    
+        tscs[5]=native_read_tsc();
+#endif        
+    
     //cv_logging_is_full_page will be true if this page was checkpointed
     if (!cv_logging_is_full_page(logging_entry) &&
         logging_status_entry->logging_writes < CV_LOGGING_WRITES_THRESHOLD &&
@@ -470,18 +492,22 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
             memcpy(logging_entry->data,cv_logging_line_start(faulting_addr),CV_LOGGING_LOG_SIZE);
         }
         uint8_t * kaddr_faulting = pfn_to_kaddr(logging_status_entry->pfn) + (faulting_addr & (~PAGE_MASK));
-        /* CV_LOG_MESSAGE( "before interpret....\n"); */
         CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) ((size_t)kaddr_faulting & CV_LOGGING_LOG_MASK)),
                                      page_index,
                                      logging_entry->line_index,
                                      "cv_logging: before interpret");
-        /* CV_LOG_MESSAGE( "OG data...\n"); */
         CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *)logging_entry->data),
                                      page_index,
                                      logging_entry->line_index,                                     
                                      "cv_logging: before interpret refdata");
-        
+
+#ifdef LOGGING_LATENCY_TRACING    
+        tscs[6]=native_read_tsc();
+#endif        
         if ((write_width=interpret(regs->ip, CV_LOGGING_INSTRUCTION_MAX_WIDTH, kaddr_faulting, regs))){
+#ifdef LOGGING_LATENCY_TRACING    
+            tscs[7]=native_read_tsc();
+#endif
             cv_logging_set_dirty(logging_entry);
             logging_status_entry->logging_writes++;
             handled=1;
@@ -497,17 +523,24 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
             BUG_ON(cv_logging_line_start(faulting_addr) + write_width > cv_logging_line_start(faulting_addr) + CV_LOGGING_LOG_SIZE);
             //cv_logging_line_debug_print(dirty_list_entry, logging_entry, "added logging entry");
         }
+        else{
+#ifdef LOGGING_LATENCY_TRACING    
+            tscs[7]=native_read_tsc();
+#endif
+        }
+    }
+    else{
+#ifdef LOGGING_LATENCY_TRACING    
+        tscs[6]=native_read_tsc();
+        tscs[7]=native_read_tsc();
+#endif
     }
         
     if (!handled){
-        /* if (page_index==12){ */
-        /*     CV_LOG_MESSAGE( "cow page index: %d, pid: %d, data: %d\n", */
-        /*            dirty_list_entry->page_index, current->pid, */
-        /*            *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX ); */
-        /* } */
         cv_logging_cow_page_fault(vma, dirty_list_entry, logging_entry,
                                   logging_status_entry, faulting_addr,
                                   logging_status_entry->pte, force_cow_page);
+
         logging_status_entry->logging_writes=0;
         logging_status_entry->entries_allocated=0;
 #ifdef CONV_LOGGING_ON
@@ -515,6 +548,17 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
                dirty_list_entry->page_index, current->pid,
                *((uint8_t *)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX);
         CV_LOG_MESSAGE( "logging COW dirty page count %d\n", cv_meta_get_dirty_page_count(vma));
+#endif
+#ifdef CV_COUNTERS_ON
+        if (logging_status_entry->logging_writes < CV_LOGGING_WRITES_THRESHOLD){
+            INC(COUNTER_LOGGING_FAULT_PAGE_COPY_THRESHOLD_EXCEEDED);
+        }
+        else if (force_cow_page){
+            INC(COUNTER_LOGGING_FAULT_PAGE_COPY_FORCED);
+        }
+        else{
+            INC(COUNTER_LOGGING_FAULT_PAGE_COPY_OTHER);
+        }
 #endif
     }
     else if (allocated_new_entry){
@@ -524,6 +568,29 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         INC(COUNTER_LOGGING_FAULT_INTERPRET_NOALLOC);
     }
     
+#ifdef LOGGING_LATENCY_TRACING    
+        tscs[8]=native_read_tsc();
+#endif
+
+
+    
     cv_user->dirty_pages_list_count++;
+
+#ifdef LOGGING_LATENCY_TRACING
+    if (cv_user->version_num % 1000 == 0){
+        printk(KERN_INFO "logging latency trace: total %llu, allocation? %d, 1: %llu, 2: %llu, 3: %llu, 4: %llu, 5: %llu, 6: %llu, 7: %llu, 8: %llu\n",
+               tscs[8]-tscs[0],
+               allocated_new_entry,
+               tscs[1]-tscs[0],
+               tscs[2]-tscs[1],
+               tscs[3]-tscs[2],
+               tscs[4]-tscs[3],
+               tscs[5]-tscs[4],
+               tscs[6]-tscs[5],
+               tscs[7]-tscs[6],
+               tscs[8]-tscs[7]);
+    }
+#endif
+    
     return 1;
 }
