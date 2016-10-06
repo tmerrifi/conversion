@@ -6,6 +6,7 @@
 #include <linux/slab.h>
 #include <linux/semaphore.h>
 #include <linux/fs.h>
+#include <linux/mm.h>
 
 
 #include "cv_meta_data.h"
@@ -17,7 +18,6 @@
 #include "cv_event.h"
 #include "cv_profiling.h"
 #include "cv_defer_work.h"
-
 
 #define SNAPSHOT_PREFIX "snapshot"
 #define SNAPSHOT_DEBUG Y
@@ -85,7 +85,6 @@
 #define LOGGING_DEBUG_PAGE_INDEX 3
 #define LOGGING_DEBUG_INDEX 0
 #define LOGGING_DEBUG_LINE 2
-
 
 struct cv_logging_data_entry{
     uint8_t data[LOGGING_SIZE_BYTES];
@@ -245,6 +244,8 @@ struct ksnap_user_data{
     struct radix_tree_root logging_page_status;
     /******************************/
     uint64_t forked_version_num; //we track the last forked version number so we can CoW logging pages if we need to.
+    uint64_t * counters;
+    unsigned long long fault_start_tsc;
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/
@@ -316,6 +317,9 @@ void conv_checkpoint(struct vm_area_struct * vma);
 void cv_logging_line_debug_print(struct snapshot_pte_list * dirty_list_entry,
                                  struct cv_logging_entry * logging_entry,
                                  char * message);
+
+
+#include "cv_counters.h"
 
 #ifdef CONV_LOGGING_ON
 #define CV_LOG_MESSAGE(...) printk(CV_LOG_LEVEL __VA_ARGS__)

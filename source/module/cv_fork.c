@@ -40,7 +40,7 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
     ksnap_vma_to_userdata(new_vma)->dirty_pages_list = _snapshot_create_pte_list();
     ksnap_vma_to_userdata(new_vma)->status = CV_USER_STATUS_AWAKE;
     ksnap_vma_to_userdata(new_vma)->committed_non_logging_entries = 0;
-    ksnap_vma_to_userdata(new_vma)->forked_version_num = 0;
+    ksnap_vma_to_userdata(new_vma)->counters=init_counters();
     
     cv_defer_work_init(&ksnap_vma_to_userdata(new_vma)->defer_work);
 

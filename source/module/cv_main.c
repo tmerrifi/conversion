@@ -186,6 +186,22 @@ int logging_on_fault (struct vm_area_struct * vma, unsigned long faulting_addr, 
     return cv_logging_fault(vma, ksnap_vma_to_ksnap(vma), ksnap_vma_to_userdata(vma), regs, faulting_addr);
 }
 
+void fault_start(struct vm_area_struct * vma){
+#ifdef CV_COUNTERS_ON    
+    struct ksnap_user_data * cv_user = ksnap_vma_to_userdata(vma);
+    cv_user->fault_start_tsc=native_read_tsc();
+#endif
+}
+
+void fault_end(struct vm_area_struct * vma){
+#ifdef CV_COUNTERS_ON    
+    struct ksnap_user_data * cv_user = ksnap_vma_to_userdata(vma);
+    unsigned long long tsc=native_read_tsc();
+    COUNTER_FAULT_CHECK(tsc-cv_user->fault_start_tsc);
+#endif    
+}
+
+
 int init_module(void)
 {
     verifyOpcodesAndRegisters();
@@ -202,6 +218,9 @@ int init_module(void)
     mmap_snapshot_instance.ksnap_userdata_copy = ksnap_userdata_copy;
     mmap_snapshot_instance.snap_sequence_number=random32()%10000;
     mmap_snapshot_instance.conversion_thread_status=conversion_thread_status;
+    mmap_snapshot_instance.fault_start=fault_start;
+    mmap_snapshot_instance.fault_end=fault_end;
+    
     //mmap_snapshot_instance.conv_cow_user_page=conv_cow_user_page;
     
     register_die_notifier(&nmi_snap_nb);

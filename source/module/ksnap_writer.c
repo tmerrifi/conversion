@@ -143,4 +143,5 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       
   }
   CV_HOOKS_COW(cv_seg, cv_user, new_page->index);
+  INC(COUNTER_COW_FAULT);
 }

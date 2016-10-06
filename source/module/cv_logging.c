@@ -81,9 +81,9 @@ void cv_logging_free_data_entry(int data_len, struct ksnap * cv_seg, void * data
 void cv_logging_print_stats(struct ksnap * cv_seg){
     int i=0;
 
-    CV_LOG_MESSAGE( "****LOGGING STATS*****");
-    CV_LOG_MESSAGE( "pages: %d\n", atomic_read(&cv_seg->logging_pages_count));
-    CV_LOG_MESSAGE( "**************************");
+    printk( CV_LOG_LEVEL "****LOGGING PAGES*****");
+    printk( CV_LOG_LEVEL "pages: %d\n", atomic_read(&cv_seg->logging_pages_count));
+    printk( CV_LOG_LEVEL "**************************");
     /*    CV_LOG_MESSAGE( "******Opcode stats**********");
 
     for (;i<256;i++){
@@ -391,6 +391,7 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
     uint32_t page_index=(faulting_addr - vma->vm_start)/PAGE_SIZE;
     uint32_t line_index=cv_logging_line_index(faulting_addr);
     int force_cow_page=0;
+    int allocated_new_entry=0;
     
     struct cv_logging_page_status_entry * logging_status_entry = cv_logging_page_status_lookup(cv_user, page_index);
     
@@ -450,6 +451,7 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
 #ifdef CONV_LOGGING_ON
         CV_LOG_MESSAGE( "logging dirty page count %d %d %d\n", cv_meta_get_dirty_page_count(vma), page_index, current->pid);
 #endif
+        allocated_new_entry=1;
     }
     else{
         //just grab the logging entry otherwise
@@ -515,6 +517,13 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         CV_LOG_MESSAGE( "logging COW dirty page count %d\n", cv_meta_get_dirty_page_count(vma));
 #endif
     }
+    else if (allocated_new_entry){
+        INC(COUNTER_LOGGING_FAULT_INTERPRET_ALLOC);
+    }
+    else{
+        INC(COUNTER_LOGGING_FAULT_INTERPRET_NOALLOC);
+    }
+    
     cv_user->dirty_pages_list_count++;
     return 1;
 }

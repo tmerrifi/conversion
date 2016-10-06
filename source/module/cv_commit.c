@@ -227,10 +227,10 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
 
     uint8_t * data_addr = ((uint8_t*)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX;
 
-    //#ifdef CONV_LOGGING_ON
+#ifdef CONV_LOGGING_ON
     printk(KERN_INFO "committing logging entry our version %lu, latest %lu, line index %lu, size %d, page index: %d, pid: %d\n",  
            cv_user->version_num, latest_version_num, logging_entry->line_index, logging_entry->data_len, entry->page_index, current->pid);  
-    //#endif
+#endif
 
     int debugging_offset = (cv_logging_is_full_page(logging_entry)) ? (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE) : 0;
     int debugging_line = (cv_logging_is_full_page(logging_entry)) ? LOGGING_DEBUG_LINE : logging_entry->line_index;
@@ -599,16 +599,19 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
         if ((diff=cv_logging_diff_64(local_addr, page_entry->ref_page))<=CV_LOGGING_DIFF_THRESHOLD_64){
             //CV_LOG_MESSAGE( "doing a logging migration check...diff %d...pid: %d...bitmap %lu\n", diff,current->pid,
             //   cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index) & 0xFUL);
+            COUNTER_MIGRATION_CHECK(diff);
             cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 1);
             //should we switch over to logging?
             if (cv_logging_should_switch(cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index))){
                 /* CV_LOG_MESSAGE( "migration check...time to switch pid: %d, page index: %d\n", */
                 /*      current->pid, pte_list_entry->page_index); */
+                INC(COUNTER_LOGGING_MIGRATIONS);
                 result=1;
             }
         }
         else{
             cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 0);
+            INC(COUNTER_LOGGING_MIGRATION_CHECK_FAILED);
         }
     }
     return result;
