@@ -253,6 +253,7 @@ void cv_per_page_version_clear_logging_line_entry(struct cv_per_page_version * p
     struct cv_per_page_logging_entry * pp_logging_entry = ppv->entries[page_index].logging_entry;
     if (pp_logging_entry!=NULL){
         pp_logging_entry->lines[line_index].line_entry=NULL;
+        pp_logging_entry->lines[line_index].version=0;
     }
 }
 
