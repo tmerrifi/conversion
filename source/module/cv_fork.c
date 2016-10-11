@@ -9,6 +9,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/list.h>
+#include <linux/random.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
@@ -16,6 +17,7 @@
 #include "cv_stats.h"
 #include "cv_event.h"
 #include "ksnap_version_list.h"
+#include "cv_store_interpreter_functions.h"
 
 //copy the userdata struct, this happens on fork
 void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct * new_vma){
@@ -40,7 +42,12 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
     ksnap_vma_to_userdata(new_vma)->dirty_pages_list = _snapshot_create_pte_list();
     ksnap_vma_to_userdata(new_vma)->status = CV_USER_STATUS_AWAKE;
     ksnap_vma_to_userdata(new_vma)->committed_non_logging_entries = 0;
+#ifdef CV_COUNTERS_ON
     ksnap_vma_to_userdata(new_vma)->counters=init_counters();
+#endif
+    ksnap_vma_to_userdata(new_vma)->disassemble_cache=interpret_allocate_disassemble_cache();
+    
+    get_random_bytes(&ksnap_vma_to_userdata(new_vma)->randomMix, sizeof(uint32_t));
     
     cv_defer_work_init(&ksnap_vma_to_userdata(new_vma)->defer_work);
 

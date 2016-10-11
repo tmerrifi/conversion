@@ -349,12 +349,6 @@ void cv_logging_cow_page_fault(struct vm_area_struct * vma,
     __flush_tlb_one(logging_entry->addr);
 }
 
-void cv_logging_store_interpreter_fault(unsigned long faulting_addr, struct pt_regs * regs){
-    if (!interpret(regs->ip, 15, faulting_addr, regs)){
-        //fallback to CoW
-    }
-}
-
 void cv_logging_line_debug_print(struct snapshot_pte_list * dirty_list_entry,
                                  struct cv_logging_entry * logging_entry,
                                  char * message){
@@ -504,7 +498,7 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
 #ifdef LOGGING_LATENCY_TRACING    
         tscs[6]=native_read_tsc();
 #endif        
-        if ((write_width=interpret(regs->ip, CV_LOGGING_INSTRUCTION_MAX_WIDTH, kaddr_faulting, regs))){
+        if ((write_width=interpret(regs->ip, CV_LOGGING_INSTRUCTION_MAX_WIDTH, kaddr_faulting, regs, cv_user->randomMix, cv_user->disassemble_cache))){
 #ifdef LOGGING_LATENCY_TRACING    
             tscs[7]=native_read_tsc();
 #endif

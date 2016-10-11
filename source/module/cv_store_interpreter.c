@@ -9,7 +9,37 @@
 #include "libudis86/extern.h"
 
 #ifdef __KERNEL__
+
 #include "linux/ptrace.h"
+
+#include <linux/rmap.h>
+
+#include "asm/msr.h"
+#include "linux/jhash.h"
+
+#define DISASSEMBLE_CACHE_SIZE 128
+struct disassemble_cache_entry{
+    uint8_t valid;
+    unsigned long ip;
+    uint8_t insn[20];
+    size_t insn_len;
+    ud_t dis;
+};
+
+
+//static DEFINE_PER_CPU(struct disassemble_cache_entry [DISASSEMBLE_CACHE_SIZE], disassemble_cache);
+
+void * interpret_allocate_disassemble_cache(){
+    void * result=kmalloc(sizeof(struct disassemble_cache_entry)*DISASSEMBLE_CACHE_SIZE, GFP_KERNEL);
+    BUG_ON(!result);
+    return result;
+}
+
+void interpret_free_disassemble_cache(void * ptr){
+    kfree(ptr);
+}
+
+
 #else
 // the kernel version of pt_regs has fields named differently than userland version, so we replicate the kernel version here
 struct pt_regs {
@@ -388,26 +418,81 @@ ud_mnemonic_code_t IdentifiedOpcode = UD_Inone;
 by the store. If 0, the store could not be performed. If the store is performed,
 context->ip is incremented by the length of the store insn, to skip to the next
 insn and avoid repeated faults. */
-int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress, struct pt_regs* context) {
+int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress, struct pt_regs* context, uint32_t mix, void * disassemble_cache) {
 #ifdef TEST_INTERPRETER
   IdentifiedOpcode = UD_Inone;
 #endif
 
-  ud_t dis;
+#ifdef LOGGING_LATENCY_TRACING    
+#define  tsc_size 10
+    unsigned long long tscs[tsc_size];
+    memset(tscs, 0, sizeof(unsigned long long) * tsc_size);
+    tscs[0]=native_read_tsc();
+#endif
     
-  ud_init(&dis);
-  ud_set_input_buffer(&dis, bytes, bytesLength);
-  ud_set_mode(&dis, 64);
-  ud_set_vendor(&dis, UD_VENDOR_INTEL);
-  //ud_set_syntax(&dis, UD_SYN_INTEL);
+
+/*     struct disassemble_cache_entry{ */
+    /* uint8_t valid; */
+/*     unsigned long ip; */
+/*     uint8_t insn[20]; */
+/*     size_t insn_len; */
+/*     ud_t dis; */
+/* }; */
+
+    ud_t * dis_obj;
+
+    unsigned lengthInBytes;
     
-  const unsigned lengthInBytes = ud_disassemble(&dis);
+#ifdef __KERNEL__
+  //check the cache
+  //struct disassemble_cache_entry * cache_entry=&get_cpu_var(disassemble_cache)[jhash_1word((uint32_t)context->ip, mix) % DISASSEMBLE_CACHE_SIZE];
+    struct disassemble_cache_entry * cache_entry=&(((struct disassemble_cache_entry *)disassemble_cache)[jhash_1word((uint32_t)context->ip, mix) % DISASSEMBLE_CACHE_SIZE]);
+  //even if we mit, we use this entry as storage
+  dis_obj=&cache_entry->dis;
+  if (cache_entry->ip==context->ip && cache_entry->valid && memcmp(cache_entry->insn,bytes,cache_entry->insn_len)==0){
+      //we've hit the cache
+      //printk(KERN_INFO "pid %d got hit with %p\n", current->pid, cache_entry->ip);
+      lengthInBytes=cache_entry->insn_len;
+      goto hit;
+  }
+  /* else{ */
+  /*     printk(KERN_INFO "pid %d missed...current ip %p, stored ip %p, valid %d, \n", current->pid, cache_entry->ip, context->ip, cache_entry->valid); */
+  /* } */
+#else
+  dis_obj=malloc(sizeof(ud_t));
+#endif
+  
+  ud_init(dis_obj);
+  ud_set_input_buffer(dis_obj, bytes, bytesLength);
+  ud_set_mode(dis_obj, 64);
+  ud_set_vendor(dis_obj, UD_VENDOR_INTEL);
+
+#ifdef LOGGING_LATENCY_TRACING    
+    tscs[1]=native_read_tsc();
+#endif
+    
+  lengthInBytes = ud_disassemble(dis_obj);
+
+#ifdef __KERNEL__
+  cache_entry->ip=context->ip;
+  cache_entry->valid=0;
+  cache_entry->insn_len=lengthInBytes;
+  memcpy(cache_entry->insn, bytes, lengthInBytes);
+#endif
+  
+ hit:
+  
   if (0 == lengthInBytes) {
     printf("Decoded 0 bytes\n");
     return 0;
   }
 
-  unsigned numOperands = getNumOperands(&dis);
+#ifdef LOGGING_LATENCY_TRACING    
+  tscs[2]=native_read_tsc();
+#endif
+
+  
+  unsigned numOperands = getNumOperands(dis_obj);
   if (0 == numOperands || numOperands > 2) {
     printf("can't handle %u operands\n", numOperands);
     return 0;
@@ -419,7 +504,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
 
   uint64_t srcValue = 0;
   uint64_t* flags = &(context->flags);
-  ud_mnemonic_code_t opcode = dis.mnemonic;
+  ud_mnemonic_code_t opcode = dis_obj->mnemonic;
 
 #ifdef TEST_INTERPRETER
   IdentifiedOpcode = opcode;
@@ -443,8 +528,12 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     }
   }
 
+#ifdef LOGGING_LATENCY_TRACING    
+  tscs[3]=native_read_tsc();
+#endif
+  
   // get srcValue which is operand 1
-  const struct ud_operand* srcOp = ud_insn_opr(&dis, 1);
+  const struct ud_operand* srcOp = ud_insn_opr(dis_obj, 1);
   assert(NULL != srcOp);
 
   if (UD_OP_CONST == srcOp->type) {
@@ -539,7 +628,11 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     return 0;
   }
 
-  const struct ud_operand* dstOp = ud_insn_opr(&dis, 0);
+#ifdef LOGGING_LATENCY_TRACING    
+  tscs[4]=native_read_tsc();
+#endif
+  
+  const struct ud_operand* dstOp = ud_insn_opr(dis_obj, 0);
   assert(NULL != dstOp);
   assert(UD_OP_MEM == dstOp->type); 
   const unsigned storeWidthBytes = dstOp->size / 8; // convert bits => bytes
@@ -608,6 +701,10 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     return 0;
   }
 
+#ifdef LOGGING_LATENCY_TRACING    
+  tscs[5]=native_read_tsc();
+#endif
+  
   if (insnWritesFlags(opcode)) {
     if (NULL == flagsFun) {
       printf("No function to interpret flag-writing opcode %u", opcode);
@@ -623,8 +720,33 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     movFun(dstAddress, srcValue);
   }
 
+#ifdef LOGGING_LATENCY_TRACING    
+  tscs[6]=native_read_tsc();
+#endif
+
   // NB: update RIP to skip over the store we just executed
   context->ip += lengthInBytes;
+
+#ifdef LOGGING_LATENCY_TRACING
+  static int interpret_counter=0;
+  if (interpret_counter++ % 1000 == 0){
+      printk(KERN_INFO "store interpreter latency trace: total %llu, cache hit: %d, 1: %llu, 2: %llu, 3: %llu, 4: %llu, 5: %llu, 6: %llu \n",
+             tscs[6]-tscs[0],
+             cache_entry->valid,
+             tscs[1]-tscs[0],
+             tscs[2]-tscs[1],
+             tscs[3]-tscs[2],
+             tscs[4]-tscs[3],
+             tscs[5]-tscs[4],
+             tscs[6]-tscs[5]);
+  }
+#endif
+
+#ifdef __KERNEL__
+  cache_entry->valid=1;
+  put_cpu_var(disassemble_cache);
+#endif
+
   return storeWidthBytes;
 }
 

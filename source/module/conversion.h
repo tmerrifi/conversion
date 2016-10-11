@@ -246,6 +246,8 @@ struct ksnap_user_data{
     uint64_t forked_version_num; //we track the last forked version number so we can CoW logging pages if we need to.
     uint64_t * counters;
     unsigned long long fault_start_tsc;
+    uint32_t randomMix;
+    void * disassemble_cache;
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/

@@ -9,7 +9,7 @@
 #include <asm/tlbflush.h>
 #include <asm-generic/mman-common.h>
 #include <linux/semaphore.h>
-
+#include <linux/random.h>
 
 #include "conversion.h"
 #include "cv_init.h"
@@ -19,6 +19,7 @@
 #include "cv_event.h"
 #include "cv_profiling.h"
 #include "cv_determinism.h"
+#include "cv_store_interpreter_functions.h"
 
 MODULE_LICENSE("GPL");
 
@@ -76,7 +77,12 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   user_data->cv_seg=ksnap_data;
   user_data->status=CV_USER_STATUS_AWAKE;
   user_data->forked_version_num=0;
+#ifdef CV_COUNTERS_ON
   user_data->counters=init_counters();
+#endif
+  get_random_bytes(&user_data->randomMix, sizeof(uint32_t));
+  user_data->disassemble_cache=interpret_allocate_disassemble_cache();  
+  
   cv_defer_work_init(&user_data->defer_work);
   //deferred work entry allocation should be fast
   user_data->deferred_work_mem_cache=KMEM_CACHE(cv_defer_work_entry,0);

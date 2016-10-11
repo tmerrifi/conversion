@@ -15,6 +15,7 @@
 #include "cv_event.h"
 #include "cv_memory_accounting.h"
 #include "cv_logging.h"
+#include "cv_store_interpreter_functions.h"
 
 void cv_close(struct vm_area_struct * vma){
 
@@ -61,6 +62,7 @@ void cv_close(struct vm_area_struct * vma){
  unlock_and_leave:
   spin_unlock(&cv->lock);
  leave:
+  interpret_free_disassemble_cache(cv_user->disassemble_cache);
   kfree(vma->ksnap_user_data);
 
 
