@@ -533,7 +533,9 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
 #endif
   
   // get srcValue which is operand 1
-  const struct ud_operand* srcOp = ud_insn_opr(dis_obj, 1);
+  struct ud_operand* srcOp = ud_insn_opr(dis_obj, 1);
+  struct ud_operand* dstOp = ud_insn_opr(dis_obj, 0);
+  
   assert(NULL != srcOp);
 
   if (UD_OP_CONST == srcOp->type) {
@@ -541,6 +543,12 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     srcValue = srcOp->lval.udword;
 
   } else if (UD_OP_IMM == srcOp->type) {
+
+      //dirty hack
+      if (opcode==UD_Iadd){
+          srcOp->size=dstOp->size;
+      }
+      
     switch (srcOp->size) {
       // NB: code copied from https://github.com/vmt/udis86/blob/master/libudis86/decode.c#L472
       // 8-bit immediates are signed while others are unsigned?
@@ -632,7 +640,6 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   tscs[4]=native_read_tsc();
 #endif
   
-  const struct ud_operand* dstOp = ud_insn_opr(dis_obj, 0);
   assert(NULL != dstOp);
   assert(UD_OP_MEM == dstOp->type); 
   const unsigned storeWidthBytes = dstOp->size / 8; // convert bits => bytes
