@@ -7,8 +7,8 @@ typedef enum{COUNTER_FIRST=0,
              COUNTER_LOGGING_MIGRATION_CHECK_0_4, COUNTER_LOGGING_MIGRATION_CHECK_5_9, COUNTER_LOGGING_MIGRATION_CHECK_10_19,
              COUNTER_LOGGING_MIGRATION_CHECK_20_49,COUNTER_LOGGING_MIGRATION_CHECK_50_INF,COUNTER_FAULT_CYCLES_0_499,
              /*page fault cycle latency counters*/
-             COUNTER_FAULT_CYCLES_500_999,COUNTER_FAULT_CYCLES_1000_2999,COUNTER_FAULT_CYCLES_3000_4999,COUNTER_FAULT_CYCLES_5000_6999,
-             COUNTER_FAULT_CYCLES_7000_INF,
+             COUNTER_FAULT_CYCLES_500_999,COUNTER_FAULT_CYCLES_1000_1999,COUNTER_FAULT_CYCLES_2000_2999,COUNTER_FAULT_CYCLES_3000_4999,COUNTER_FAULT_CYCLES_5000_6999,
+             COUNTER_FAULT_CYCLES_7000_9999,COUNTER_FAULT_CYCLES_10000_12999,COUNTER_FAULT_CYCLES_13000_17999,COUNTER_FAULT_CYCLES_18000_INF,
              /*logging path counters*/
              COUNTER_LOGGING_FAULT_PAGE_COPY_OTHER,COUNTER_LOGGING_FAULT_PAGE_COPY_FORCED,COUNTER_LOGGING_FAULT_PAGE_COPY_THRESHOLD_EXCEEDED,
              COUNTER_LOGGING_FAULT_INTERPRET_ALLOC, COUNTER_LOGGING_FAULT_INTERPRET_NOALLOC,
@@ -83,19 +83,31 @@ typedef enum{COUNTER_FIRST=0,
     else if(cycles < 1000){                                             \
         INC(COUNTER_FAULT_CYCLES_500_999);                              \
     }                                                                   \
-    else if(cycles < 3000){                                             \
-        INC(COUNTER_FAULT_CYCLES_1000_2999);                            \
+    else if(cycles < 2000){                                             \
+        INC(COUNTER_FAULT_CYCLES_1000_1999);                            \
     }                                                                   \
+    else if(cycles < 3000){                                             \
+        INC(COUNTER_FAULT_CYCLES_2000_2999);                            \
+    }                                                                   \    
     else if(cycles < 5000){                                             \
         INC(COUNTER_FAULT_CYCLES_3000_4999);                            \
     }                                                                   \
     else if(cycles < 7000){                                             \
         INC(COUNTER_FAULT_CYCLES_5000_6999);                            \
     }                                                                   \
-    else{                                                               \
-        INC(COUNTER_FAULT_CYCLES_7000_INF);                             \
+    else if(cycles < 10000){                                            \
+        INC(COUNTER_FAULT_CYCLES_7000_9999);                            \
     }                                                                   \
-    
+    else if(cycles < 13000){                                            \
+        INC(COUNTER_FAULT_CYCLES_10000_12999);                          \
+    }                                                                   \
+    else if(cycles < 18000){                                            \
+        INC(COUNTER_FAULT_CYCLES_13000_17999);                          \
+    }                                                                   \
+    else{                                                               \
+        INC(COUNTER_FAULT_CYCLES_18000_INF);                            \
+    }                                                                   \
+
 #define COUNTER_MIGRATION_CHECK(diff)                   \
     if (diff < 5){                                      \
         INC(COUNTER_LOGGING_MIGRATION_CHECK_0_4);       \
@@ -127,10 +139,15 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     printk(CV_LOG_LEVEL "***Fault latency counters***\n");
     PRINT_COUNTER(COUNTER_FAULT_CYCLES_0_499);
     PRINT_COUNTER(COUNTER_FAULT_CYCLES_500_999);
-    PRINT_COUNTER(COUNTER_FAULT_CYCLES_1000_2999);
+    PRINT_COUNTER(COUNTER_FAULT_CYCLES_1000_1999);
+    PRINT_COUNTER(COUNTER_FAULT_CYCLES_2000_2999);
     PRINT_COUNTER(COUNTER_FAULT_CYCLES_3000_4999);
     PRINT_COUNTER(COUNTER_FAULT_CYCLES_5000_6999);
-    PRINT_COUNTER(COUNTER_FAULT_CYCLES_7000_INF);
+    PRINT_COUNTER(COUNTER_FAULT_CYCLES_7000_9999);
+    PRINT_COUNTER(COUNTER_FAULT_CYCLES_10000_12999);
+    PRINT_COUNTER(COUNTER_FAULT_CYCLES_13000_17999);
+    PRINT_COUNTER(COUNTER_FAULT_CYCLES_18000_INF);
+        
     printk(CV_LOG_LEVEL "***COMMIT latency counters***\n");
     PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_10000);
     PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_50000);
