@@ -16,7 +16,15 @@ ksnapmod-y += libudis86/decode.o libudis86/itab.o libudis86/syn-att.o libudis86/
 #-DCV_FORCE_LOGGING - force logging on every page
 #-DCV_MEMTRACE_DEBUG - log the values of certain cache lines (marked in conversion.h)
 
-KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement -IcreateStoreInterpreterFunctions -DCV_FORCE_LOGGING #-DCONV_LOGGING_ON -DCV_MEMTRACE_DEBUG
+ifeq ($(LOGGING),false)
+	LOGGING_MODE = -DCV_LOGGING_DISABLED
+#else
+#	LOGGING_MODE = -DCV_FORCE_LOGGING
+endif
+
+KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement -IcreateStoreInterpreterFunctions $(LOGGING_MODE) -DCV_COUNTERS_ON
+
+#-DCV_LOGGING_DISABLED #-DCV_COUNTERS_ON #-DLOGGING_LATENCY_TRACING #-DCV_LOGGING_DISABLED #-DCV_DEBUG_MEMORY_ALLOC #-DCONV_LOGGING_ON
 
 all: cv_main.c ksnap_writer.c ksnap_version_list.c cv_commit.c cv_update.c cv_garbage.c cv_per_page_version.c cv_stats.c cv_init.c cv_meta_data.c cv_merge.c cv_pte.c cv_fork.c cv_close.c cv_revert.c cv_checkpoint.c cv_determinism.c
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)

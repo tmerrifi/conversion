@@ -1,6 +1,11 @@
 
 SHELL=/bin/bash
 
+ifndef CONVLOGGING
+	CONVLOGGING = false
+endif
+
+
 .PHONY: tests
 
 all : conversionlib conversionlib32 conversionmodule
@@ -29,7 +34,7 @@ conversionlib32 : libmm
 
 conversionmodule :
 	pushd source/module; \
-	sudo ./install.sh y; \
+	sudo ./install.sh y LOGGING=$(CONVLOGGING); \
 	popd;
 
 tests : conversionlib conversionmodule
@@ -40,4 +45,8 @@ tests : conversionlib conversionmodule
 clean : 
 	pushd source/lib/conversion; \
 	make clean; \
-	popd;	
+	popd;\
+	pushd source/module; \
+	sudo rm *.o; \
+	popd;
+
