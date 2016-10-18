@@ -652,6 +652,11 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
       return;
   }
 
+#ifdef CV_COUNTERS_ON    
+  unsigned long long start_tsc=native_read_tsc();
+#endif
+
+  
   //initializes variables used to track stats
   cv_stats_function_init();
   //increment total commits
@@ -893,6 +898,11 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   }
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
+
+#ifdef CV_COUNTERS_ON
+  COUNTER_COMMIT_LATENCY(native_read_tsc() - start_tsc);
+#endif
+  
   CV_LOG_MESSAGE( "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
                   current->pid, cv_seg, committed_pages, our_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);
 
