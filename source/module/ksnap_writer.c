@@ -27,13 +27,19 @@
 
 void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte_list * new_dirty_entry,
                                    unsigned long page_index, unsigned long line_index, uint8_t is_page_level){
+
     unsigned long index = cv_logging_get_index(page_index, line_index, is_page_level);
     if (new_dirty_entry){
-        int insert_error = radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
-        if (insert_error == -EEXIST){
-            radix_tree_delete(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index);
-            radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
+        void ** slot = radix_tree_lookup_slot(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index);
+        if (slot){
+            radix_tree_replace_slot(slot, new_dirty_entry);
         }
+        else{
+            int insert_error = radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
+            if (insert_error == -EEXIST){
+                BUG();
+            }
+        }        
     }
 }
 
@@ -59,8 +65,12 @@ struct snapshot_pte_list * conv_dirty_search_lookup(struct ksnap_user_data * cv_
 
 void conv_dirty_delete_lookup(struct ksnap_user_data * cv_user_data,
                               unsigned long page_index, unsigned long line_index, uint8_t is_page_level){
+
     unsigned long index = cv_logging_get_index(page_index, line_index, is_page_level);
-    radix_tree_delete(&cv_user_data->dirty_list_lookup, index);
+    void ** slot = radix_tree_lookup_slot(&cv_user_data->dirty_list_lookup, index);
+    if (slot){
+        radix_tree_replace_slot(slot, NULL);
+    }
 }
 
 void ksnap_revert_dirty_list(struct vm_area_struct * vma, struct address_space * mapping){
