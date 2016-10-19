@@ -232,8 +232,8 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
            cv_user->version_num, latest_version_num, logging_entry->line_index, logging_entry->data_len, entry->page_index, current->pid);  
 #endif
 
-    int debugging_offset = (cv_logging_is_full_page(logging_entry)) ? (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE) : 0;
-    int debugging_line = (cv_logging_is_full_page(logging_entry)) ? LOGGING_DEBUG_LINE : logging_entry->line_index;
+    /* int debugging_offset = (cv_logging_is_full_page(logging_entry)) ? (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE) : 0; */
+    /* int debugging_line = (cv_logging_is_full_page(logging_entry)) ? LOGGING_DEBUG_LINE : logging_entry->line_index; */
     
     if (latest_version_num > cv_user->version_num){
         if (latest_entry){
@@ -308,7 +308,7 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
     //we need to copy our new data into our entry
     memcpy(logging_entry->data, (uint8_t *)logging_entry->addr, logging_entry->data_len);
 
-    CV_LOGGING_DEBUG_PRINT_LINE( (uint8_t *)logging_entry->addr + debugging_offset, entry->page_index, debugging_line, "mergehuh?? ");
+    //CV_LOGGING_DEBUG_PRINT_LINE( (uint8_t *)logging_entry->addr + debugging_offset, entry->page_index, debugging_line, "mergehuh?? ");
 
     
     /* if (cv_logging_is_full_page(logging_entry)){ */
