@@ -262,11 +262,12 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                                              entry->page_index, LOGGING_DEBUG_LINE, "merge latestentry fullpage ");
                 CV_LOGGING_DEBUG_PRINT_LINE( (uint8_t *)logging_entry->data + (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE),
                                              entry->page_index, LOGGING_DEBUG_LINE, "merge latestentry fullpage ref data");
-
+                INC(COUNTER_COMMIT_LOGGING_FAST_PAGE_MERGE);
             }
             else{
                 //need to traverse all of the lines and merge :(
                 __merge_full_page_with_cache_lines(logging_entry, logging_page_status, entry, cv_seg, cv_user);
+                INC(COUNTER_COMMIT_LOGGING_SLOW_PAGE_MERGE);
             }
         }
         else{
@@ -291,7 +292,7 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                                logging_entry->data,
                                latest,
                                CV_LOGGING_MERGE_WORDS);
-
+            INC(COUNTER_COMMIT_LOGGING_FAST_LINE_MERGE);
             /* if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && (logging_entry->line_index==LOGGING_DEBUG_LINE || cv_logging_is_full_page(logging_entry))){ */
             /*     int offset = (cv_logging_is_full_page(logging_entry)) ? (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE) : 0; */
             /*     uint8_t * local_data = (uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index); */
@@ -300,6 +301,9 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
             /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) latest) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge6 "); */
             /* } */
         }
+    }
+    else{
+        INC(COUNTER_COMMIT_LOGGING_NO_MERGE);
     }
     //we need to copy our new data into our entry
     memcpy(logging_entry->data, (uint8_t *)logging_entry->addr, logging_entry->data_len);
