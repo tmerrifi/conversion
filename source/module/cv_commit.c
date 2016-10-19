@@ -637,6 +637,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   uint64_t max_version_number; //after we commit, others may have beat us to the punch...this is used when we iterate through the list to find out
   int should_migrate;
   int committed_pages=0;
+  int pte_updates=0; //used to determine if we need to flush
  
   if (vma==NULL || vma->vm_file==NULL || vma->vm_file->f_mapping==NULL){
     return;
@@ -746,6 +747,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
           cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
           barrier();
           ++committed_pages;
+          ++pte_updates;
           conv_dirty_delete_lookup(cv_user, pte_entry->page_index,0,1);
       }
       else{
@@ -810,11 +812,11 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
               cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
               barrier();
               ++committed_pages;
+              ++pte_updates;
               conv_dirty_delete_lookup(cv_user, pte_entry->page_index,0,1);
           }
           else{
               //do logging stuff in here!
-
               //grab the user logging page status objoct
               logging_page_status = cv_logging_page_status_lookup(cv_user, pte_entry->page_index);
               
@@ -831,7 +833,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
                          current->pid, pte_entry->page_index, logging_page_status->logging_writes, logging_page_status->entries_allocated);
 #endif
               }
-
               list_del(&pte_entry->list);
               list_add(&pte_entry->list, &our_version_entry->pte_list->list);
               conv_dirty_delete_lookup(cv_user, pte_entry->page_index,
@@ -899,7 +900,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   }
   //ok, its safe to update now
   cv_update_parallel_to_version_no_merge(vma, our_version_number, defer_work);
-  if (!defer_work){
+  if (!defer_work && pte_updates > 0){
       flush_tlb();
       INC(COUNTER_TLB_FLUSH);
   }
