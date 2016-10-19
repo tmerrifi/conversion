@@ -910,6 +910,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
 #ifdef CV_COUNTERS_ON
   COUNTER_COMMIT_LATENCY(native_read_tsc() - start_tsc);
 #endif
+
+  COUNTER_COMMIT_ENTRIES(committed_pages);
   
   CV_LOG_MESSAGE( "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
                   current->pid, cv_seg, committed_pages, our_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);
