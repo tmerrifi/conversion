@@ -279,26 +279,26 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                 //its a line
                 latest = latest_logging_entry->data;
             }
-            if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && (logging_entry->line_index==LOGGING_DEBUG_LINE || cv_logging_is_full_page(logging_entry))){
-                int offset = (cv_logging_is_full_page(logging_entry)) ? (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE) : 0;
-                uint8_t * local_data = (uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index);
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) local_data) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge1 ");
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) logging_entry->data) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge2 ");
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) latest) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge3 ");
-            }
+            /* if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && (logging_entry->line_index==LOGGING_DEBUG_LINE || cv_logging_is_full_page(logging_entry))){ */
+            /*     int offset = (cv_logging_is_full_page(logging_entry)) ? (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE) : 0; */
+            /*     uint8_t * local_data = (uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) local_data) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge1 "); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) logging_entry->data) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge2 "); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) latest) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge3 "); */
+            /* } */
             //do the merge
             cv_three_way_merge((uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index),
                                logging_entry->data,
                                latest,
                                CV_LOGGING_MERGE_WORDS);
 
-            if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && (logging_entry->line_index==LOGGING_DEBUG_LINE || cv_logging_is_full_page(logging_entry))){
-                int offset = (cv_logging_is_full_page(logging_entry)) ? (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE) : 0;
-                uint8_t * local_data = (uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index);
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) local_data) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge4 ");
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) logging_entry->data) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge5 ");
-                CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) latest) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge6 ");
-            }
+            /* if (entry->page_index==LOGGING_DEBUG_PAGE_INDEX && (logging_entry->line_index==LOGGING_DEBUG_LINE || cv_logging_is_full_page(logging_entry))){ */
+            /*     int offset = (cv_logging_is_full_page(logging_entry)) ? (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE) : 0; */
+            /*     uint8_t * local_data = (uint8_t *)cv_logging_page_status_to_kaddr(logging_page_status,logging_entry->line_index); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) local_data) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge4 "); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) logging_entry->data) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge5 "); */
+            /*     CV_LOGGING_DEBUG_PRINT_LINE( ((uint8_t *) latest) + offset, entry->page_index, LOGGING_DEBUG_LINE, "merge6 "); */
+            /* } */
         }
     }
     //we need to copy our new data into our entry
@@ -344,21 +344,21 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
     //update the ppv with our version...do this *after* we make the old entry obsolete.
     cv_per_page_version_update_logging_entry(cv_seg->ppv, entry->page_index, entry, our_version_number, logging_entry->line_index);
 
-    char str[200];
-    sprintf(str, "cv_commit : v : %lu", our_version_number);
+    /* char str[200]; */
+    /* sprintf(str, "cv_commit : v : %lu", our_version_number); */
     
-    if (!cv_logging_is_full_page(logging_entry)){
-        CV_LOGGING_DEBUG_PRINT_LINE(((uint8_t *)logging_entry->data),
-                                    entry->page_index,
-                                    logging_entry->line_index,
-                                    str);
-    }
-    else{
-        CV_LOGGING_DEBUG_PRINT_LINE(((uint8_t *)logging_entry->data) + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
-                                    entry->page_index,
-                                    LOGGING_DEBUG_LINE,
-                                    str);
-    }
+    /* if (!cv_logging_is_full_page(logging_entry)){ */
+    /*     CV_LOGGING_DEBUG_PRINT_LINE(((uint8_t *)logging_entry->data), */
+    /*                                 entry->page_index, */
+    /*                                 logging_entry->line_index, */
+    /*                                 str); */
+    /* } */
+    /* else{ */
+    /*     CV_LOGGING_DEBUG_PRINT_LINE(((uint8_t *)logging_entry->data) + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE), */
+    /*                                 entry->page_index, */
+    /*                                 LOGGING_DEBUG_LINE, */
+    /*                                 str); */
+    /* } */
     
 
     /*****DEBUGGING DATA******************/
