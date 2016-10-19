@@ -17,7 +17,8 @@
 #include "asm/msr.h"
 #include "linux/jhash.h"
 
-#define DISASSEMBLE_CACHE_SIZE 128
+#define DISASSEMBLE_CACHE_SIZE 512
+
 struct disassemble_cache_entry{
     uint8_t valid;
     unsigned long ip;
