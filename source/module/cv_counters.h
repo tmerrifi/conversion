@@ -19,7 +19,9 @@ typedef enum{COUNTER_FIRST=0,
              COUNTER_COMMIT_CYCLES_LT_500000,COUNTER_COMMIT_CYCLES_INF,
              /*update latency counters*/
              COUNTER_UPDATE_CYCLES_LT_10000,COUNTER_UPDATE_CYCLES_LT_50000,COUNTER_UPDATE_CYCLES_LT_100000,COUNTER_UPDATE_CYCLES_LT_200000,
-             COUNTER_UPDATE_CYCLES_LT_500000,COUNTER_UPDATE_CYCLES_INF,             
+             COUNTER_UPDATE_CYCLES_LT_500000,COUNTER_UPDATE_CYCLES_INF,
+             /*TLB ops*/
+             COUNTER_TLB_PAGE_FLUSH,COUNTER_TLB_FLUSH,
              /********************/
              COUNTER_LAST};
 
@@ -170,6 +172,11 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     PRINT_COUNTER(COUNTER_LOGGING_FAULT_INTERPRET_NOALLOC);
     printk(CV_LOG_LEVEL "***CoW fault counters***\n");
     PRINT_COUNTER(COUNTER_COW_FAULT);
+    //COUNTER_TLB_PAGE_FLUSH,COUNTER_TLB_FLUSH,
+    printk(CV_LOG_LEVEL "***TLB counters***\n");
+    PRINT_COUNTER(COUNTER_TLB_PAGE_FLUSH);
+    PRINT_COUNTER(COUNTER_TLB_FLUSH);
+    
 }
 
 #else

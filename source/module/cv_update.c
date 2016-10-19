@@ -135,6 +135,7 @@ void __migrate_page_to_logging(struct vm_area_struct * vma,  struct ksnap_user_d
     new_pte_entry = pte_wrprotect(new_pte_entry);
     set_pte(pte, new_pte_entry);
     __flush_tlb_one(logging_entry->addr);
+    INC(COUNTER_TLB_PAGE_FLUSH);
     //deal with the old page
     page_remove_rmap(old_page);
     put_page(old_page);
@@ -172,6 +173,7 @@ void copy_logging_data(struct vm_area_struct * vma,
         set_pte(logging_status_entry->pte, pte_temp);
         //flush the tlb entry
         __flush_tlb_one(logging_entry->addr);
+        INC(COUNTER_TLB_PAGE_FLUSH);
         //need to set destination_page * again since we've changed it.
         destination_page=(uint8_t *)pfn_to_kaddr(logging_status_entry->pfn);
     }
@@ -530,6 +532,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
     //we didn't flush along the way....we need to flush the whole thing
     if (!flush_tlb_per_page){
         flush_tlb();
+        INC(COUNTER_TLB_FLUSH);
     }
   }
 #ifdef CONV_LOGGING_ON

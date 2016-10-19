@@ -324,6 +324,7 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
         set_pte(logging_page_status->pte, pte_temp);
         //flush the tlb entry
         __flush_tlb_one(logging_entry->addr);
+        INC(COUNTER_TLB_PAGE_FLUSH);
         //CV_LOG_MESSAGE( "done committing and write protecting page, pid: %d, page index: %d\n",
         //     current->pid, latest_entry->page_index);
         __remove_old_logging_page(cv_seg, entry, entry->page_index, our_version_number);
@@ -612,6 +613,7 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
         else{
             cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 0);
             INC(COUNTER_LOGGING_MIGRATION_CHECK_FAILED);
+            COUNTER_MIGRATION_CHECK(diff);
         }
     }
     return result;
@@ -895,6 +897,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   cv_update_parallel_to_version_no_merge(vma, our_version_number, defer_work);
   if (!defer_work){
       flush_tlb();
+      INC(COUNTER_TLB_FLUSH);
   }
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
