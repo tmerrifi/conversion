@@ -430,17 +430,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     tscs[0]=native_read_tsc();
 #endif
     
-
-/*     struct disassemble_cache_entry{ */
-    /* uint8_t valid; */
-/*     unsigned long ip; */
-/*     uint8_t insn[20]; */
-/*     size_t insn_len; */
-/*     ud_t dis; */
-/* }; */
-
     ud_t * dis_obj;
-
     unsigned lengthInBytes;
     
 #ifdef __KERNEL__
