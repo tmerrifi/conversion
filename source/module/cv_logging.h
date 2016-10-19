@@ -15,16 +15,14 @@ struct cv_logging_page_status_entry;
 #define CV_LOGGING_DIFF_THRESHOLD_64 64
 
 #else
-
 //every N committed pages, we check to see if this page should be turned into a logging page
-//#define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 64
-#define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 64
+#define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 32
 //how many 64bit words can be different in order to trigger a switch to logging
 #define CV_LOGGING_DIFF_THRESHOLD_64 4
 
 #endif //CV_FORCE_LOGGING
 
-#define CV_LOGGING_SWITCH_BITMASK 0xFUL
+#define CV_LOGGING_SWITCH_BITMASK 0x7UL
 
 //size we log in bytes
 #define CV_LOGGING_LOG_SIZE 64UL
