@@ -86,6 +86,9 @@
 #define LOGGING_DEBUG_INDEX 0
 #define LOGGING_DEBUG_LINE 2
 
+#define DIRTY_LIST_LOOKUP_ARR_SIZE 16
+#define CV_DEAD_INDEX (~0x0UL)
+
 struct cv_logging_data_entry{
     uint8_t data[LOGGING_SIZE_BYTES];
 };
@@ -132,6 +135,7 @@ struct snapshot_pte_list{
 #define cv_list_entry_get_logging_entry(e) ((e) ? &e->logging_entry : NULL)
 
 
+
 /*this structure is a list of snapshot_pte_list objects. Each node in this list represents a version of the
 snapshot*/
 struct snapshot_version_list{
@@ -158,6 +162,11 @@ struct cv_logging_page_status_entry{
     struct snapshot_pte_list * lines[PAGE_SIZE/CV_LOGGING_LOG_SIZE];
     struct snapshot_pte_list * page_entry;
     struct snapshot_pte_list * wait_entry;
+};
+
+struct cv_dirty_list_lookup_arr_entry{
+    struct snapshot_pte_list * entry;
+    unsigned long page_index;
 };
 
 struct ksnap{
@@ -222,6 +231,8 @@ struct ksnap_user_data{
     struct vm_area_struct * vma;
     struct ksnap_meta_data_local * meta_data;
     struct ksnap_dirty_list_entry * dirty_list_bitmap;   /*the meta data that is exported to userspace that contains a bitmap (or a list)*/
+    struct cv_dirty_list_lookup_arr_entry dirty_list_lookup_arr[DIRTY_LIST_LOOKUP_ARR_SIZE]; /*A fast lookup...we transition to the radix tree when we hit DIRTY_LIST_LOOKUP_ARR_SIZE */
+    uint16_t dirty_list_lookup_arr_size;
     struct radix_tree_root dirty_list_lookup; /*find the relevant entry in the dirty list*/
     struct radix_tree_root partial_update_page_lookup;
     int id;

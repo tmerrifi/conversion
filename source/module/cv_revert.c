@@ -204,5 +204,5 @@ void conv_revert(struct vm_area_struct * vma){
 #endif
     cv_user->partial_version_num=0;
     cv_meta_set_partial_version_num(vma, 0);
-
+    conv_dirty_clear_lookup(cv_user);
 }

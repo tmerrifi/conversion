@@ -24,5 +24,8 @@ void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_
 struct snapshot_pte_list * conv_dirty_search_lookup_line_and_page(struct ksnap_user_data * cv_user_data,
                                                                   unsigned long page_index, unsigned long line_index);
 
+void conv_dirty_clear_lookup(struct ksnap_user_data * cv_user_data);
+
+void conv_dirty_list_lookup_init(struct ksnap_user_data *cv_user);
 
 #endif

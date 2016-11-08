@@ -855,6 +855,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   our_version_entry->num_of_entries=committed_pages;
   //reset the number of dirty pages to zero
   cv_user->dirty_pages_list_count=0;
+  conv_dirty_clear_lookup(cv_user);
 
   //we only have the right to commit if we are one greater than the current committed version
   if (our_version_number == cv_seg->committed_version_num+1){
@@ -906,7 +907,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   }
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
-
 #ifdef CV_COUNTERS_ON
   COUNTER_COMMIT_LATENCY(native_read_tsc() - start_tsc);
 #endif

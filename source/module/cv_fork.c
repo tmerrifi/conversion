@@ -18,6 +18,8 @@
 #include "cv_event.h"
 #include "ksnap_version_list.h"
 #include "cv_store_interpreter_functions.h"
+#include "ksnap_writer.h"
+
 
 //copy the userdata struct, this happens on fork
 void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct * new_vma){
@@ -54,7 +56,7 @@ void ksnap_userdata_copy (struct vm_area_struct * old_vma, struct vm_area_struct
     cv_profiling_begin(&ksnap_vma_to_userdata(new_vma)->profiling_info, ksnap_vma_to_userdata(new_vma)->id);
 
     INIT_LIST_HEAD(&ksnap_vma_to_userdata(new_vma)->segment_list);
-    INIT_RADIX_TREE(&ksnap_vma_to_userdata(new_vma)->dirty_list_lookup, GFP_KERNEL);
+    conv_dirty_list_lookup_init(ksnap_vma_to_userdata(new_vma));
     INIT_RADIX_TREE(&ksnap_vma_to_userdata(new_vma)->partial_update_page_lookup, GFP_KERNEL);
     INIT_RADIX_TREE(&ksnap_vma_to_userdata(new_vma)->logging_page_status, GFP_KERNEL);
     

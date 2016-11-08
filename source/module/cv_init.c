@@ -20,6 +20,7 @@
 #include "cv_profiling.h"
 #include "cv_determinism.h"
 #include "cv_store_interpreter_functions.h"
+#include "ksnap_writer.h"
 
 MODULE_LICENSE("GPL");
 
@@ -88,7 +89,7 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   user_data->deferred_work_mem_cache=KMEM_CACHE(cv_defer_work_entry,0);
   cv_profiling_begin(&user_data->profiling_info, user_data->id);
   INIT_LIST_HEAD(&user_data->segment_list);
-  INIT_RADIX_TREE(&user_data->dirty_list_lookup, GFP_KERNEL);
+  conv_dirty_list_lookup_init(user_data);
   INIT_RADIX_TREE(&user_data->partial_update_page_lookup, GFP_KERNEL);
   INIT_RADIX_TREE(&user_data->logging_page_status, GFP_KERNEL);
   
