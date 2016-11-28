@@ -18,6 +18,8 @@
 #include "cv_event.h"
 #include "cv_profiling.h"
 #include "cv_defer_work.h"
+#include "array_cache.h"
+
 
 #define SNAPSHOT_PREFIX "snapshot"
 #define SNAPSHOT_DEBUG Y
@@ -86,8 +88,8 @@
 #define LOGGING_DEBUG_INDEX 0
 #define LOGGING_DEBUG_LINE 2
 
-#define DIRTY_LIST_LOOKUP_ARR_SIZE 16
-#define CV_DEAD_INDEX (~0x0UL)
+#define DIRTY_LIST_LOOKUP_ARR_SIZE 32
+#define CV_DEAD_INDEX (0xDEADBEEFUL)
 
 struct cv_logging_data_entry{
     uint8_t data[LOGGING_SIZE_BYTES];
@@ -231,6 +233,7 @@ struct ksnap_user_data{
     struct vm_area_struct * vma;
     struct ksnap_meta_data_local * meta_data;
     struct ksnap_dirty_list_entry * dirty_list_bitmap;   /*the meta data that is exported to userspace that contains a bitmap (or a list)*/
+    struct array_cache dirty_list_cache;
     struct cv_dirty_list_lookup_arr_entry dirty_list_lookup_arr[DIRTY_LIST_LOOKUP_ARR_SIZE]; /*A fast lookup...we transition to the radix tree when we hit DIRTY_LIST_LOOKUP_ARR_SIZE */
     uint16_t dirty_list_lookup_arr_size;
     struct radix_tree_root dirty_list_lookup; /*find the relevant entry in the dirty list*/

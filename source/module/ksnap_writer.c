@@ -27,51 +27,55 @@
 
 void conv_dirty_list_lookup_init(struct ksnap_user_data *cv_user) {
     int i;
+    
+    array_cache_init(&cv_user->dirty_list_cache, 256, 8);
     //initialize the spillover radix tree
     INIT_RADIX_TREE(&cv_user->dirty_list_lookup, GFP_KERNEL);
     //initialze our array 
-    for (i=0;i<DIRTY_LIST_LOOKUP_ARR_SIZE;i++) {
+    /*for (i=0;i<DIRTY_LIST_LOOKUP_ARR_SIZE;i++) {
         cv_user->dirty_list_lookup_arr[i].entry = NULL;
         cv_user->dirty_list_lookup_arr[i].page_index = CV_DEAD_INDEX;
-    }
+    }*/
     
-    printk(KERN_INFO "size is : %d\n", sizeof(cv_user->dirty_list_lookup_arr));
-    cv_user->dirty_list_lookup_arr_size = 0;
+    //printk(KERN_INFO "size is : %d\n", sizeof(cv_user->dirty_list_lookup_arr));
+    //cv_user->dirty_list_lookup_arr_size = 0;
 }
 
+/*
 static inline __dirty_list_lookup_use_fast_path(struct ksnap_user_data *cv_user) {
-    return cv_user->dirty_list_lookup_arr_size < DIRTY_LIST_LOOKUP_ARR_SIZE;
-}
+    return cv_user->dirty_list_lookup_arr_size < DIRTY_LIST_LOOKUP_ARR_SIZE;      
+}                                                                                 
+*/
 
-static inline struct cv_dirty_list_lookup_arr_entry  * __lookup_in_array(struct cv_dirty_list_lookup_arr_entry arr[], 
-                                                                         int len, unsigned long index) {
-    printk(KERN_INFO ".......in __lookup_in_array pid: %d, index: %d.........", current->pid, index);
-    int i=0;
-    for (;i<len;i++) {
-        if (arr[i].page_index==index) {
-            printk(KERN_INFO "found it!");
-            return &arr[i];
-        }
-        else{
-            printk(KERN_INFO "not here???? %d", arr[i].page_index);
-        }
-    }
-    return NULL;
-}
+/*
+static inline struct cv_dirty_list_lookup_arr_entry  * __lookup_in_array(struct cv_dirty_list_lookup_arr_entry arr[],
+                                                                         int len, unsigned long index) {             
+    printk(KERN_INFO ".......in __lookup_in_array pid: %d, index: %d.........", current->pid, index);                
+    int i=0;                                                                                                         
+    for (;i<len;i++) {                                                                                               
+        if (arr[i].page_index==index) {                                                                              
+            printk(KERN_INFO "found it!");                                                                           
+            return &arr[i];                                                                                          
+        }                                                                                                            
+        else{                                                                                                        
+            printk(KERN_INFO "not here???? %d", arr[i].page_index);                                                  
+        }                                                                                                            
+    }                                                                                                                
+    return NULL;                                                                                                     
+}                                                                                                                    
+*/
 
 struct snapshot_pte_list * __conv_dirty_search_lookup(struct ksnap_user_data * cv_user, unsigned long index){
-    //look in the array first
-    struct snapshot_pte_list *entry = __lookup_in_array(cv_user->dirty_list_lookup_arr, 
-                                                        cv_user->dirty_list_lookup_arr_size,index);
-    //look here if we used radix tree to spill over
-    if (entry==NULL && !__dirty_list_lookup_use_fast_path(cv_user)) {
-        entry = radix_tree_lookup(&cv_user->dirty_list_lookup, index);
-    }
-    else{
-        entry = NULL;
-    }
-    return entry;
-}
+    //look in the array first                                                                                
+    struct snapshot_pte_list *entry = array_cache_lookup(&cv_user->dirty_list_cache, index);
+
+    //look here if we used radix tree to spill over                                                          
+    if (entry==NULL) {
+        entry = radix_tree_lookup(&cv_user->dirty_list_lookup, index);                                       
+    }                                                                                                        
+    return entry;                                                                                            
+}                                                                                                            
+
 
 void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_pte_list * new_dirty_entry,
                                    unsigned long page_index, unsigned long line_index, uint8_t is_page_level){
@@ -82,28 +86,16 @@ void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_
     
     BUG_ON(new_dirty_entry==NULL);
 
-    /*************DEBUGGING...get rid of this*********/
-    if(__conv_dirty_search_lookup(cv_user, index)!=NULL){
-        printk(KERN_INFO "WHOOPS! error adding page %d\n", index);
-        BUG();
-    }
-    /***************GET RID OF THIS**********************/
-
-    if (__dirty_list_lookup_use_fast_path(cv_user)) {
-        cv_user->dirty_list_lookup_arr[cv_user->dirty_list_lookup_arr_size].entry = new_dirty_entry;
-        cv_user->dirty_list_lookup_arr[cv_user->dirty_list_lookup_arr_size].page_index = index;
-        cv_user->dirty_list_lookup_arr_size++;
-    } 
-    else {
+    if (!array_cache_insert(&cv_user->dirty_list_cache, index, new_dirty_entry)){
         int insert_error = radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
         if (insert_error == -EEXIST) {
-            printk(KERN_INFO "WHOOPS 2! error adding page %d\n", index);
-            BUG();
-            //radix_tree_delete(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index);
-            //radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
+            radix_tree_delete(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index);
+            radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
         }
     }
-    printk(KERN_INFO "DIRTY: pid %d Added index %lu\n", current->pid, index );
+//  else{
+//      printk(KERN_INFO "DIRTY: pid %d Added index %lu to cache\n", current->pid, index );
+//  }
 }
 
 
@@ -131,31 +123,26 @@ void conv_dirty_delete_lookup(struct ksnap_user_data * cv_user,
                               unsigned long page_index, unsigned long line_index, uint8_t is_page_level){
 
     unsigned long index = cv_logging_get_index(page_index, line_index, is_page_level);
-    struct cv_dirty_list_lookup_arr_entry * arr_entry = __lookup_in_array(cv_user->dirty_list_lookup_arr,
-                                                                          cv_user->dirty_list_lookup_arr_size,
-                                                                          index);
-    if (arr_entry) {
-        arr_entry->page_index=CV_DEAD_INDEX;
-    }
-    else if (!__dirty_list_lookup_use_fast_path(cv_user)) {
+
+    if (!array_cache_delete(&cv_user->dirty_list_cache, index)) {
         radix_tree_delete(&cv_user->dirty_list_lookup, index);
     }
-    printk(KERN_INFO "DIRTY: pid %d deleting index %d", current->pid, index);
+    //printk(KERN_INFO "DIRTY: pid %d deleting index %d", current->pid, index);
 }
 
 void conv_dirty_clear_lookup(struct ksnap_user_data * cv_user_data){
 
     /*******************DEBUGGING GET RID OF THIS******************/
-    int i=0;
+    /*int i=0;
     for (;i<cv_user_data->dirty_list_lookup_arr_size;i++) {
         if (cv_user_data->dirty_list_lookup_arr[i].page_index != CV_DEAD_INDEX) {
             printk(KERN_INFO "CLEAR: pid %d clearing non-empty\n", current->pid);
             BUG();
         }
-    }
+    }*/
     /***************************************************************/
-    cv_user_data->dirty_list_lookup_arr_size=0;
-    printk(KERN_INFO "DIRTY: CLEARED! pid %d\n",current->pid);
+    //cv_user_data->dirty_list_lookup_arr_size=0;
+    //printk(KERN_INFO "DIRTY: CLEARED! pid %d\n",current->pid);
 }
 
 void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * old_page, pte_t * new_pte, unsigned long address){
