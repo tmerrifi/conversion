@@ -31,39 +31,7 @@ void conv_dirty_list_lookup_init(struct ksnap_user_data *cv_user) {
     array_cache_init(&cv_user->dirty_list_cache, 256, 8);
     //initialize the spillover radix tree
     INIT_RADIX_TREE(&cv_user->dirty_list_lookup, GFP_KERNEL);
-    //initialze our array 
-    /*for (i=0;i<DIRTY_LIST_LOOKUP_ARR_SIZE;i++) {
-        cv_user->dirty_list_lookup_arr[i].entry = NULL;
-        cv_user->dirty_list_lookup_arr[i].page_index = CV_DEAD_INDEX;
-    }*/
-    
-    //printk(KERN_INFO "size is : %d\n", sizeof(cv_user->dirty_list_lookup_arr));
-    //cv_user->dirty_list_lookup_arr_size = 0;
 }
-
-/*
-static inline __dirty_list_lookup_use_fast_path(struct ksnap_user_data *cv_user) {
-    return cv_user->dirty_list_lookup_arr_size < DIRTY_LIST_LOOKUP_ARR_SIZE;      
-}                                                                                 
-*/
-
-/*
-static inline struct cv_dirty_list_lookup_arr_entry  * __lookup_in_array(struct cv_dirty_list_lookup_arr_entry arr[],
-                                                                         int len, unsigned long index) {             
-    printk(KERN_INFO ".......in __lookup_in_array pid: %d, index: %d.........", current->pid, index);                
-    int i=0;                                                                                                         
-    for (;i<len;i++) {                                                                                               
-        if (arr[i].page_index==index) {                                                                              
-            printk(KERN_INFO "found it!");                                                                           
-            return &arr[i];                                                                                          
-        }                                                                                                            
-        else{                                                                                                        
-            printk(KERN_INFO "not here???? %d", arr[i].page_index);                                                  
-        }                                                                                                            
-    }                                                                                                                
-    return NULL;                                                                                                     
-}                                                                                                                    
-*/
 
 struct snapshot_pte_list * __conv_dirty_search_lookup(struct ksnap_user_data * cv_user, unsigned long index){
     //look in the array first                                                                                
@@ -93,9 +61,6 @@ void conv_add_dirty_page_to_lookup(struct vm_area_struct * vma, struct snapshot_
             radix_tree_insert(&(ksnap_vma_to_userdata(vma))->dirty_list_lookup, index, new_dirty_entry);
         }
     }
-//  else{
-//      printk(KERN_INFO "DIRTY: pid %d Added index %lu to cache\n", current->pid, index );
-//  }
 }
 
 

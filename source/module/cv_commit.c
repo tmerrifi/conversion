@@ -46,12 +46,9 @@ void __remove_old_logging_page(struct ksnap * cv_seg, struct snapshot_pte_list *
     for (;i<PAGE_SIZE/CV_LOGGING_LOG_SIZE;i++){
         old_entry=cv_per_page_version_get_logging_line_entry(cv_seg->ppv, page_index, i);
         if (old_entry){
-
             uint64_t old_version = cv_per_page_version_get_logging_line_entry_version(cv_seg->ppv,
                                                                                       page_index,
                                                                                       i);
-
-            
             if(old_version>our_version_number){
                 //grab the PTE
                 struct snapshot_pte_list * pte_old = cv_per_page_version_get_logging_line_entry(cv_seg->ppv,
@@ -62,13 +59,10 @@ void __remove_old_logging_page(struct ksnap * cv_seg, struct snapshot_pte_list *
                 }
                 BUG();
             }
-            
-            
             old_entry->obsolete_version=our_version_number;
             cv_per_page_version_clear_logging_line_entry(cv_seg->ppv, page_index, i);
         }
     }
-    
 }
 
 
@@ -76,12 +70,6 @@ void __remove_old_logging_line(struct ksnap * cv_seg, struct snapshot_pte_list *
     struct snapshot_pte_list * old_entry;
     old_entry=cv_per_page_version_get_logging_line_entry(cv_seg->ppv, page_index, line_index);
     if (old_entry!=NULL){
-        /****DEBUGGING********/
-        //uint64_t old_version = cv_per_page_version_get_logging_line_entry_version(cv_seg->ppv,
-        //                                                                         page_index,
-        //                                                                         line_index);
-        //BUG_ON(old_version>our_version_number);
-        
         old_entry->obsolete_version=our_version_number;
     }
 }
