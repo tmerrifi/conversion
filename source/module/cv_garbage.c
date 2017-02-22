@@ -157,8 +157,8 @@ void cv_garbage_collection(struct work_struct * work){
                   kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
               }
           }
-          //list_del(version_list_pos);
-          //kfree(version_list_entry);
+          list_del(version_list_pos);
+          kfree(version_list_entry);
       }
   }
   
