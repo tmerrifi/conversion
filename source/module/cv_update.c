@@ -257,8 +257,12 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
   uint8_t * local_addr;
   
   cv_stats_function_init();
-  
   cv_stats_start(mapping_to_ksnap(mapping), 0, update_latency);
+
+#ifdef CV_COUNTERS_ON    
+  unsigned long long start_tsc=native_read_tsc();
+#endif
+
   if (vma==NULL || vma->vm_mm == NULL || vma->vm_file==NULL || vma->vm_file->f_mapping==NULL){
     CV_LOG_MESSAGE( "CV UPDATE FAILED: vma not setup right\n");
   }
@@ -543,13 +547,18 @@ pages target_input %lu committed version %llu ignored %d, keep current %d, first
            keep_current_version, first_update_after_partial, cv_meta_get_partial_updated_unique_pages(vma), cv_user->version_num);
 
 #endif
-
+    
+    
     cv_stats_end(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), 0, update_latency);
     cv_stats_add_counter(mapping_to_ksnap(mapping), ksnap_vma_to_userdata(vma), gotten_pages, update_pages);
     cv_meta_set_updated_page_count(vma, gotten_pages);
     cv_meta_set_merged_page_count(vma, merge_count);
     cv_meta_inc_partial_updated_unique_pages(vma, partial_unique_count);
-    
+ 
+#ifdef CV_COUNTERS_ON
+    COUNTER_UPDATE_LATENCY(native_read_tsc() - start_tsc);
+#endif
+       
     return;
 }
 

@@ -21,12 +21,13 @@ typedef enum{COUNTER_FIRST=0,
              COUNTER_COMMIT_ENTRIES_LT_INF,
              /*commit latency counters*/
              COUNTER_COMMIT_CYCLES_LT_10000,COUNTER_COMMIT_CYCLES_LT_25000,COUNTER_COMMIT_CYCLES_LT_50000,COUNTER_COMMIT_CYCLES_LT_75000,
-             COUNTER_COMMIT_CYCLES_LT_100000,COUNTER_COMMIT_CYCLES_LT_150000,COUNTER_COMMIT_CYCLES_LT_200000,COUNTER_COMMIT_CYCLES_LT_500000,COUNTER_COMMIT_CYCLES_INF,
+             COUNTER_COMMIT_CYCLES_LT_100000,COUNTER_COMMIT_CYCLES_LT_150000,COUNTER_COMMIT_CYCLES_LT_200000,COUNTER_COMMIT_CYCLES_LT_500000,
+             COUNTER_COMMIT_CYCLES_INF,COUNTER_COMMIT_CYCLES_TOTAL,
              /*commit logging counters*/
              COUNTER_COMMIT_LOGGING_NO_MERGE, COUNTER_COMMIT_LOGGING_FAST_PAGE_MERGE, COUNTER_COMMIT_LOGGING_SLOW_PAGE_MERGE, COUNTER_COMMIT_LOGGING_FAST_LINE_MERGE,
              /*update latency counters*/
              COUNTER_UPDATE_CYCLES_LT_10000,COUNTER_UPDATE_CYCLES_LT_50000,COUNTER_UPDATE_CYCLES_LT_100000,COUNTER_UPDATE_CYCLES_LT_200000,
-             COUNTER_UPDATE_CYCLES_LT_500000,COUNTER_UPDATE_CYCLES_INF,
+             COUNTER_UPDATE_CYCLES_LT_500000,COUNTER_UPDATE_CYCLES_INF,COUNTER_UPDATE_CYCLES_TOTAL,
              /*TLB ops*/
              COUNTER_TLB_PAGE_FLUSH,COUNTER_TLB_FLUSH,
              /********************/
@@ -36,6 +37,8 @@ typedef enum{COUNTER_FIRST=0,
 #ifdef CV_COUNTERS_ON
 
 #define init_counters() ((uint64_t *)kzalloc(sizeof(uint64_t) * (COUNTER_LAST-COUNTER_FIRST), GFP_KERNEL))
+
+#define ADD_COUNTER(counter,n) (cv_user->counters[counter]+=n)
 
 #define INC(counter) (cv_user->counters[counter]++)
 
@@ -96,6 +99,7 @@ typedef enum{COUNTER_FIRST=0,
 
 
 #define COUNTER_COMMIT_LATENCY(cycles)                                  \
+    ADD_COUNTER(COUNTER_COMMIT_CYCLES_TOTAL,cycles);                    \
     if (cycles < 10000){                                                \
         INC(COUNTER_COMMIT_CYCLES_LT_10000);                            \
     }                                                                   \
@@ -123,6 +127,7 @@ typedef enum{COUNTER_FIRST=0,
 
 
 #define COUNTER_UPDATE_LATENCY(cycles)                                  \
+    ADD_COUNTER(COUNTER_UPDATE_CYCLES_TOTAL,cycles);                    \
     if (cycles < 10000){                                                \
         INC(COUNTER_UPDATE_CYCLES_LT_10000);                            \
     }                                                                   \
@@ -194,7 +199,7 @@ typedef enum{COUNTER_FIRST=0,
 
 static void counters_print_all(struct ksnap_user_data * cv_user){
     printk(CV_LOG_LEVEL "**********Counters for process %d, conversion segment starting at %p*******\n", cv_user->id,cv_user->vma->vm_start);
-    printk(CV_LOG_LEVEL "***Logging migration counters***\n");
+    printk(CV_LOG_LEVEL "***Logging migration counters***\n");    
     PRINT_COUNTER(COUNTER_LOGGING_MIGRATIONS);
     PRINT_COUNTER(COUNTER_LOGGING_MIGRATION_CHECK_SUCCESS);
     PRINT_COUNTER(COUNTER_LOGGING_MIGRATION_CHECK_FAILED);
@@ -228,6 +233,7 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_200000);
     PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_500000);
     PRINT_COUNTER(COUNTER_COMMIT_CYCLES_INF);
+    PRINT_COUNTER(COUNTER_COMMIT_CYCLES_TOTAL);
     printk(CV_LOG_LEVEL "***COMMIT entries counters***\n");
     PRINT_COUNTER(COUNTER_COMMIT_ENTRIES_LT_5);
     PRINT_COUNTER(COUNTER_COMMIT_ENTRIES_LT_10);
@@ -252,6 +258,7 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     PRINT_COUNTER(COUNTER_UPDATE_CYCLES_LT_200000);
     PRINT_COUNTER(COUNTER_UPDATE_CYCLES_LT_500000);
     PRINT_COUNTER(COUNTER_UPDATE_CYCLES_INF);    
+    PRINT_COUNTER(COUNTER_UPDATE_CYCLES_TOTAL);
     printk(CV_LOG_LEVEL "***Logging fault path counters***\n");
     PRINT_COUNTER(COUNTER_LOGGING_FAULT_PAGE_COPY_FORCED);
     PRINT_COUNTER(COUNTER_LOGGING_FAULT_PAGE_COPY_THRESHOLD_EXCEEDED);
