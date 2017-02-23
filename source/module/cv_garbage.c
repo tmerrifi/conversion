@@ -100,10 +100,13 @@ void cv_garbage_collection(struct work_struct * work){
   struct ksnap * cv_seg;
   struct ksnap_user_data * user_data;
   struct list_head * users_pos;
+  //we use the pte_list_garbage to free up pte list entries after we've already given way to other GC threads
+  struct list_head pte_list_garbage;
   struct snapshot_version_list * version_list_entry;
   struct snapshot_pte_list * pte_list_entry;
   uint64_t low_version = MAX_VERSION_NUM;
   uint64_t collected_count = 0;
+
 
   garbage_work = container_of(work, struct cv_garbage_work, work);
   cv_seg = garbage_work->cv_seg;
@@ -125,8 +128,8 @@ void cv_garbage_collection(struct work_struct * work){
       goto out;
   }
 
+  INIT_LIST_HEAD(&pte_list_garbage);
   down(&cv_seg->sem_gc);
-  
   //ok, lets walk the version list, find out of date versions
   list_for_each_prev_safe(version_list_pos, version_list_tmp_pos, &cv_seg->snapshot_pte_list->list){
       //validate
@@ -138,7 +141,7 @@ void cv_garbage_collection(struct work_struct * work){
           list_for_each_safe(pte_list_entry_pos, pte_list_entry_pos_tmp, &version_list_entry->pte_list->list){
               pte_list_entry = list_entry(pte_list_entry_pos, struct snapshot_pte_list, list);
               int result=0;
-              //validate
+              //validate...waking threads signal us here
               if (current_seq_num!=cv_seg->gc_seq_num){
                   goto out;
               }
@@ -154,18 +157,29 @@ void cv_garbage_collection(struct work_struct * work){
                   collected_count++;
                   version_list_entry->num_of_entries--;
                   list_del(pte_list_entry_pos);
-                  kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
+                  //kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
+                  list_add(pte_list_entry_pos,&pte_list_garbage);
               }
           }
           list_del(version_list_pos);
           kfree(version_list_entry);
       }
   }
-  
- out:
-  //printk(KERN_EMERG " LEAVING!!!! collected %d\n", collected_count);
+
+  out:
+  //printk(KERN_EMERG " LEAVING SEQ!!!! collected %d\n", collected_count);
   //reduce the total number of allocated pages. TODO: don't we don't need an atomic op here?
   cv_seg->committed_pages-=collected_count;
   atomic_set(&cv_seg->gc_thread_count, -1);
+  //we use the semaphore to tell threads that just woke up that it's safe to traverse the version list again
   up(&cv_seg->sem_gc);
+  //now free the pte_list_entry garbage
+  collected_count = 0;
+  list_for_each_safe(pte_list_entry_pos, pte_list_entry_pos_tmp, &pte_list_garbage){
+      pte_list_entry = list_entry(pte_list_entry_pos, struct snapshot_pte_list, list);
+      list_del(pte_list_entry_pos);
+      kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
+      collected_count++;
+  }
+  //printk(KERN_EMERG " LEAVING PAR!!!! collected %d\n", collected_count);
 }
