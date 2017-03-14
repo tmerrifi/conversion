@@ -33,22 +33,26 @@ static inline void array_cache_init(struct array_cache * cache, size_t size, int
 }
 
 static inline int __get_set_start_index(struct array_cache * cache, unsigned long index){
-    return (index % cache->sets)*cache->set_associativity;
+    return ((((index * 1099511628211UL) >> 16) % cache->sets) * cache->set_associativity);
 }
 
-static inline void * array_cache_lookup(struct array_cache * cache, unsigned long index){
+static inline void * __array_cache_lookup(struct array_cache * cache, unsigned long index, int * available_index){
     int i;
     int start_index=__get_set_start_index(cache,index);
     for (i=start_index;i<start_index+cache->set_associativity;i++) {
 	if (cache->array[i].index == index) {
-	    //printk(KERN_INFO "lookup...returning at index %d %p", index, cache->array[i].ptr);
 	    return cache->array[i].ptr;
 	}
-	else{
-	    //printk(KERN_INFO "lookup...not here...%d %lu\n", i, cache->array[i].index);
+	else if (cache->array[i].index == CACHE_DEAD_ENTRY && available_index && *available_index == -1) {
+	    //its available, set the available_index in case the caller cares
+	    *available_index = i;
 	}
     }
     return NULL;
+}
+
+static inline void * array_cache_lookup(struct array_cache *cache, unsigned long index) {
+    return __array_cache_lookup(cache, index, NULL);
 }
 
 static inline void * array_cache_delete(struct array_cache * cache, unsigned long index){
@@ -71,27 +75,23 @@ static inline void * array_cache_delete(struct array_cache * cache, unsigned lon
 }
 
 static inline int array_cache_insert(struct array_cache * cache, unsigned long index, void * ptr){
-    int i,arr_index;
 
-    //if it exists, return false
-    if (array_cache_lookup(cache,index)) {
-	return 0;
+    int available_index = -1;
+    int return_val = 0;
+
+    //printk(KERN_INFO " get start index... %d, index %lu\n", __get_set_start_index(cache, index), index);
+
+    if (__array_cache_lookup(cache, index, &available_index) == NULL && available_index >=0) {
+	return_val = 1;
+	cache->array[available_index].index = index;
+	cache->array[available_index].ptr=ptr;
+	cache->count++;  
+    }
+    else {
+	available_index = CACHE_DEAD_ENTRY;
     }
     
-    if (cache->count < cache->size) {
-	int start_index=__get_set_start_index(cache,index);
-	for (i=start_index;i<start_index+cache->set_associativity;i++) { 
-	    if (cache->array[i].index==CACHE_DEAD_ENTRY || cache->array[i].index==index) {
-		cache->array[i].index = index;
-		cache->array[i].ptr=ptr;
-		cache->count++;  
-		//printk(KERN_INFO "insert.....%d %lu %p\n", 
-		  //     arr_index, cache->array[i].index, ptr);
-		return 1;
-	    }
-	}
-    }
-    return 0;
+    return return_val;
 }
 
 #endif
