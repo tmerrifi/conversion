@@ -40,6 +40,7 @@ struct snapshot_pte_list * __conv_dirty_search_lookup(struct ksnap_user_data * c
     //look here if we used radix tree to spill over                                                          
     if (entry==NULL) {
         entry = radix_tree_lookup(&cv_user->dirty_list_lookup, index);                                       
+        INC(COUNTER_DIRTYLOOKUP_READ_SLOW);
     }                                                                                                        
     return entry;                                                                                            
 }                                                                                                            
