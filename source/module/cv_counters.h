@@ -8,7 +8,8 @@ typedef enum{COUNTER_FIRST=0,
              COUNTER_LOGGING_MIGRATION_CHECK_20_49,COUNTER_LOGGING_MIGRATION_CHECK_50_INF,COUNTER_FAULT_CYCLES_0_499,
              /*page fault cycle latency counters*/
              COUNTER_FAULT_CYCLES_500_999,COUNTER_FAULT_CYCLES_1000_1999,COUNTER_FAULT_CYCLES_2000_2999,COUNTER_FAULT_CYCLES_3000_4999,COUNTER_FAULT_CYCLES_5000_6999,
-             COUNTER_FAULT_CYCLES_7000_9999,COUNTER_FAULT_CYCLES_10000_12999,COUNTER_FAULT_CYCLES_13000_17999,COUNTER_FAULT_CYCLES_18000_INF,
+             COUNTER_FAULT_CYCLES_7000_9999,COUNTER_FAULT_CYCLES_10000_12999,COUNTER_FAULT_CYCLES_13000_17999,COUNTER_FAULT_CYCLES_18000_24999,
+             COUNTER_FAULT_CYCLES_25000_34999,COUNTER_FAULT_CYCLES_35000_INF,COUNTER_FAULT_CYCLES_TOTAL,
              /*logging path counters*/
              COUNTER_LOGGING_FAULT_PAGE_COPY_OTHER,COUNTER_LOGGING_FAULT_PAGE_COPY_FORCED,COUNTER_LOGGING_FAULT_PAGE_COPY_THRESHOLD_EXCEEDED,
              COUNTER_LOGGING_FAULT_INTERPRET_ALLOC, COUNTER_LOGGING_FAULT_INTERPRET_NOALLOC,
@@ -30,6 +31,10 @@ typedef enum{COUNTER_FIRST=0,
              COUNTER_UPDATE_CYCLES_LT_500000,COUNTER_UPDATE_CYCLES_INF,COUNTER_UPDATE_CYCLES_TOTAL,
              /*TLB ops*/
              COUNTER_TLB_PAGE_FLUSH,COUNTER_TLB_FLUSH,
+             /*TMP COUNTER*/
+             COUNTER_TMP1, COUNTER_TMP2, COUNTER_TMP3, COUNTER_TMP4,
+             /*DIRTY PAGE LOOKUP COUNTER*/
+             COUNTER_DIRTYLOOKUP_ADD_SLOW, COUNTER_DIRTYLOOKUP_READ_SLOW,
              /********************/
              COUNTER_LAST};
 
@@ -149,6 +154,7 @@ typedef enum{COUNTER_FIRST=0,
 
 
 #define COUNTER_FAULT_CHECK(cycles)                                     \
+    ADD_COUNTER(COUNTER_FAULT_CYCLES_TOTAL,cycles);                     \
     if (cycles < 500){                                                  \
         INC(COUNTER_FAULT_CYCLES_0_499);                                \
     }                                                                   \
@@ -176,8 +182,14 @@ typedef enum{COUNTER_FIRST=0,
     else if(cycles < 18000){                                            \
         INC(COUNTER_FAULT_CYCLES_13000_17999);                          \
     }                                                                   \
-    else{                                                               \
-        INC(COUNTER_FAULT_CYCLES_18000_INF);                            \
+    else if (cycles < 25000) {                                          \
+	INC(COUNTER_FAULT_CYCLES_18000_24999);                          \  
+    }                                                                   \
+    else if (cycles < 35000) {                                          \
+	INC(COUNTER_FAULT_CYCLES_25000_34999);                          \
+    }                                                                   \
+    else {                                                              \
+	INC(COUNTER_FAULT_CYCLES_35000_INF);                            \
     }                                                                   \
 
 #define COUNTER_MIGRATION_CHECK(diff)                   \
@@ -218,7 +230,10 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     PRINT_COUNTER(COUNTER_FAULT_CYCLES_7000_9999);
     PRINT_COUNTER(COUNTER_FAULT_CYCLES_10000_12999);
     PRINT_COUNTER(COUNTER_FAULT_CYCLES_13000_17999);
-    PRINT_COUNTER(COUNTER_FAULT_CYCLES_18000_INF);
+    PRINT_COUNTER(COUNTER_FAULT_CYCLES_18000_24999);
+    PRINT_COUNTER(COUNTER_FAULT_CYCLES_25000_34999);
+    PRINT_COUNTER(COUNTER_FAULT_CYCLES_35000_INF);
+    PRINT_COUNTER(COUNTER_FAULT_CYCLES_TOTAL);
     printk(CV_LOG_LEVEL "***COMMIT merge counters***\n");
     PRINT_COUNTER(COUNTER_COMMIT_LOGGING_NO_MERGE);
     PRINT_COUNTER(COUNTER_COMMIT_LOGGING_SLOW_PAGE_MERGE);
@@ -271,7 +286,15 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     printk(CV_LOG_LEVEL "***TLB counters***\n");
     PRINT_COUNTER(COUNTER_TLB_PAGE_FLUSH);
     PRINT_COUNTER(COUNTER_TLB_FLUSH);
-    
+    printk(CV_LOG_LEVEL "***TMP counters***\n");
+    PRINT_COUNTER(COUNTER_TMP1);
+    PRINT_COUNTER(COUNTER_TMP2);
+    PRINT_COUNTER(COUNTER_TMP3);
+    PRINT_COUNTER(COUNTER_TMP4);
+    printk(CV_LOG_LEVEL "***TMP counters***\n");
+    PRINT_COUNTER(COUNTER_DIRTYLOOKUP_ADD_SLOW);
+    PRINT_COUNTER(COUNTER_DIRTYLOOKUP_READ_SLOW);
+
 }
 
 #else
@@ -281,6 +304,8 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
 #define INC(counter)
 
 #define GET_COUNTER(counter)
+
+#define COUNTER_COMMIT_ENTRIES(...)
 
 #define COUNTER_MIGRATION_CHECK(diff)
 
