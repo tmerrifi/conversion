@@ -1,13 +1,24 @@
 #ifndef CV_COUNTERS
 #define CV_COUNTERS
 
+
+#define LATENCY_COUNTER_DEFINE(name) \
+COUNTER_ ##name## _CYCLES_0_499,COUNTER_ ##name## _CYCLES_500_999, COUNTER_ ##name## _CYCLES_1000_1999,COUNTER_ ##name## _CYCLES_2000_2999,\
+COUNTER_ ##name## _CYCLES_3000_4999, COUNTER_ ##name## _CYCLES_5000_6999, COUNTER_ ##name## _CYCLES_7000_9999, COUNTER_ ##name## _CYCLES_10000_12999,\
+COUNTER_ ##name## _CYCLES_13000_17999, COUNTER_ ##name## _CYCLES_18000_24999, COUNTER_ ##name## _CYCLES_25000_35999, COUNTER_ ##name## _CYCLES_36000_39999,\
+COUNTER_ ##name## _CYCLES_40000_49999, COUNTER_ ##name## _CYCLES_50000_59999, COUNTER_ ##name## _CYCLES_60000_69999, COUNTER_ ##name## _CYCLES_70000_79999,\
+COUNTER_ ##name## _CYCLES_80000_89999, COUNTER_ ##name## _CYCLES_90000_99999, COUNTER_ ##name## _CYCLES_INF, COUNTER_ ##name## _CYCLES_TOTAL
+
+
+
 typedef enum{COUNTER_FIRST=0,
              /*monitoring migration checking and diffing*/
              COUNTER_LOGGING_MIGRATIONS, COUNTER_LOGGING_MIGRATION_CHECK_SUCCESS, COUNTER_LOGGING_MIGRATION_CHECK_FAILED,
              COUNTER_LOGGING_MIGRATION_CHECK_0_4, COUNTER_LOGGING_MIGRATION_CHECK_5_9, COUNTER_LOGGING_MIGRATION_CHECK_10_19,
-             COUNTER_LOGGING_MIGRATION_CHECK_20_49,COUNTER_LOGGING_MIGRATION_CHECK_50_INF,COUNTER_FAULT_CYCLES_0_499,
+             COUNTER_LOGGING_MIGRATION_CHECK_20_49,COUNTER_LOGGING_MIGRATION_CHECK_50_INF,
              /*page fault cycle latency counters*/
-             COUNTER_FAULT_CYCLES_500_999,COUNTER_FAULT_CYCLES_1000_1999,COUNTER_FAULT_CYCLES_2000_2999,COUNTER_FAULT_CYCLES_3000_4999,COUNTER_FAULT_CYCLES_5000_6999,
+             COUNTER_FAULT_CYCLES_0_499,COUNTER_FAULT_CYCLES_500_999,COUNTER_FAULT_CYCLES_1000_1999,
+             COUNTER_FAULT_CYCLES_2000_2999,COUNTER_FAULT_CYCLES_3000_4999,COUNTER_FAULT_CYCLES_5000_6999,
              COUNTER_FAULT_CYCLES_7000_9999,COUNTER_FAULT_CYCLES_10000_12999,COUNTER_FAULT_CYCLES_13000_17999,COUNTER_FAULT_CYCLES_18000_24999,
              COUNTER_FAULT_CYCLES_25000_34999,COUNTER_FAULT_CYCLES_35000_INF,COUNTER_FAULT_CYCLES_TOTAL,
              /*logging path counters*/
@@ -21,9 +32,17 @@ typedef enum{COUNTER_FIRST=0,
              COUNTER_COMMIT_ENTRIES_LT_250,COUNTER_COMMIT_ENTRIES_LT_500,COUNTER_COMMIT_ENTRIES_LT_1000,COUNTER_COMMIT_ENTRIES_LT_5000,COUNTER_COMMIT_ENTRIES_LT_10000,
              COUNTER_COMMIT_ENTRIES_LT_INF,
              /*commit latency counters*/
-             COUNTER_COMMIT_CYCLES_LT_10000,COUNTER_COMMIT_CYCLES_LT_25000,COUNTER_COMMIT_CYCLES_LT_50000,COUNTER_COMMIT_CYCLES_LT_75000,
-             COUNTER_COMMIT_CYCLES_LT_100000,COUNTER_COMMIT_CYCLES_LT_150000,COUNTER_COMMIT_CYCLES_LT_200000,COUNTER_COMMIT_CYCLES_LT_500000,
-             COUNTER_COMMIT_CYCLES_INF,COUNTER_COMMIT_CYCLES_TOTAL,
+             LATENCY_COUNTER_DEFINE(ENTIRE_COMMIT),
+             /*commit logging latency counters*/
+             COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_0_499,COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_500_999,COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_1000_1999,
+             COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_2000_2999,
+             COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_3000_4999,COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_5000_6999,
+             COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_7000_9999,COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_10000_12999,COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_13000_17999,
+             COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_18000_24999,COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_25000_34999,
+             COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_35000_INF,COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_TOTAL,
+
+             /*commit page counters*/
+             COUNTER_COMMIT_MERGE,
              /*commit logging counters*/
              COUNTER_COMMIT_LOGGING_NO_MERGE, COUNTER_COMMIT_LOGGING_FAST_PAGE_MERGE, COUNTER_COMMIT_LOGGING_SLOW_PAGE_MERGE, COUNTER_COMMIT_LOGGING_FAST_LINE_MERGE,
              /*update latency counters*/
@@ -35,6 +54,7 @@ typedef enum{COUNTER_FIRST=0,
              COUNTER_TMP1, COUNTER_TMP2, COUNTER_TMP3, COUNTER_TMP4,
              /*DIRTY PAGE LOOKUP COUNTER*/
              COUNTER_DIRTYLOOKUP_ADD_SLOW, COUNTER_DIRTYLOOKUP_READ_SLOW,
+             LATENCY_COUNTER_DEFINE(WAIT_LIST_COMMIT),
              /********************/
              COUNTER_LAST};
 
@@ -102,35 +122,6 @@ typedef enum{COUNTER_FIRST=0,
     }                                                                   \
 
 
-
-#define COUNTER_COMMIT_LATENCY(cycles)                                  \
-    ADD_COUNTER(COUNTER_COMMIT_CYCLES_TOTAL,cycles);                    \
-    if (cycles < 10000){                                                \
-        INC(COUNTER_COMMIT_CYCLES_LT_10000);                            \
-    }                                                                   \
-    else if(cycles < 25000){                                            \
-        INC(COUNTER_COMMIT_CYCLES_LT_50000);                            \
-    }                                                                   \
-    else if(cycles < 50000){                                            \
-        INC(COUNTER_COMMIT_CYCLES_LT_50000);                            \
-    }                                                                   \
-    else if(cycles < 75000){                                            \
-        INC(COUNTER_COMMIT_CYCLES_LT_50000);                            \
-    }                                                                   \
-    else if(cycles < 100000){                                           \
-        INC(COUNTER_COMMIT_CYCLES_LT_100000);                           \
-    }                                                                   \
-    else if(cycles < 200000){                                           \
-        INC(COUNTER_COMMIT_CYCLES_LT_200000);                           \
-    }                                                                   \
-    else if(cycles < 500000){                                           \
-        INC(COUNTER_COMMIT_CYCLES_LT_500000);                           \
-    }                                                                   \
-    else{                                                               \
-        INC(COUNTER_COMMIT_CYCLES_INF);                                 \
-    }                                                                   \
-
-
 #define COUNTER_UPDATE_LATENCY(cycles)                                  \
     ADD_COUNTER(COUNTER_UPDATE_CYCLES_TOTAL,cycles);                    \
     if (cycles < 10000){                                                \
@@ -192,6 +183,47 @@ typedef enum{COUNTER_FIRST=0,
 	INC(COUNTER_FAULT_CYCLES_35000_INF);                            \
     }                                                                   \
 
+
+#define COUNTER_COMMIT_LOGGING_ENTRY_LATENCY(cycles)                                     \
+    ADD_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_TOTAL,cycles);                     \
+    if (cycles < 500){                                                  \
+        INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_0_499);                                \
+    }                                                                   \
+    else if(cycles < 1000){                                             \
+        INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_500_999);                              \
+    }                                                                   \
+    else if(cycles < 2000){                                             \
+        INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_1000_1999);                            \
+    }                                                                   \
+    else if(cycles < 3000){                                             \
+        INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_2000_2999);                            \
+    }                                                                   \    
+    else if(cycles < 5000){                                             \
+        INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_3000_4999);                            \
+    }                                                                   \
+    else if(cycles < 7000){                                             \
+        INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_5000_6999);                            \
+    }                                                                   \
+    else if(cycles < 10000){                                            \
+        INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_7000_9999);                            \
+    }                                                                   \
+    else if(cycles < 13000){                                            \
+        INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_10000_12999);                          \
+    }                                                                   \
+    else if(cycles < 18000){                                            \
+        INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_13000_17999);                          \
+    }                                                                   \
+    else if (cycles < 25000) {                                          \
+	INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_18000_24999);                          \  
+    }                                                                   \
+    else if (cycles < 35000) {                                          \
+	INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_25000_34999);                          \
+    }                                                                   \
+    else {                                                              \
+	INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_35000_INF);                            \
+    }                                                                   \
+
+
 #define COUNTER_MIGRATION_CHECK(diff)                   \
     if (diff < 5){                                      \
         INC(COUNTER_LOGGING_MIGRATION_CHECK_0_4);       \
@@ -208,6 +240,89 @@ typedef enum{COUNTER_FIRST=0,
     else{                                               \
         INC(COUNTER_LOGGING_MIGRATION_CHECK_50_INF);    \
     }                                                   \
+
+#define COUNTER_LATENCY(name, cycles)                            \
+    ADD_COUNTER(COUNTER_ ##name## _CYCLES_TOTAL,cycles);                  \
+    if (cycles < 500){                                                \
+    INC(COUNTER_ ##name## _CYCLES_0_499);                                  \
+    }                                                                   \
+    else if (cycles < 1000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_500_999);                                \
+    }                                                                   \
+    else if (cycles < 2000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_1000_1999);                            \
+    }                                                                   \
+    else if (cycles < 3000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_2000_2999);                            \
+    }                                                                   \
+    else if (cycles < 5000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_3000_4999);                            \
+    }                                                                   \
+    else if (cycles < 7000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_5000_6999);                            \
+    }                                                                   \
+    else if (cycles < 10000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_7000_9999);                            \
+    }                                                                   \
+    else if (cycles < 13000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_10000_12999);                            \
+    }                                                                   \
+    else if (cycles < 18000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_13000_17999);                            \
+    }                                                                    \
+    else if (cycles < 25000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_18000_24999);                            \
+    }                                                                    \
+    else if (cycles < 36000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_25000_35999);                            \
+    }                                                                    \
+    else if (cycles < 40000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_36000_39999);                            \
+    }                                                                    \
+    else if (cycles < 50000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_40000_49999);                            \
+    }                                                                    \
+    else if (cycles < 60000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_50000_59999);                            \
+    }                                                                    \
+    else if (cycles < 70000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_60000_69999);                            \
+    }                                                                    \
+    else if (cycles < 80000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_70000_79999);                            \
+    }                                                                    \
+    else if (cycles < 90000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_80000_89999);                            \
+    }                                                                    \
+    else if (cycles < 100000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_90000_99999);                            \
+    }                                                                    \
+    else {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_INF);                                    \
+    }                                                                    
+
+#define LATENCY_COUNTER_PRINT(name) \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_0_499); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_500_999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_1000_1999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_2000_2999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_3000_4999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_5000_6999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_7000_9999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_10000_12999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_13000_17999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_18000_24999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_25000_35999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_36000_39999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_40000_49999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_50000_59999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_60000_69999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_70000_79999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_80000_89999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_90000_99999); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_INF); \
+PRINT_COUNTER(COUNTER_ ##name## _CYCLES_TOTAL);
+
 
 static void counters_print_all(struct ksnap_user_data * cv_user){
     printk(CV_LOG_LEVEL "**********Counters for process %d, conversion segment starting at %p*******\n", cv_user->id,cv_user->vma->vm_start);
@@ -234,21 +349,30 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     PRINT_COUNTER(COUNTER_FAULT_CYCLES_25000_34999);
     PRINT_COUNTER(COUNTER_FAULT_CYCLES_35000_INF);
     PRINT_COUNTER(COUNTER_FAULT_CYCLES_TOTAL);
+    printk(CV_LOG_LEVEL "***COMMIT_LOGGING_ENTRY latency counters***\n");
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_0_499);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_500_999);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_1000_1999);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_2000_2999);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_3000_4999);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_5000_6999);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_7000_9999);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_10000_12999);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_13000_17999);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_18000_24999);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_25000_34999);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_35000_INF);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_TOTAL);
+
+    printk(CV_LOG_LEVEL "***COMMIT page counters***\n");
+    PRINT_COUNTER(COUNTER_COMMIT_MERGE);
     printk(CV_LOG_LEVEL "***COMMIT merge counters***\n");
     PRINT_COUNTER(COUNTER_COMMIT_LOGGING_NO_MERGE);
     PRINT_COUNTER(COUNTER_COMMIT_LOGGING_SLOW_PAGE_MERGE);
     PRINT_COUNTER(COUNTER_COMMIT_LOGGING_FAST_PAGE_MERGE);
     PRINT_COUNTER(COUNTER_COMMIT_LOGGING_FAST_LINE_MERGE);
     printk(CV_LOG_LEVEL "***COMMIT latency counters***\n");
-    PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_10000);
-    PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_25000);
-    PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_50000);
-    PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_75000);
-    PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_100000);
-    PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_200000);
-    PRINT_COUNTER(COUNTER_COMMIT_CYCLES_LT_500000);
-    PRINT_COUNTER(COUNTER_COMMIT_CYCLES_INF);
-    PRINT_COUNTER(COUNTER_COMMIT_CYCLES_TOTAL);
+    LATENCY_COUNTER_PRINT(ENTIRE_COMMIT);
     printk(CV_LOG_LEVEL "***COMMIT entries counters***\n");
     PRINT_COUNTER(COUNTER_COMMIT_ENTRIES_LT_5);
     PRINT_COUNTER(COUNTER_COMMIT_ENTRIES_LT_10);
@@ -294,7 +418,8 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     printk(CV_LOG_LEVEL "***TMP counters***\n");
     PRINT_COUNTER(COUNTER_DIRTYLOOKUP_ADD_SLOW);
     PRINT_COUNTER(COUNTER_DIRTYLOOKUP_READ_SLOW);
-
+    printk(CV_LOG_LEVEL "***walking wait list***\n");
+    LATENCY_COUNTER_PRINT(WAIT_LIST_COMMIT);
 }
 
 #else
@@ -307,7 +432,15 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
 
 #define COUNTER_COMMIT_ENTRIES(...)
 
-#define COUNTER_MIGRATION_CHECK(diff)
+#define COUNTER_MIGRATION_CHECK(...)
+
+#define COUNTER_COMMIT_LOGGING_ENTRY_LATENCY(...)
+
+#define COUNTER_FAULT_CHECK(...)
+
+#define COUNTER_UPDATE_LATENCY(...)
+
+#define COUNTER_COMMIT_LATENCY(...)
 
 static void counters_print_all(struct ksnap_user_data * cv_user){ }
 
