@@ -436,6 +436,8 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         dirty_list_entry->mm = current->mm;
         dirty_list_entry->checkpoint = 0;
         dirty_list_entry->wait_revision = 0;
+	lock_hashmap_init_entry(&dirty_list_entry->lock_hashmap_entry);
+
         logging_entry = cv_list_entry_get_logging_entry(dirty_list_entry);
         logging_entry->addr = (faulting_addr & CV_LOGGING_LOG_MASK);
         logging_entry->data_len = CV_LOGGING_LOG_SIZE;

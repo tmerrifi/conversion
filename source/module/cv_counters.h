@@ -157,7 +157,7 @@ typedef enum{COUNTER_FIRST=0,
     }                                                                   \
     else if(cycles < 3000){                                             \
         INC(COUNTER_FAULT_CYCLES_2000_2999);                            \
-    }                                                                   \    
+    }                                                                   \
     else if(cycles < 5000){                                             \
         INC(COUNTER_FAULT_CYCLES_3000_4999);                            \
     }                                                                   \
@@ -174,7 +174,7 @@ typedef enum{COUNTER_FIRST=0,
         INC(COUNTER_FAULT_CYCLES_13000_17999);                          \
     }                                                                   \
     else if (cycles < 25000) {                                          \
-	INC(COUNTER_FAULT_CYCLES_18000_24999);                          \  
+	INC(COUNTER_FAULT_CYCLES_18000_24999);                          \
     }                                                                   \
     else if (cycles < 35000) {                                          \
 	INC(COUNTER_FAULT_CYCLES_25000_34999);                          \
@@ -197,8 +197,8 @@ typedef enum{COUNTER_FIRST=0,
     }                                                                   \
     else if(cycles < 3000){                                             \
         INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_2000_2999);                            \
-    }                                                                   \    
-    else if(cycles < 5000){                                             \
+    }                                                                   \
+        else if(cycles < 5000){                                             \
         INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_3000_4999);                            \
     }                                                                   \
     else if(cycles < 7000){                                             \
@@ -214,7 +214,7 @@ typedef enum{COUNTER_FIRST=0,
         INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_13000_17999);                          \
     }                                                                   \
     else if (cycles < 25000) {                                          \
-	INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_18000_24999);                          \  
+	INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_18000_24999);                          \
     }                                                                   \
     else if (cycles < 35000) {                                          \
 	INC(COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_25000_34999);                          \

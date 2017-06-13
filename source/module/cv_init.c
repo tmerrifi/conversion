@@ -109,6 +109,7 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
 }
 
 struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_area_struct * vma){
+    uint32_t randomMix;
 
 #ifdef CONV_LOGGING_ON
     printk(KERN_EMERG " CONVERSION: initializing segment at address %p and vma %p\n", vma->vm_start, vma);
@@ -139,7 +140,7 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   ksnap_data->ewma_adapt = ADAPT_EWMA_DEFAULT_US;
   ksnap_data->pte_list_mem_cache = KMEM_CACHE(snapshot_pte_list, 0);
   ksnap_data->creator_id=current->pid;
-  ksnap_data->ppv=cv_per_page_version_init(((vma->vm_end - vma->vm_start)/PAGE_SIZE));
+  ksnap_data->ppv = cv_per_page_version_init(conv_get_segment_size_in_pages(vma));
   ksnap_data->committed_version_num=0;
   ksnap_data->next_avail_version_num=0;
   ksnap_data->committed_pages=0;
@@ -159,6 +160,12 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   cv_stats_init(&ksnap_data->cv_stats);
   memset(ksnap_data->cv_per_process_stats, 0, sizeof(struct cv_per_process_detailed_statistics) * CV_MAX_PER_PROCESS_STATS);
   memset(ksnap_data->debug_points, 0, sizeof(int)*32);
+  //setup the lock hashamp
+  get_random_bytes(&randomMix, sizeof(uint32_t));
+  lock_hashmap_init(ksnap_data->lock_hashmap, conv_get_segment_size_in_log_entries(vma), 
+		    randomMix, LOCK_HASHMAP_RW_LOCK);
+  lock_hashmap_init(ksnap_data->logging_lock_hashmap, conv_get_segment_size_in_log_entries(vma), 
+		    randomMix, LOCK_HASHMAP_TICKET);
   //initialize the hooks to NULL
   CV_HOOKS_INIT(ksnap_data);
   getnstimeofday(&ksnap_data->start_time);

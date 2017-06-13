@@ -155,6 +155,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       pte_list_entry->mm = current->mm;
       pte_list_entry->checkpoint = 0;
       pte_list_entry->wait_revision = 0;
+      lock_hashmap_init_entry(&pte_list_entry->lock_hashmap_entry);
       //grab the inner entry for paging
       cv_page=cv_list_entry_get_page_entry(pte_list_entry);
       conv_add_dirty_page_to_lookup(vma,pte_list_entry, new_page->index,0,1);

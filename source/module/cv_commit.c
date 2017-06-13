@@ -605,7 +605,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   //setup the new "next" version
   cv_seg->uncommitted_version_entry = next_version_entry;
   cv_per_page_version_walk(cv_user->dirty_pages_list, wait_list,
-			   cv_seg->ppv, cv_user, our_version_number);
+			   cv_seg->ppv, cv_user, cv_seg, our_version_number);
   //we've linearized this version...we can mark it as such for interested parties in userspace
   cv_meta_set_linearized_version(vma, our_version_number);
   spin_unlock(&cv_seg->lock);
@@ -661,7 +661,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
           list_del(pos);
           list_add(pos, &our_version_entry->pte_list->list);
           cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
-          barrier();
+          cv_per_page_version_release_entry_lock(cv_seg, pte_entry);
           ++committed_pages;
           ++pte_updates;
           conv_dirty_delete_lookup(cv_user, pte_entry->page_index,0,1);
@@ -683,6 +683,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
                      current->pid, pte_entry->page_index, logging_page_status->entries_allocated);
 #endif
           }
+          cv_per_page_version_release_entry_lock(cv_seg, pte_entry);
           list_del(pos);
           list_add(pos, &our_version_entry->pte_list->list);
           conv_dirty_delete_lookup(cv_user, pte_entry->page_index,
@@ -705,7 +706,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
           cv_per_page_version_walk_unsafe_debug(wait_list, cv_seg->ppv);
       }
 #endif
-      if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv))){
+      if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv, cv_seg))){
           if (pte_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
               
               //check and see if we want to make this a logging page.
@@ -731,7 +732,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
               list_del(&pte_entry->list);
               list_add(&pte_entry->list, &our_version_entry->pte_list->list);
               cv_per_page_version_update_actual_version(cv_seg->ppv, pte_entry->page_index, our_version_number);
-              barrier();
+              cv_per_page_version_release_entry_lock(cv_seg, pte_entry);
               ++committed_pages;
               ++pte_updates;
               conv_dirty_delete_lookup(cv_user, pte_entry->page_index,0,1);
@@ -754,6 +755,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
                          current->pid, pte_entry->page_index, logging_page_status->logging_writes, logging_page_status->entries_allocated);
 #endif
               }
+              cv_per_page_version_release_entry_lock(cv_seg, pte_entry);
               list_del(&pte_entry->list);
               list_add(&pte_entry->list, &our_version_entry->pte_list->list);
               conv_dirty_delete_lookup(cv_user, pte_entry->page_index,

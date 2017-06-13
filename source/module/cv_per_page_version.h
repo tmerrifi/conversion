@@ -57,9 +57,10 @@ struct cv_per_page_version_wait_list_entry{
 struct cv_per_page_version * cv_per_page_version_init(uint32_t page_count);
 
 void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struct snapshot_pte_list * wait_list, 
-			      struct cv_per_page_version * ppv, struct ksnap_user_data * cv_user, uint64_t revision_number);
+			      struct cv_per_page_version * ppv, struct ksnap_user_data * cv_user, 
+			      struct ksnap * cv_seg, uint64_t revision_number);
 
-struct snapshot_pte_list * cv_per_page_version_walk_unsafe(struct snapshot_pte_list * wait_list, struct cv_per_page_version * ppv);
+struct snapshot_pte_list * cv_per_page_version_walk_unsafe(struct snapshot_pte_list* wait_list, struct cv_per_page_version* ppv, struct ksnap * cv_seg);
 
 void cv_per_page_version_walk_unsafe_debug(struct snapshot_pte_list * wait_list, struct cv_per_page_version * ppv);
 
@@ -76,6 +77,9 @@ void cv_per_page_switch_to_logging(struct cv_per_page_version * ppv, uint32_t pa
 int cv_per_page_is_logging_page(struct cv_per_page_version * ppv, uint32_t page_index);
 
 uint8_t cv_per_page_get_logging_diff_bitmap(struct cv_per_page_version * ppv, uint32_t page_index);
+
+int cv_per_page_version_release_entry_lock(struct ksnap *cv_seg, struct snapshot_pte_list *pte_entry);
+
 
 
 /*****LOGGING FUNCTIONS***********************/

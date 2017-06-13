@@ -26,6 +26,7 @@
 
 #include "conversion.h"
 #include "cv_per_page_version.h"
+#include "lock_hashmap.h"
 
 
 struct cv_per_page_version * cv_per_page_version_init(uint32_t page_count){
@@ -57,75 +58,90 @@ uint32_t __commit_page_wait_status(struct cv_per_page_version * ppv, uint32_t pa
   }
 }
 
+uint32_t __acquire_entry_lock(struct ksnap *cv_seg, struct snapshot_pte_list *pte_entry) {
+    u64 entry_index;
+    if (pte_entry->type == CV_DIRTY_LIST_ENTRY_TYPE_LOGGING) {
+	struct cv_logging_entry * logging_entry = cv_list_entry_get_logging_entry(pte_entry);
+	if (cv_logging_is_full_page(logging_entry)) {
+	    //need to do a write lock on the page
+	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index , 1 /*is page level*/);
+	    return (lock_hashmap_trywritelock(cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+	}
+	else{
+	    //start with page level
+	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 1 /*is page level*/);
+	    if (lock_hashmap_tryreadlock(cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry)){
+		//now write lock the log level
+		entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 0 /*is page level*/);
+		return (lock_hashmap_trylock(cv_seg->logging_lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+	    }
+	}
+    }
+    else if (pte_entry->type == CV_DIRTY_LIST_ENTRY_TYPE_PAGING) {
+	entry_index = cv_logging_get_index(pte_entry->page_index, 0 , 1 /*is page level*/);
+	return (lock_hashmap_trywritelock(cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+    }
+}
+
+int cv_per_page_version_release_entry_lock(struct ksnap *cv_seg, struct snapshot_pte_list *pte_entry) {
+    u64 entry_index;
+    if (pte_entry->type == CV_DIRTY_LIST_ENTRY_TYPE_LOGGING) {
+	struct cv_logging_entry * logging_entry = cv_list_entry_get_logging_entry(pte_entry);
+	if (cv_logging_is_full_page(logging_entry)) {
+	    //need to do release the write lock here
+	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index , 1 /*is page level*/);
+	    return (lock_hashmap_write_release(cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+	}
+	else{
+	    //start with page level
+	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 1 /*is page level*/);
+	    lock_hashmap_read_release(cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry);
+	    //now write lock the log level
+	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 0 /*is page level*/);
+	    return (lock_hashmap_release(cv_seg->logging_lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+	}
+    }
+    else if (pte_entry->type == CV_DIRTY_LIST_ENTRY_TYPE_PAGING) {
+	entry_index = cv_logging_get_index(pte_entry->page_index, 0 , 1 /*is page level*/);
+	return (lock_hashmap_write_release(cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+    }
+}
+
+
 //call this while holding mutex
 void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struct snapshot_pte_list * wait_list, 
-			      struct cv_per_page_version * ppv, struct ksnap_user_data * cv_user, uint64_t revision_number){
+			      struct cv_per_page_version * ppv, struct ksnap_user_data * cv_user, 
+			      struct ksnap * cv_seg, uint64_t revision_number){
   struct list_head * pos, * tmp_pos;
   struct snapshot_pte_list * pte_entry;
   //we store this first entry that we encountered per-page for logging entries. This will point to that.
   struct snapshot_pte_list * original_entry_for_logging;
   struct cv_logging_page_status_entry * logging_status_entry;
-  
+  u64 entry_index;
+
   //loop through all our dirty pages
   list_for_each_safe(pos, tmp_pos, &dirty_pages_list->list){
       //get the pte_entry
       pte_entry = list_entry(pos, struct snapshot_pte_list, list);
-      //if the interest and actual aren't equal, we need to store the interest and move it into the right list
-      if (__commit_page_status(ppv, pte_entry->page_index)==__CV_PPV_UNSAFE){
-          if (pte_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_LOGGING){
-              //grab the logging status for this page, so we can keep track of what version we're waiting on
-              logging_status_entry=cv_logging_page_status_lookup(cv_user, pte_entry->page_index);
-              //if the versions are the same, we've already been here for this page.
-              if(ppv->entries[pte_entry->page_index].interest_version==revision_number){
-                  if(logging_status_entry->wait_entry==NULL){
-                      //we don't need to do any more work, because there's no other thread committing that we need to worry about,
-                      //plus the interest version has already been set
-                      continue;
-                  }
-                  else{
-                      //set the wait_revsion equal to the first guy through
-                      pte_entry->wait_revision = logging_status_entry->wait_entry->wait_revision;
-                  }
-              }
-              else{
-                  //we are the first guy through, so set the wait entry to notify any logging entries for this page that come later
-                  logging_status_entry->wait_entry = pte_entry;
-                  //keep this so we can wait on interest to match actual later...
-                  pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version;
-#ifdef CONV_LOGGING_ON
-                  printk( KERN_INFO "....here1, wait index %d, pid %d, version %llu\n", pte_entry->page_index, current->pid, pte_entry->wait_revision);
-#endif
-              }
-          }
-          else{
-              //keep this so we can wait on interest to match actual later...
-              pte_entry->wait_revision = ppv->entries[pte_entry->page_index].interest_version;
-#ifdef CONV_LOGGING_ON
-              printk( KERN_INFO "....here2, wait index %d, pid %d, version %llu\n", pte_entry->page_index, current->pid, pte_entry->wait_revision);
-#endif
-          }
-          //add it to the wait list
+      //try and acquire the lock
+      if (!__acquire_entry_lock(cv_seg,pte_entry)) {
+	  //we failed, move this into a list to try and acquire later
           list_del(&pte_entry->list);
-          INIT_LIST_HEAD(&pte_entry->list);
+	  INIT_LIST_HEAD(&pte_entry->list);
           list_add(&pte_entry->list, &wait_list->list);
       }
-      //regardless, set our own interest level
-      ppv->entries[pte_entry->page_index].interest_version=revision_number;
-#ifdef CONV_LOGGING_ON
-      printk( KERN_INFO "....here3, set interest index %d, pid %d, version %llu\n", pte_entry->page_index, current->pid, revision_number);
-#endif
   }
 }
 
-struct snapshot_pte_list * cv_per_page_version_walk_unsafe(struct snapshot_pte_list * wait_list, struct cv_per_page_version * ppv){
+struct snapshot_pte_list * cv_per_page_version_walk_unsafe(struct snapshot_pte_list* wait_list, 
+							   struct cv_per_page_version* ppv,struct ksnap * cv_seg){
   struct list_head * pos;
   struct snapshot_pte_list * pte_entry;
 
   list_for_each(pos, &wait_list->list){
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
-    //check commit status
-    if (__commit_page_wait_status(ppv, pte_entry->page_index, pte_entry->wait_revision) == __CV_PPV_SAFE){
-      return pte_entry;
+    if (__acquire_entry_lock(cv_seg,pte_entry)) {
+	return pte_entry;
     }
   }
   return NULL;

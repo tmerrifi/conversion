@@ -19,7 +19,7 @@
 #include "cv_profiling.h"
 #include "cv_defer_work.h"
 #include "array_cache.h"
-
+#include "lock_hashmap.h"
 
 #define SNAPSHOT_PREFIX "snapshot"
 #define SNAPSHOT_DEBUG Y
@@ -126,6 +126,7 @@ struct snapshot_pte_list{
     uint64_t obsolete_version;
     uint8_t checkpoint;
     struct mm_struct * mm; //use to do memory accounting
+    struct lock_hashmap_entry_t lock_hashmap_entry;
     union{
         struct cv_page_entry page_entry;
         struct cv_logging_entry logging_entry;
@@ -208,6 +209,8 @@ struct ksnap{
     atomic_t pages_allocated;
     atomic_t max_pages;
     struct semaphore sem_gc;
+    struct lock_hashmap_t * lock_hashmap;
+    struct lock_hashmap_t * logging_lock_hashmap;
     /*LOGGING FIELDS*/
     uint64_t logging_stats_opcode[256];
     uint64_t logging_stats_opcode_two[256];
@@ -317,6 +320,12 @@ void conv_checkpoint(struct vm_area_struct * vma);
 
 #define conv_debug_logging_is_line(page_index, line_index) \
     (page_index==LOGGING_DEBUG_PAGE_INDEX && line_index==LOGGING_DEBUG_INDEX)
+
+#define conv_get_segment_size_in_pages(vma) \
+   (((vma->vm_end - vma->vm_start)/PAGE_SIZE))
+
+#define conv_get_segment_size_in_log_entries(vma) \
+   (((vma->vm_end - vma->vm_start)/CV_LOGGING_LOG_SIZE))
 
 #ifdef CV_DEBUG_MEMORY_ALLOC
 #define conv_debug_memory_alloc(ptr)\
