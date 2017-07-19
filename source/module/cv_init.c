@@ -162,9 +162,9 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   memset(ksnap_data->debug_points, 0, sizeof(int)*32);
   //setup the lock hashamp
   get_random_bytes(&randomMix, sizeof(uint32_t));
-  lock_hashmap_init(ksnap_data->lock_hashmap, conv_get_segment_size_in_log_entries(vma), 
+  lock_hashmap_init(&ksnap_data->lock_hashmap, conv_get_segment_size_in_log_entries(vma), 
 		    randomMix, LOCK_HASHMAP_RW_LOCK);
-  lock_hashmap_init(ksnap_data->logging_lock_hashmap, conv_get_segment_size_in_log_entries(vma), 
+  lock_hashmap_init(&ksnap_data->logging_lock_hashmap, conv_get_segment_size_in_log_entries(vma), 
 		    randomMix, LOCK_HASHMAP_TICKET);
   //initialize the hooks to NULL
   CV_HOOKS_INIT(ksnap_data);

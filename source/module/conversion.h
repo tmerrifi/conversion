@@ -209,8 +209,8 @@ struct ksnap{
     atomic_t pages_allocated;
     atomic_t max_pages;
     struct semaphore sem_gc;
-    struct lock_hashmap_t * lock_hashmap;
-    struct lock_hashmap_t * logging_lock_hashmap;
+    struct lock_hashmap_t lock_hashmap;
+    struct lock_hashmap_t logging_lock_hashmap;
     /*LOGGING FIELDS*/
     uint64_t logging_stats_opcode[256];
     uint64_t logging_stats_opcode_two[256];
