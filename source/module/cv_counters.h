@@ -325,7 +325,7 @@ PRINT_COUNTER(COUNTER_ ##name## _CYCLES_TOTAL);
 
 
 static void counters_print_all(struct ksnap_user_data * cv_user){
-    printk(CV_LOG_LEVEL "**********Counters for process %d, conversion segment starting at %p*******\n", cv_user->id,cv_user->vma->vm_start);
+    printk(CV_LOG_LEVEL "**********Counters for process %d, conversion segment starting at %lu*******\n", cv_user->id,cv_user->vma->vm_start);
     printk(CV_LOG_LEVEL "***Logging migration counters***\n");    
     PRINT_COUNTER(COUNTER_LOGGING_MIGRATIONS);
     PRINT_COUNTER(COUNTER_LOGGING_MIGRATION_CHECK_SUCCESS);
