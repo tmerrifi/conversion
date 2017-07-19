@@ -198,59 +198,6 @@ void conv_set_editing_unit_bytes(conv_seg * seg, size_t editing_unit){
     seg->editing_unit=editing_unit;
 }
 
-//what if we want to work with a segment that is already opened in our address space? This is useful for when we are using the
-//malloc library and we don't have control (or full control) of the mmap() call and where it maps to. So, we have to go find the address
-//so we can still call msync on it.
-conv_seg * conv_open_exisiting(char * segment_name){
-  char * search_name[1000];
-  FILE * fp;
-  conv_seg * seg;
-  int pid = getpid();
-  //a buffer for the command we need to run (a shell script with some input params)
-  char command[200];
-  //a buffer for storing the segment address we get
-  char segment_address[20];
-  
-  sprintf(search_name, "%s.convmem", segment_name);
-
-  sprintf(command,"find_snapshot_mapping.sh %d %s\n", pid, search_name); 
-  fp = popen(command, "r");
-  if (fp == NULL) {
-    printf("failed to find snapshot, could not execute external shell.\n" );
-    return NULL;
-  }
-
-  //get the segment address, the formula just *2 because it's in hex and 
-  //-3 because proc doesn't seem to output the last 2 bytes (since it's obviously word aligned I guess)
-  if (fgets(segment_address, (sizeof(void *)*2)-3, fp)==NULL){
-    perror("failed to find existing snapshot\n");
-    return NULL;
-  }
-  else{ 
-    seg = malloc(sizeof(conv_seg));
-    seg->segment = (void *)strtol(segment_address, NULL, 16);
-    seg->name = segment_name;
-  }
-  //now we need to get the size, so we grab the end address. There is a space in the output so the formula changes by 1
-  if (fgets(segment_address, (sizeof(void *)*2)-2, fp)==NULL){
-    perror("failed to find existing snapshot\n");
-    return NULL;
-  }
-  else{
-    unsigned long end_address = strtol(segment_address, NULL, 16);
-    seg->size_of_segment=end_address - (unsigned long)seg->segment;
-  }
-  /* close */
-  pclose(fp);
-  //mark it as a snapshot
-  madvise(seg->segment, seg->size_of_segment, MADV_KSNAP_ALWAYS);
-  madvise(seg->segment, seg->size_of_segment, MADV_KSNAP_TRACK);
-
-  __ksnap_open_meta_data_segments( seg->size_of_segment, segment_name, seg, __CONV_CREATE);
-  return seg;
-}
-
-
 //lets update and get a new view of the snapshot
 void conv_update(conv_seg * seg){
     if (__newer_version_available(seg)){
