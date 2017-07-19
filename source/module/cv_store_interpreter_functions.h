@@ -15,7 +15,7 @@ void verifyOpcodesAndRegisters(void);
 
 int interpret(const uint8_t* instruction_ptr, const uint32_t instruction_len, void* dstAddress, struct pt_regs* context, uint32_t mix, void * disassemble_cache);
 
-void * interpret_allocate_disassemble_cache();
+void * interpret_allocate_disassemble_cache(void);
 
 void interpret_free_disassemble_cache(void *);
 
