@@ -85,7 +85,6 @@ int __commit_times(uint64_t microsecs){
 /*This function's purpose is to be an entry point into our conversion code from the
   msync system call. If we are making a version, then we call commit. otherwise, we perform an update*/
 void cv_msync(struct vm_area_struct * vma, unsigned long flags, size_t editing_unit){
-  struct timespec ts1, ts2;  
   if (flags==CONV_TRACE){
       spin_lock(&ksnap_vma_to_ksnap(vma)->lock);
       cv_profiling_print(&ksnap_vma_to_userdata(vma)->profiling_info);
@@ -135,52 +134,7 @@ int snapshot_nmi_dead_callback(struct notifier_block * nb, unsigned long err, vo
 
 static struct notifier_block nmi_snap_nb = {
   .notifier_call = snapshot_nmi_dead_callback
-  };
-
-void conv_cow_user_page(struct page * new_page, struct page * old_page,
-                        unsigned long address, struct vma_area_struct * vma, struct mm_struct * init_mm ){
-
-
-    char *vfrom, *vto;
-    char tmp[PAGE_SIZE/4];
-    
-    vfrom = kmap_atomic(old_page, KM_USER0);
-    vto = kmap_atomic(new_page, KM_USER1);
-    pte_t * pte = pte_get_entry_from_address(init_mm, vto);
-    if (pte){
-        //set to WC
-        //*pte=pte_clear_flags(*pte, _PAGE_CACHE_MASK);
-        //*pte=pte_set_flags(*pte, _PAGE_CACHE_WC);
-        //__flush_tlb_one(vto);
-        //printk(KERN_EMERG "vto %p, __pa %p, pte val %p\n", vto, __pa(vto), *pte);
-
-        //prefetch source
-        /* int i=0; */
-        /* for (i=0;i<PAGE_SIZE;i+=8){ */
-        /*     prefetch(vfrom+i); */
-        /* } */
-        //prefetch destination
-        /* for (i=0;i<PAGE_SIZE;i+=8){ */
-        /*     prefetch(vto+i); */
-        /* } */
-        //now do the copy
-        //conv_time_and_print_section(){
-            memcpy(vto, vfrom, PAGE_SIZE);
-            //}
-        //put WB back
-        //*pte=pte_clear_flags(*pte, _PAGE_CACHE_MASK);
-        //__flush_tlb_one(vto);
-    }
-    else{
-        //conv_time_and_print_section(){
-            memcpy(vto, vfrom, PAGE_SIZE);
-            //}
-    }
-
-    kunmap_atomic(vto, KM_USER1);
-    kunmap_atomic(vfrom, KM_USER0);
-    
-}    
+};
 
 int logging_on_fault (struct vm_area_struct * vma, unsigned long faulting_addr, struct pt_regs * regs){
     return cv_logging_fault(vma, ksnap_vma_to_ksnap(vma), ksnap_vma_to_userdata(vma), regs, faulting_addr);
