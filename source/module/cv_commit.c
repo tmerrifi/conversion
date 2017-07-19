@@ -54,9 +54,6 @@ void __remove_old_logging_page(struct ksnap * cv_seg, struct snapshot_pte_list *
                 struct snapshot_pte_list * pte_old = cv_per_page_version_get_logging_line_entry(cv_seg->ppv,
                                                                                                 page_index,
                                                                                                 i);
-                if (pte_old){
-                    printk(KERN_EMERG "Whoops! The wait revision is.... %lu\n", pte_old->wait_revision);
-                }
                 BUG();
             }
             old_entry->obsolete_version=our_version_number;
@@ -79,7 +76,6 @@ int __remove_old_page(struct address_space * mapping, struct vm_area_struct * vm
 		       unsigned long index, struct page * ref_page, uint64_t our_version){
     struct ksnap * cv_seg;
     struct snapshot_pte_list * old_entry;
-    struct cv_page_entry * page_entry;
     
     cv_seg = ksnap_vma_to_ksnap(vma);
     //get the current entry from the per-page version list
@@ -94,7 +90,7 @@ int __remove_old_page(struct address_space * mapping, struct vm_area_struct * vm
 void __update_page_mapping(struct address_space * mapping, struct vm_area_struct * vma, 
 			   struct page * page, struct snapshot_pte_list * version_list_entry){
     struct ksnap * cv_seg;
-    int insert_error=0;
+
     cv_seg = ksnap_vma_to_ksnap(vma);
     //make sure the page wasn't free'd out from under us
     if (!page_count(page)){
@@ -113,7 +109,6 @@ void __merge_full_page_with_cache_lines(struct cv_logging_entry * logging_entry,
                                         struct ksnap_user_data * cv_user){
     //a full page is being committed *AFTER* one or more lines have been committed. Meaning we have to walk
     int i=0;
-    uint64_t latest_version_num;
     uint8_t * data;
     uint8_t * ref_data;
 
@@ -202,26 +197,18 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
                              uint64_t our_version_number, struct cv_logging_page_status_entry * logging_page_status){
     struct snapshot_pte_list * latest_entry;
     struct cv_logging_entry * latest_logging_entry=NULL;    
-    char * latest, * local, * ref;
+    char * latest, * local;
     uint64_t latest_version_num;
     pte_t pte_temp;
     unsigned long long start_tsc = native_read_tsc();
 
     latest_entry = cv_per_page_version_get_logging_entry_and_version(cv_seg->ppv, entry->page_index,
                                                                      logging_entry->line_index, &latest_version_num,
-                                                                     cv_logging_is_full_page(logging_entry));
-    
-    //logging_page_status = cv_logging_page_status_lookup(cv_user, entry->page_index);
-
-    uint8_t * data_addr = ((uint8_t*)(logging_entry->addr & PAGE_MASK)) + LOGGING_DEBUG_INDEX;
-
+                                                                     cv_logging_is_full_page(logging_entry));    
 #ifdef CONV_LOGGING_ON
     printk(KERN_INFO "committing logging entry our version %lu, latest %lu, line index %lu, size %d, page index: %d, pid: %d\n",  
            cv_user->version_num, latest_version_num, logging_entry->line_index, logging_entry->data_len, entry->page_index, current->pid);  
 #endif
-
-    /* int debugging_offset = (cv_logging_is_full_page(logging_entry)) ? (LOGGING_DEBUG_LINE * CV_LOGGING_LOG_SIZE) : 0; */
-    /* int debugging_line = (cv_logging_is_full_page(logging_entry)) ? LOGGING_DEBUG_LINE : logging_entry->line_index; */
     
     if (latest_version_num > cv_user->version_num){
         if (latest_entry){
