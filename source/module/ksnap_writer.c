@@ -26,8 +26,6 @@
 #include "cv_memory_accounting.h"
 
 void conv_dirty_list_lookup_init(struct ksnap_user_data *cv_user) {
-    int i;
-    
     array_cache_init(&cv_user->dirty_list_cache, 256, 8);
     //initialize the spillover radix tree
     INIT_RADIX_TREE(&cv_user->dirty_list_lookup, GFP_KERNEL);
@@ -115,11 +113,8 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
   struct snapshot_pte_list * pte_list_entry, * dirty_pages_list;
   struct page * new_page, * checkpoint_page;
   struct ksnap_user_data * cv_user;
-  struct ksnap * cv_seg;
   struct cv_page_entry * cv_page;
-  int counter=0;
 
-  cv_seg = ksnap_vma_to_ksnap(vma);
   cv_user=ksnap_vma_to_userdata(vma);
 
   if (!cv_user->dirty_pages_list){
@@ -187,6 +182,5 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
 #endif
       
   }
-  CV_HOOKS_COW(cv_seg, cv_user, new_page->index);
   INC(COUNTER_COW_FAULT);
 }
