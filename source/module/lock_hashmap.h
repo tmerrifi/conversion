@@ -14,14 +14,28 @@
 
 #define LOCK_HASHMAP_HOLDER_NONE (-1)
 
+#ifdef LOCKHASH_TRACK_HISTORY
+#define LOCK_HISTORY_SIZE 100
+#endif
+
 typedef enum {
     LOCK_HASHMAP_TICKET, LOCK_HASHMAP_RW_LOCK
 } lock_hashmap_type_t;
+
+typedef enum {
+    HISTORY_LOCK_OP_ACQ_SUCC = 0, HISTORY_LOCK_OP_ACQ_FAIL = 1, HISTORY_LOCK_OP_REL = 2, HISTORY_LOCK_OP_REL_NESTED = 3
+} history_lock_op_t;
 
 struct lock_hashmap_lock_t{
     struct ticket_lock_t ticket_lock;
     int lock_holder;
     int acquires;
+#ifdef LOCKHASH_TRACK_HISTORY
+    u64 history_lock_holders[LOCK_HISTORY_SIZE];
+    int history_lock_acquires[LOCK_HISTORY_SIZE];
+    int history_lock_op[LOCK_HISTORY_SIZE];
+    atomic64_t history_lock_count;
+#endif
 };
 
 struct lock_hashmap_t{
