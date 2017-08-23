@@ -746,7 +746,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
               list_del(&pte_entry->list);
               list_add(&pte_entry->list, &our_version_entry->pte_list->list);
               conv_dirty_delete_lookup(cv_user, pte_entry->page_index,
-                                       cv_list_entry_get_logging_entry(pte_entry)->line_index, cv_logging_is_full_page(cv_list_entry_get_logging_entry(pte_entry)));
+                                       cv_list_entry_get_logging_entry(pte_entry)->line_index, 
+				       cv_logging_is_full_page(cv_list_entry_get_logging_entry(pte_entry)));
           }
       }
   }
