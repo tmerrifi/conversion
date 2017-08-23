@@ -59,34 +59,43 @@ uint32_t __commit_page_wait_status(struct cv_per_page_version * ppv, uint32_t pa
 }
 
 uint32_t __acquire_entry_lock(struct ksnap *cv_seg, struct snapshot_pte_list *pte_entry) {
+    u64 logging_index;
     u64 entry_index;
+
     if (pte_entry->type == CV_DIRTY_LIST_ENTRY_TYPE_LOGGING) {
 	struct cv_logging_entry * logging_entry = cv_list_entry_get_logging_entry(pte_entry);
 	if (cv_logging_is_full_page(logging_entry)) {
 	    //need to do a write lock on the page
-	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index , 1 /*is page level*/);
-	    printk(KERN_EMERG "pid %d trylock on page %lu\n", current->pid, pte_entry->page_index);
-	    return (lock_hashmap_trywritelock(&cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+	    entry_index = cv_logging_get_index(pte_entry->page_index, 0 , 1 /*is page level*/);
+	    return (lock_hashmap_trywritelock(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry));
 	}
 	else{
 	    //start with page level
 	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 1 /*is page level*/);
-	    printk(KERN_EMERG "pid %d trylock on page entry %lu line %lu\n", 
-		   current->pid, pte_entry->page_index, logging_entry->line_index);
-	    if (lock_hashmap_tryreadlock(&cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry)){
+	    if (lock_hashmap_tryreadlock(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry)) {
 		//now write lock the log level
-		entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 0 /*is page level*/);
-		printk(KERN_EMERG "pid %d trylock on logging entry %lu %lu\n", 
-		       current->pid, pte_entry->page_index, logging_entry->line_index);
-		return (lock_hashmap_trylock(&cv_seg->logging_lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+		logging_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 0 /*is page level*/);
+		if (!lock_hashmap_trylock(&cv_seg->logging_lock_hashmap, logging_index, &logging_entry->logging_hashmap_entry)){
+		    //need to release the lock for the page level lock
+		    lock_hashmap_read_release(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry);
+		    return 0;
+		}
+		else{
+		    return 1;
+		}
+	    }
+	    else{
+		return 0;
 	    }
 	}
     }
     else if (pte_entry->type == CV_DIRTY_LIST_ENTRY_TYPE_PAGING) {
 	entry_index = cv_logging_get_index(pte_entry->page_index, 0 , 1 /*is page level*/);
-	printk(KERN_EMERG "pid %d trylock on page entry %lu\n", current->pid, pte_entry->page_index);
-	return (lock_hashmap_trywritelock(&cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+	//printk(KERN_EMERG "pid %d trylock on page entry %lu\n", current->pid, pte_entry->page_index);
+	return (lock_hashmap_trywritelock(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry));
     }
+
+    BUG();
 }
 
 int cv_per_page_version_release_entry_lock(struct ksnap *cv_seg, struct snapshot_pte_list *pte_entry) {
@@ -95,25 +104,28 @@ int cv_per_page_version_release_entry_lock(struct ksnap *cv_seg, struct snapshot
 	struct cv_logging_entry * logging_entry = cv_list_entry_get_logging_entry(pte_entry);
 	if (cv_logging_is_full_page(logging_entry)) {
 	    //need to do release the write lock here
-	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index , 1 /*is page level*/);
-	    printk(KERN_EMERG "pid %d release on logging full page %lu, %lu, %lu\n", current->pid, entry_index, pte_entry->page_index);
-	    return (lock_hashmap_write_release(&cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+	    entry_index = cv_logging_get_index(pte_entry->page_index, 0 , 1 /*is page level*/);
+	    //printk(KERN_EMERG "pid %d release on logging full page %lu, %lu, %lu\n", current->pid, entry_index, pte_entry->page_index);
+	    return (lock_hashmap_write_release(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry));
 	}
 	else{
 	    //start with page level
 	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 1 /*is page level*/);
-	    printk(KERN_EMERG "pid %d release on logging page %lu\n", current->pid, pte_entry->page_index);
-	    lock_hashmap_read_release(&cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry);
+	    //printk(KERN_EMERG "pid %d release on logging page %lu\n", current->pid, pte_entry->page_index);
+	    lock_hashmap_read_release(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry);
 	    //now write lock the log level
 	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 0 /*is page level*/);
-	    printk(KERN_EMERG "pid %d release on logging line %lu\n", current->pid, logging_entry->line_index);
-	    return (lock_hashmap_release(&cv_seg->logging_lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+	    //printk(KERN_EMERG "pid %d release on logging line %lu\n", current->pid, logging_entry->line_index);
+	    return (lock_hashmap_release(&cv_seg->logging_lock_hashmap, entry_index, &logging_entry->logging_hashmap_entry));
 	}
     }
     else if (pte_entry->type == CV_DIRTY_LIST_ENTRY_TYPE_PAGING) {
 	entry_index = cv_logging_get_index(pte_entry->page_index, 0 , 1 /*is page level*/);
-	printk(KERN_EMERG "pid %d release on page %lu\n", current->pid, pte_entry->page_index);
-	return (lock_hashmap_write_release(&cv_seg->lock_hashmap, entry_index, &pte_entry->lock_hashmap_entry));
+	//printk(KERN_EMERG "pid %d release on page %lu\n", current->pid, pte_entry->page_index);
+	return (lock_hashmap_write_release(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry));
+    }
+    else{
+	BUG();
     }
 }
 

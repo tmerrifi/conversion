@@ -8,7 +8,7 @@ void ticket_lock_init(struct ticket_lock_t * lock, ticket_lock_mode_t mode){
     atomic64_set(&lock->next_ticket, 0);
     atomic64_set(&lock->readers, 0);
     lock->mode = mode;
-    printk(KERN_EMERG "ticket_lock_init mode....%d, lock %p\n", lock->mode, lock);
+    //printk(KERN_EMERG "ticket_lock_init mode....%d, lock %p\n", lock->mode, lock);
 }
 
 void __debug_print_state(struct ticket_lock_t * lock){

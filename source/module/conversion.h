@@ -76,7 +76,7 @@
 
 #define MAX_VERSION_NUM 100000000000ULL
 
-#define CV_LOG_LEVEL KERN_INFO
+#define CV_LOG_LEVEL KERN_EMERG
 
 #define CV_USER_STATUS_AWAKE 1
 
@@ -103,6 +103,7 @@ struct cv_logging_entry{
     unsigned long data_len;
     uint8_t * local_checkpoint_data;
     uint8_t dirty; //used by checkpoint to make sure we don't checkpoint the same data twice
+    struct lock_hashmap_entry_t logging_hashmap_entry;
 };
 
 struct cv_page_entry{
@@ -126,7 +127,7 @@ struct snapshot_pte_list{
     uint64_t obsolete_version;
     uint8_t checkpoint;
     struct mm_struct * mm; //use to do memory accounting
-    struct lock_hashmap_entry_t lock_hashmap_entry;
+    struct lock_hashmap_entry_t page_hashmap_entry;
     union{
         struct cv_page_entry page_entry;
         struct cv_logging_entry logging_entry;
