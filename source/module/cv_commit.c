@@ -561,11 +561,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
       CV_LOG_MESSAGE( "leaving commit early 1 %d\n", current->pid);
       return;
   }
-
-#ifdef CV_COUNTERS_ON    
-  unsigned long long start_tsc=native_read_tsc();
-#endif
-
   
   //initializes variables used to track stats
   cv_stats_function_init();
@@ -613,6 +608,11 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   int counter_tmp=0;
   struct cv_logging_page_status_entry * logging_page_status=NULL;
   
+
+#ifdef CV_COUNTERS_ON    
+  unsigned long long start_tsc=native_read_tsc();
+#endif
+
   //Now we need to traverse our dirty list, and commit
   list_for_each_safe(pos, tmp_pos, &(cv_user->dirty_pages_list->list)){
 #ifdef CONV_LOGGING_ON
@@ -679,6 +679,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
           ++committed_pages;
       }
   }
+
+  COUNTER_LATENCY(ENTIRE_COMMIT, native_read_tsc() - start_tsc);
 
 #ifdef CV_COUNTERS_ON    
   unsigned long long start_wait_tsc=native_read_tsc();
@@ -754,8 +756,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
 
   COUNTER_LATENCY(WAIT_LIST_COMMIT, native_read_tsc() - start_wait_tsc);
 
-  COUNTER_LATENCY(ENTIRE_COMMIT, native_read_tsc() - start_tsc);
-
   //cv_stats_end(cv_seg, cv_user, 6, commit_waitlist_latency);      
   cv_stats_add_counter(cv_seg, cv_user, committed_pages, commit_pages);
   //no need to lock this...it doesn't have to be precise
@@ -808,12 +808,19 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
 
   BUG_ON(!list_empty(&(cv_user->dirty_pages_list->list)) && !list_empty(&wait_list->list));
 
+#ifdef CV_COUNTERS_ON    
+  unsigned long long current_tsc=native_read_tsc();
+#endif
+
   //now we perform an update so that we are fully up to date....the merging has already been done here in commit
   //if our version is not visible...we must wait.
   while(cv_seg->committed_version_num < our_version_number){
       //pause inside our busy loop
       rep_nop();
   }
+
+  COUNTER_LATENCY(WAIT_ON_OTHERS_COMMIT, native_read_tsc() - current_tsc);
+
   //ok, its safe to update now
   cv_update_parallel_to_version_no_merge(vma, our_version_number, defer_work);
   if (!defer_work && pte_updates > 0){
