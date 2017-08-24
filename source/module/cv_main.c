@@ -50,11 +50,15 @@ void conversion_thread_status (struct vm_area_struct * vma, unsigned long status
         return;
     }
     ksnap_vma_to_userdata(vma)->status = (status == 0) ? CV_USER_STATUS_ASLEEP : CV_USER_STATUS_AWAKE;
+
     if (status){
         ksnap_vma_to_ksnap(vma)->gc_seq_num++;
         down(&ksnap_vma_to_ksnap(vma)->sem_gc);
         //nop
         up(&ksnap_vma_to_ksnap(vma)->sem_gc);
+    }
+    else{
+	vma->snapshot_pte_list = NULL;
     }
 }
 
