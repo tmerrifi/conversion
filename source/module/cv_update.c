@@ -321,6 +321,12 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
 	 pos_outer = pos_outer_tmp, pos_outer_tmp = pos_outer->prev){
       //get the version entry
       latest_version_entry = list_entry( pos_outer, struct snapshot_version_list, list);
+
+      //detect that the next time through we are going to crash!
+      if ((pos_outer_tmp == LIST_POISON1 || pos_outer_tmp == LIST_POISON1) && pos_outer != &list_to_stop_at->list) {	  
+	  BUG();
+      }
+
       cv_profiling_add_value(&cv_user->profiling_info,list_to_stop_at->version_num,CV_PROFILING_VALUE_TYPE_STOPPED_UPDATE_VERSION);
       if (!latest_version_entry->visible || latest_version_entry->version_num > target_version_number){
           break;
