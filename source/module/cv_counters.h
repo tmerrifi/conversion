@@ -446,6 +446,8 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
 
 #define COUNTER_COMMIT_LATENCY(...)
 
+#define COUNTER_LATENCY(...)
+
 static void counters_print_all(struct ksnap_user_data * cv_user){ }
 
 #endif
