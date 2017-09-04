@@ -23,7 +23,7 @@ else
 	LOGGING_MODE = -DCV_FORCE_LOGGING
 endif
 
-KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement -IcreateStoreInterpreterFunctions $(LOGGING_MODE) -DCV_COUNTERS_ON
+KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement -IcreateStoreInterpreterFunctions $(LOGGING_MODE) #-DCV_COUNTERS_ON
 
 #-DCV_LOGGING_DISABLED #-DCV_COUNTERS_ON #-DLOGGING_LATENCY_TRACING #-DCV_LOGGING_DISABLED #-DCV_DEBUG_MEMORY_ALLOC #-DCONV_LOGGING_ON
 
