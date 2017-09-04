@@ -8,7 +8,7 @@
 #include "../common/process_shared_malloc.h"
 
 #define NUM_OF_PAGES 25
-#define NUM_OF_THREADS 2
+#define NUM_OF_THREADS 4
 #define ARRAY_SIZE_BYTES (NUM_OF_PAGES * (1<<12))
 
 #define NUM_OF_RUNS 1000
