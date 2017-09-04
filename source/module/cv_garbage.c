@@ -161,8 +161,10 @@ void cv_garbage_collection(struct work_struct * work){
                   list_add(pte_list_entry_pos,&pte_list_garbage);
               }
           }
-          list_del(version_list_pos);
-          kfree(version_list_entry);
+	  if (list_empty(version_list_pos)) {
+	      list_del(version_list_pos);
+	      kfree(version_list_entry);
+	  }
       }
   }
 
