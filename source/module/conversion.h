@@ -328,6 +328,9 @@ void conv_checkpoint(struct vm_area_struct * vma);
 #define conv_get_segment_size_in_log_entries(vma) \
    (((vma->vm_end - vma->vm_start)/CV_LOGGING_LOG_SIZE))
 
+#define conv_addr_in_vma_range(addr, vma) \
+   ( (unsigned long)addr >= vma->vm_start && (unsigned long)addr < vma->vm_end )
+
 #ifdef CV_DEBUG_MEMORY_ALLOC
 #define conv_debug_memory_alloc(ptr)\
     printk(CV_LOG_LEVEL "allocate: %s %d %p\n", __FILE__, __LINE__, ptr);
