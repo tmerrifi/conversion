@@ -124,8 +124,12 @@ void cv_garbage_collection(struct work_struct * work){
     }
   }
 
-  if (low_version==MAX_VERSION_NUM){
-      goto out;
+  //make sure we haven't exceeded the number of threads
+  int gc_threads = atomic_read(&cv_seg->gc_thread_count);
+  if (low_version == MAX_VERSION_NUM ||
+      gc_threads >= CV_GARBAGE_MAX_THREADS ||
+      atomic_cmpxchg(&cv_seg->gc_thread_count, gc_threads, gc_threads + 1) != gc_threads) {
+      return;
   }
 
   INIT_LIST_HEAD(&pte_list_garbage);
@@ -157,22 +161,19 @@ void cv_garbage_collection(struct work_struct * work){
                   collected_count++;
                   version_list_entry->num_of_entries--;
                   list_del(pte_list_entry_pos);
-                  //kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
                   list_add(pte_list_entry_pos,&pte_list_garbage);
               }
           }
 	  if (list_empty(version_list_pos)) {
-	      list_del(version_list_pos);
-	      kfree(version_list_entry);
+//	      list_del(version_list_pos);
+//	      kfree(version_list_entry);
 	  }
       }
   }
 
   out:
-  //printk(KERN_EMERG " LEAVING SEQ!!!! collected %d\n", collected_count);
   //reduce the total number of allocated pages. TODO: don't we don't need an atomic op here?
   cv_seg->committed_pages-=collected_count;
-  atomic_set(&cv_seg->gc_thread_count, -1);
   //we use the semaphore to tell threads that just woke up that it's safe to traverse the version list again
   up(&cv_seg->sem_gc);
   //now free the pte_list_entry garbage
@@ -183,5 +184,5 @@ void cv_garbage_collection(struct work_struct * work){
       kmem_cache_free(cv_seg->pte_list_mem_cache, pte_list_entry);
       collected_count++;
   }
-  //printk(KERN_EMERG " LEAVING PAR!!!! collected %d\n", collected_count);
+  atomic_dec(&cv_seg->gc_thread_count);
 }

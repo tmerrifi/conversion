@@ -798,13 +798,15 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
     ksnap_meta_set_shared_version(vma, cv_seg->committed_version_num);
   }
   spin_unlock(&cv_seg->lock);
+  
   if (cv_seg->committed_pages > CV_GARBAGE_INIT_PAGES &&  
-      (cv_seg->committed_pages - cv_seg->last_committed_pages_gc_start) > CV_GARBAGE_START_INC && 
-      atomic_inc_and_test(&cv_seg->gc_thread_count)){
+      (cv_seg->committed_pages - cv_seg->last_committed_pages_gc_start) > CV_GARBAGE_START_INC) {
+      struct cv_garbage_work * garbage_work = kmalloc(sizeof(struct cv_garbage_work), GFP_KERNEL);
+      garbage_work->cv_seg = cv_seg;
+      INIT_WORK(&garbage_work->work, cv_garbage_collection);
       cv_seg->last_committed_pages_gc_start = cv_seg->committed_pages;
-      schedule_work_on(0, &cv_seg->garbage_work.work);
+      schedule_work(&garbage_work->work);
   }
-
 
   BUG_ON(!list_empty(&(cv_user->dirty_pages_list->list)) && !list_empty(&wait_list->list));
 

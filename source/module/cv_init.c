@@ -146,7 +146,7 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   ksnap_data->committed_pages=0;
   ksnap_data->last_committed_pages_gc_start=0;
   ksnap_data->gc_seq_num=0;
-  atomic_set(&ksnap_data->gc_thread_count, -1);
+  atomic_set(&ksnap_data->gc_thread_count, 0);
   spin_lock_init(&ksnap_data->lock);
   spin_lock_init(&ksnap_data->snapshot_page_tree_lock);
   INIT_WORK(&ksnap_data->garbage_work.work, cv_garbage_collection);

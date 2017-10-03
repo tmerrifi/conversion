@@ -9,13 +9,11 @@ struct cv_garbage_work{
   struct ksnap * cv_seg;
 };
 
-#define CV_GARBAGE_MAX_THREADS 2
+#define CV_GARBAGE_MAX_THREADS 1
 //when should we start caring about garbage?
-#define CV_GARBAGE_INIT_PAGES 100
+#define CV_GARBAGE_INIT_PAGES ((512) * 50)
 //every CV_GARBAGE_START_INC we start a collection
-#define CV_GARBAGE_START_INC 100
-
-#define CV_GARBAGE_HIGH_WATER 100
+#define CV_GARBAGE_START_INC ((512) * 100)
 
 void cv_garbage_final(struct ksnap * cv_seg);
 void cv_garbage_collection(struct work_struct * work);

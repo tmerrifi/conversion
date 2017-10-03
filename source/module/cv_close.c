@@ -49,8 +49,8 @@ void cv_close(struct vm_area_struct * vma){
       //free the version list
       vfree(cv->ppv->entries);
       kfree(cv->ppv);
-      while(atomic_read(&cv->gc_thread_count)>=0){
-          //use a pause
+      while(atomic_cmpxchg(&cv->gc_thread_count, 0, CV_GARBAGE_MAX_THREADS + 1) != 0){
+	  //use a pause
           rep_nop();
       }
       cv_garbage_final(cv);
