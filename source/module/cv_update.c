@@ -365,8 +365,8 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
             if (merge && dirty_entry){
                 //we have to merge our changes with the committed stuff
                 if (dirty_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
+		    INC(COUNTER_UPDATE_PAGE_MERGE);
                     dirty_entry_page=cv_list_entry_get_page_entry(dirty_entry);
-                    //CV_LOG_MESSAGE( "pid %d, merging page %d\n", current->pid, tmp_pte_list->page_index);
                     local_addr=compute_local_addr_for_diff(vma, dirty_entry_page->pfn, dirty_entry->page_index, dirty_entry->checkpoint);
                     ksnap_merge(pfn_to_page(page_entry->pfn), 
                                 local_addr,
@@ -386,6 +386,7 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
             //if we have a partial version, it means that we previously did a partial upate. If so, and this entry's version number
             //is less than our partial version number, then this update is superfluous
             else if (!dirty_entry && !(cv_user->partial_version_num >= latest_version_entry->version_num)){
+		INC(COUNTER_UPDATE_PAGE);
                 cv_stats_start(mapping_to_ksnap(mapping), 2, commit_waitlist_latency);
                 cv_profiling_add_value(&cv_user->profiling_info,tmp_pte_list->page_index,CV_PROFILING_VALUE_TYPE_UPDATE);
                 pte_copy_entry (page_entry->pte, page_entry->pfn, tmp_pte_list->page_index, vma, flush_tlb_per_page, defer_work, cv_user);

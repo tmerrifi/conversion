@@ -42,13 +42,15 @@ typedef enum{COUNTER_FIRST=0,
     COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_18000_24999,COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_25000_34999,
     COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_35000_INF,COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_TOTAL,
     /*commit page counters*/
-    COUNTER_COMMIT_MERGE,
+    COUNTER_COMMIT_MERGE, COUNTER_COMMIT_NO_MERGE,
     /*commit logging counters*/
     COUNTER_COMMIT_LOGGING_NO_MERGE, COUNTER_COMMIT_LOGGING_FAST_PAGE_MERGE, 
     COUNTER_COMMIT_LOGGING_SLOW_PAGE_MERGE, COUNTER_COMMIT_LOGGING_FAST_LINE_MERGE,
     /*update latency counters*/
     COUNTER_UPDATE_CYCLES_LT_10000,COUNTER_UPDATE_CYCLES_LT_50000,COUNTER_UPDATE_CYCLES_LT_100000,COUNTER_UPDATE_CYCLES_LT_200000,
     COUNTER_UPDATE_CYCLES_LT_500000,COUNTER_UPDATE_CYCLES_INF,COUNTER_UPDATE_CYCLES_TOTAL,
+    /*update page counters*/
+    COUNTER_UPDATE_PAGE, COUNTER_UPDATE_PAGE_MERGE,
     /*TLB ops*/
     COUNTER_TLB_PAGE_FLUSH,COUNTER_TLB_FLUSH,
     /*TMP COUNTER*/
@@ -58,6 +60,10 @@ typedef enum{COUNTER_FIRST=0,
     LATENCY_COUNTER_DEFINE(WAIT_LIST_COMMIT),
     /*How much time is spent waiting on others during commit*/
     LATENCY_COUNTER_DEFINE(WAIT_ON_OTHERS_COMMIT),
+    /*merge-related counters*/
+    COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_4, COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_8, 
+    COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_16, COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_32,
+    COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LTE_64,
     /********************/
     COUNTER_LAST};
 
@@ -73,6 +79,13 @@ typedef enum{COUNTER_FIRST=0,
 #define GET_COUNTER(counter) (cv_user->counters[counter])
 
 #define PRINT_COUNTER(counter) printk(CV_LOG_LEVEL #counter": %llu\n", GET_COUNTER(counter))
+
+#define COUNTER_COMMIT_MERGE_DIFF_CACHELINES(diff)                            \
+    if (diff < 4) { INC(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_4); }         \
+    else if (diff < 8) { INC(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_8); }    \
+    else if (diff < 16) { INC(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_16); }  \
+    else if (diff < 32) { INC(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_32); }  \
+    else { INC(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LTE_64); }                \
 
 #define COUNTER_COMMIT_ENTRIES(entries)                                 \
     if (entries < 5){                                                   \
@@ -369,6 +382,10 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
 
     printk(CV_LOG_LEVEL "***COMMIT page counters***\n");
     PRINT_COUNTER(COUNTER_COMMIT_MERGE);
+    PRINT_COUNTER(COUNTER_COMMIT_NO_MERGE);
+    printk(CV_LOG_LEVEL "***UPDATE page counters***\n");
+    PRINT_COUNTER(COUNTER_UPDATE_PAGE);
+    PRINT_COUNTER(COUNTER_UPDATE_PAGE_MERGE);
     printk(CV_LOG_LEVEL "***COMMIT merge counters***\n");
     PRINT_COUNTER(COUNTER_COMMIT_LOGGING_NO_MERGE);
     PRINT_COUNTER(COUNTER_COMMIT_LOGGING_SLOW_PAGE_MERGE);
@@ -424,6 +441,12 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     printk(CV_LOG_LEVEL "***walking wait list***\n");
     LATENCY_COUNTER_PRINT(WAIT_LIST_COMMIT);
     LATENCY_COUNTER_PRINT(WAIT_ON_OTHERS_COMMIT);
+    printk(CV_LOG_LEVEL "***merge diffs in cachelines***\n");
+    PRINT_COUNTER(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_4);
+    PRINT_COUNTER(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_8);
+    PRINT_COUNTER(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_16);
+    PRINT_COUNTER(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_32);
+    PRINT_COUNTER(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LTE_64);
 }
 
 #else
@@ -449,6 +472,8 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
 #define COUNTER_LATENCY(...)
 
 static void counters_print_all(struct ksnap_user_data * cv_user){ }
+
+#define COUNTER_COMMIT_MERGE_DIFF_CACHELINES(...)
 
 #endif
 
