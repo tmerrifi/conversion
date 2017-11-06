@@ -447,15 +447,19 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
         CV_LOGGING_DEBUG_PRINT_LINE(pte_list_entry->logging_entry.data + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
                                     pte_list_entry->page_index, LOGGING_DEBUG_LINE, "cv_commit: migrating first after");
     }
-    else{
-        //still need to memcpy, but from a ref page
-        BUG_ON(ref_page==NULL);
-        uint8_t * ref_kaddr = (uint8_t *)kmap_atomic(ref_page, KM_USER0);
-        memcpy(pte_list_entry->logging_entry.data,ref_kaddr,PAGE_SIZE);
-        kunmap_atomic(ref_kaddr, KM_USER0);
-        CV_LOGGING_DEBUG_PRINT_LINE(pte_list_entry->logging_entry.data + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
-                                    pte_list_entry->page_index, LOGGING_DEBUG_LINE, "cv_commit: migrating");
+    else if (ref_page == NULL) {
+	//printk(KERN_EMERG "commit noref %lx, %lx, index %d\n", page_entry->addr, page_entry->pfn, pte_list_entry->page_index);
+	memset(pte_list_entry->logging_entry.data, 0, PAGE_SIZE);
+	CV_LOGGING_DEBUG_PRINT_LINE(pte_list_entry->logging_entry.data + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
+		      pte_list_entry->page_index, LOGGING_DEBUG_LINE, "cv_commit: migrating with no ref page");
     }
+    else{
+	uint8_t * ref_kaddr = (uint8_t *)kmap_atomic(ref_page, KM_USER0);
+	memcpy(pte_list_entry->logging_entry.data,ref_kaddr,PAGE_SIZE);
+	kunmap_atomic(ref_kaddr, KM_USER0);
+	CV_LOGGING_DEBUG_PRINT_LINE(pte_list_entry->logging_entry.data + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
+			     pte_list_entry->page_index, LOGGING_DEBUG_LINE, "cv_commit: migrating");
+    }    
     
     //insert this page into our local logging ds
     if (cv_logging_page_status_insert(cv_user, logging_entry, pte_list_entry->page_index)<0){
