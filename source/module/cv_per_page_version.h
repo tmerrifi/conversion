@@ -22,6 +22,7 @@ struct cv_per_page_logging_entry{
 struct cv_per_page_version_entry{
     dirty_list_entry_t type; //what type is this?
     uint8_t logging_diff_bitmap; //keeps track of how often we perform the logging diff check and succeed
+    uint8_t logging_merge_bitmap; //keeps track of whether we needed to merge this page
     uint64_t interest_version; //threads register their "interest" in committing this version
     uint64_t actual_version;  //what version is actually "committed"
     union{    
@@ -72,15 +73,17 @@ void cv_per_page_version_update_actual_version(struct cv_per_page_version * ppv,
 
 void cv_per_page_update_logging_diff_bitmap(struct cv_per_page_version * ppv, uint32_t page_index, int should_have_done_logging);
 
+void cv_per_page_update_logging_merge_bitmap(struct cv_per_page_version * ppv, uint32_t page_index, int merged);
+
 void cv_per_page_switch_to_logging(struct cv_per_page_version * ppv, uint32_t page_index);
 
 int cv_per_page_is_logging_page(struct cv_per_page_version * ppv, uint32_t page_index);
 
 uint8_t cv_per_page_get_logging_diff_bitmap(struct cv_per_page_version * ppv, uint32_t page_index);
 
+uint8_t cv_per_page_get_logging_merge_bitmap(struct cv_per_page_version * ppv, uint32_t page_index);
+
 int cv_per_page_version_release_entry_lock(struct ksnap *cv_seg, struct snapshot_pte_list *pte_entry);
-
-
 
 /*****LOGGING FUNCTIONS***********************/
 

@@ -304,6 +304,7 @@ void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_st
   struct ksnap_user_data * cv_user;
   uint8_t * local_addr;
   pte_t page_table_e;
+  int merged_cachelines;
 
   cv_seg = ksnap_vma_to_ksnap(vma);
   cv_user = ksnap_vma_to_userdata(vma);
@@ -340,10 +341,12 @@ void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_st
           local_addr=(uint8_t *)((page_index << PAGE_SHIFT) + vma->vm_start);
           }*/
       INC(COUNTER_COMMIT_MERGE);
-      ksnap_merge(pfn_to_page(committed_entry->pfn),
-                  local_addr,
-                  version_list_entry->ref_page,
-                  pfn_to_page(version_list_entry->pfn));
+      merged_cachelines = ksnap_merge(pfn_to_page(committed_entry->pfn),
+				      local_addr,
+				      version_list_entry->ref_page,
+				      pfn_to_page(version_list_entry->pfn));
+      COUNTER_COMMIT_MERGE_DIFF_CACHELINES(merged_cachelines);
+      cv_per_page_update_logging_merge_bitmap(cv_seg->ppv, page_index, 1);
       cv_stats_inc_merged_pages(&cv_seg->cv_stats);
       cv_profiling_add_value(&cv_user->profiling_info,page_index,CV_PROFILING_VALUE_TYPE_MERGE);
       CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, page_index, CV_HOOKS_COMMIT_ENTRY_MERGE);
@@ -352,8 +355,10 @@ void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_st
 #endif
   }
   else{
+      INC(COUNTER_COMMIT_NO_MERGE);
       cv_profiling_add_value(&cv_user->profiling_info,page_index,CV_PROFILING_VALUE_TYPE_COMMIT);
       CV_HOOKS_COMMIT_ENTRY(cv_seg, cv_user, page_index, CV_HOOKS_COMMIT_ENTRY_COMMIT);
+      cv_per_page_update_logging_merge_bitmap(cv_seg->ppv, page_index, 0);
   }
   //get the pre-existing pte value and clear the pte pointer
   page_table_e = ptep_get_and_clear(vma->vm_mm, version_list_entry->addr, version_list_entry->pte);
@@ -513,8 +518,9 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
             //   cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index) & 0xFUL);
             COUNTER_MIGRATION_CHECK(diff);
             cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 1);
-            //should we switch over to logging?
-            if (cv_logging_should_switch(cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index))){
+            //should we switch over to logging, check the diff and merge bitmaps?
+            if (cv_logging_should_switch(cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index)) &&
+		cv_logging_should_switch(cv_per_page_get_logging_merge_bitmap(cv_seg->ppv, pte_list_entry->page_index))) {
                 /* CV_LOG_MESSAGE( "migration check...time to switch pid: %d, page index: %d\n", */
                 /*      current->pid, pte_list_entry->page_index); */
                 INC(COUNTER_LOGGING_MIGRATIONS);

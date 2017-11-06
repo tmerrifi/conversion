@@ -212,6 +212,12 @@ void cv_per_page_update_logging_diff_bitmap(struct cv_per_page_version * ppv, ui
     ppv->entries[page_index].logging_diff_bitmap=((ppv->entries[page_index].logging_diff_bitmap<<1)|((should_have_done_logging) ? 1 : 0));
 }
 
+//sliding window of checks on whether we would have benefited from logging
+void cv_per_page_update_logging_merge_bitmap(struct cv_per_page_version * ppv, uint32_t page_index, int merged){
+    ppv->entries[page_index].logging_merge_bitmap=((ppv->entries[page_index].logging_merge_bitmap<<1)|((merged) ? 1 : 0));
+}
+
+
 void cv_per_page_switch_to_logging(struct cv_per_page_version * ppv, uint32_t page_index){
     ppv->entries[page_index].type=DIRTY_LIST_ENTRY_TYPE_LOGGING;
     //set up the per page logging struture
@@ -226,6 +232,10 @@ int cv_per_page_is_logging_page(struct cv_per_page_version * ppv, uint32_t page_
 
 uint8_t cv_per_page_get_logging_diff_bitmap(struct cv_per_page_version * ppv, uint32_t page_index){
     return ppv->entries[page_index].logging_diff_bitmap;
+}
+
+uint8_t cv_per_page_get_logging_merge_bitmap(struct cv_per_page_version * ppv, uint32_t page_index){
+    return ppv->entries[page_index].logging_merge_bitmap;
 }
 
 void cv_per_page_version_update_logging_entry(struct cv_per_page_version * ppv,
