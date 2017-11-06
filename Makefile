@@ -5,6 +5,9 @@ ifndef CONVLOGGING
 	CONVLOGGING = false
 endif
 
+ifndef CONVCOUNTERS
+	CONVCOUNTERS = false
+endif
 
 .PHONY: tests
 
@@ -34,7 +37,7 @@ conversionlib32 : libmm
 
 conversionmodule :
 	pushd source/module; \
-	sudo ./install.sh y LOGGING=$(CONVLOGGING); \
+	sudo ./install.sh y LOGGING=$(CONVLOGGING) COUNTERS=$(CONVCOUNTERS); \
 	popd;
 
 tests : conversionlib conversionmodule
