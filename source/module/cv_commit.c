@@ -584,7 +584,14 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   wait_list=_snapshot_create_pte_list();
   //GLOBAL LOCK ACQUIRE
   cv_stats_start(cv_seg, 1, commit_wait_lock);
+#ifdef CV_COUNTERS_ON    
+  unsigned long long before_lock=native_read_tsc();
+#endif
   spin_lock(&cv_seg->lock);
+#ifdef CV_COUNTERS_ON    
+  unsigned long long first_cs_tsc=native_read_tsc();
+#endif
+  COUNTER_LATENCY(FIRST_CS_ACQ_TIME_COMMIT, first_cs_tsc - before_lock);
   cv_stats_end(cv_seg, cv_user, 1, commit_wait_lock);
   //get the right version number
   cv_seg->next_avail_version_num+=1;
@@ -600,6 +607,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
 			   cv_seg->ppv, cv_user, cv_seg, our_version_number);
   //we've linearized this version...we can mark it as such for interested parties in userspace
   cv_meta_set_linearized_version(vma, our_version_number);
+  COUNTER_LATENCY(FIRST_CRITICAL_SECTION_COMMIT, native_read_tsc() - first_cs_tsc);
   spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
 
@@ -690,8 +698,6 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
       }
   }
 
-  COUNTER_LATENCY(ENTIRE_COMMIT, native_read_tsc() - start_tsc);
-
 #ifdef CV_COUNTERS_ON    
   unsigned long long start_wait_tsc=native_read_tsc();
 #endif
@@ -773,6 +779,9 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   //ok, we can finally commit our stuff
   cv_stats_start(cv_seg, 2, commit_wait_lock);
   spin_lock(&cv_seg->lock);
+#ifdef CV_COUNTERS_ON    
+  unsigned long long final_cs_start = native_read_tsc();
+#endif
   cv_stats_end(cv_seg, cv_user, 2, commit_wait_lock);
   //make our version visible
   our_version_entry->visible=1;
@@ -807,8 +816,9 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
     //export the new version to user space
     ksnap_meta_set_shared_version(vma, cv_seg->committed_version_num);
   }
+  COUNTER_LATENCY(FINAL_CRITICAL_SECTION_COMMIT, native_read_tsc() - final_cs_start);
   spin_unlock(&cv_seg->lock);
-  
+    
   if (cv_seg->committed_pages > CV_GARBAGE_INIT_PAGES &&  
       (cv_seg->committed_pages - cv_seg->last_committed_pages_gc_start) > CV_GARBAGE_START_INC) {
       struct cv_garbage_work * garbage_work = kmalloc(sizeof(struct cv_garbage_work), GFP_KERNEL);
@@ -845,6 +855,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   //COUNTER_COMMIT_LATENCY(native_read_tsc() - start_tsc);
   COUNTER_COMMIT_ENTRIES(committed_pages);
   
+  COUNTER_LATENCY(ENTIRE_COMMIT, native_read_tsc() - start_tsc);
+    
   CV_LOG_MESSAGE( "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
                   current->pid, cv_seg, committed_pages, our_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);
 
