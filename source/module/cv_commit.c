@@ -592,6 +592,9 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   unsigned long long first_cs_tsc=native_read_tsc();
 #endif
   COUNTER_LATENCY(FIRST_CS_ACQ_TIME_COMMIT, first_cs_tsc - before_lock);
+#ifdef CV_COUNTERS_ON    
+  unsigned long long temp_tsc=native_read_tsc();
+#endif
   cv_stats_end(cv_seg, cv_user, 1, commit_wait_lock);
   //get the right version number
   cv_seg->next_avail_version_num+=1;
@@ -607,7 +610,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
 			   cv_seg->ppv, cv_user, cv_seg, our_version_number);
   //we've linearized this version...we can mark it as such for interested parties in userspace
   cv_meta_set_linearized_version(vma, our_version_number);
-  COUNTER_LATENCY(FIRST_CRITICAL_SECTION_COMMIT, native_read_tsc() - first_cs_tsc);
+  COUNTER_LATENCY(FIRST_CRITICAL_SECTION_COMMIT, native_read_tsc() - temp_tsc);
   spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
 
@@ -698,10 +701,11 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
       }
   }
 
+  COUNTER_LATENCY(UNCONTENDED_LIST_COMMIT, native_read_tsc() - start_tsc);
+
 #ifdef CV_COUNTERS_ON    
   unsigned long long start_wait_tsc=native_read_tsc();
 #endif
-
   
   //now we need to commit the stuff in the 
   while(!list_empty(&wait_list->list)){
