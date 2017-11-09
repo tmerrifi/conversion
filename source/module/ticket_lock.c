@@ -11,11 +11,6 @@ void ticket_lock_init(struct ticket_lock_t * lock, ticket_lock_mode_t mode){
     //printk(KERN_EMERG "ticket_lock_init mode....%d, lock %p\n", lock->mode, lock);
 }
 
-void __debug_print_state(struct ticket_lock_t * lock){
-//    printk(KERN_EMERG "lock %p, mode %d, next %ld, serving %ld, readers %ld\n", lock, lock->mode,
-//	   atomic64_read(&lock->next_ticket), atomic64_read(&lock->now_serving), atomic64_read(&lock->readers));
-}
-
 int __ticket_lock_tryacquire(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry, __ticket_lock_op_mode_t op_mode){
     int result;
 //    printk(KERN_EMERG "mode....%d, lock %p %lu %lu %lu \n",
@@ -52,8 +47,6 @@ int __ticket_lock_tryacquire(struct ticket_lock_t * lock, struct ticket_lock_ent
 	result = 0;
     }
     entry->mode = op_mode;
-    //printk(KERN_EMERG "in trylock for lock %p, returning %d\n", lock, result);
-    __debug_print_state(lock);
     return result;
 }
 
@@ -81,8 +74,6 @@ int __ticket_lock_release(struct ticket_lock_t * lock, struct ticket_lock_entry_
 	atomic64_dec(&lock->readers);
     }
     entry->our_ticket = NULL_TICKET;
-    //printk(KERN_EMERG "in release for lock %p\n", lock);
-    __debug_print_state(lock);
     return 1;
 }
 
