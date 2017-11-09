@@ -3,6 +3,7 @@
 
 void ticket_lock_init(struct ticket_lock_t * lock, ticket_lock_mode_t mode){
     BUG_ON(lock==NULL);
+    BUILD_BUG_ON(sizeof(struct ticket_lock_t) != 28);
     //start this at one and serve the first thread to increment
     atomic64_set(&lock->now_serving, 1);
     atomic64_set(&lock->next_ticket, 0);

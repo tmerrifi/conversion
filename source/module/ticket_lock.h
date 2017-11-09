@@ -11,12 +11,15 @@ typedef enum { TICKET_LOCK_MODE_NORMAL, TICKET_LOCK_MODE_RWLOCK } ticket_lock_mo
 
 typedef enum { TICKET_LOCK_OP_NORMAL, TICKET_LOCK_OP_READ, TICKET_LOCK_OP_WRITE, TICKET_LOCK_OP_NULL } __ticket_lock_op_mode_t;
 
-struct ticket_lock_t{
+struct __attribute__ ((__packed__)) ticket_lock_t{
     atomic64_t now_serving;
     atomic64_t next_ticket;
     atomic64_t readers;
     ticket_lock_mode_t mode;
-};
+}; //(8+8+8+4)=28 bytes
+
+#define TICKET_LOCK_SIZE 28
+
 
 struct ticket_lock_entry_t{
     u64 our_ticket;
