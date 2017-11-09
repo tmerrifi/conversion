@@ -9,14 +9,10 @@ void ticket_lock_init(struct ticket_lock_t * lock, ticket_lock_mode_t mode){
     atomic64_set(&lock->next_ticket, 0);
     atomic64_set(&lock->readers, 0);
     lock->mode = mode;
-    //printk(KERN_EMERG "ticket_lock_init mode....%d, lock %p\n", lock->mode, lock);
 }
 
 int __ticket_lock_tryacquire(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry, __ticket_lock_op_mode_t op_mode){
     int result;
-//    printk(KERN_EMERG "mode....%d, lock %p %lu %lu %lu \n",
-//	   lock->mode, lock, atomic64_read(&lock->now_serving), entry->our_ticket, atomic64_read(&lock->readers));
-
     BUG_ON(op_mode != TICKET_LOCK_OP_NORMAL && lock->mode == TICKET_LOCK_MODE_NORMAL);
     //do we need a ticket or do we have one already?
     if (entry->our_ticket == NULL_TICKET) {
