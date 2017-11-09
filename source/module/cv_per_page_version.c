@@ -145,6 +145,9 @@ void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struc
   list_for_each_safe(pos, tmp_pos, &dirty_pages_list->list){
       //get the pte_entry
       pte_entry = list_entry(pos, struct snapshot_pte_list, list);
+#ifdef CV_COUNTERS_ON    
+  unsigned long long temp_tsc=native_read_tsc();
+#endif
       //try and acquire the lock
       if (!__acquire_entry_lock(cv_seg,pte_entry)) {
 	  //we failed, move this into a list to try and acquire later
@@ -152,6 +155,7 @@ void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struc
 	  INIT_LIST_HEAD(&pte_entry->list);
           list_add(&pte_entry->list, &wait_list->list);
       }
+      COUNTER_LATENCY(ACQUIRE_ENTRY_LOCK_CVP, native_read_tsc() - temp_tsc);
   }
 }
 
