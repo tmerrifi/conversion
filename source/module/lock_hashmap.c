@@ -29,11 +29,17 @@ int __lock_hashmap_init_ticket(struct lock_hashmap_t * lock_hashmap, lock_hashma
     int j;
 
     ticket_lock_mode_t mode;
+    
+    BUILD_BUG_ON(sizeof(struct lock_hashmap_lock_t) != LOCK_HASHMAP_LOCK_SIZE);
 
     if ((lock_hashmap->locks = kmalloc(lock_hashmap->total_locks * 
-				       sizeof(struct lock_hashmap_lock_t), GFP_KERNEL)) == NULL ){
+				       sizeof(struct lock_hashmap_lock_t) + 64, GFP_KERNEL)) == NULL ){
 	return 0;
     }
+
+    //align to cacheline
+    lock_hashmap->locks = (struct lock_hashmap_lock_t *)(((unsigned long)lock_hashmap->locks) & (~((1UL << 6) - 1)));
+    BUG_ON(!IS_ALIGNED((unsigned long)lock_hashmap->locks, 64));
 
     for ( i = 0; i < lock_hashmap->total_locks; i++ ) {
 	switch (lock_type) {
@@ -49,8 +55,7 @@ int __lock_hashmap_init_ticket(struct lock_hashmap_t * lock_hashmap, lock_hashma
 	lock_hashmap->locks[i].lock_holder = LOCK_HASHMAP_HOLDER_NONE;
 
 	for (j = 0; j < LOCKHASH_MAX_THREADS; j++) {
-	    lock_hashmap->locks[i].acquires[j] = 0;
-	    lock_hashmap->locks[i].acquires_reads[j] = 0;
+	    __lock_hashmap_init_acquire(&lock_hashmap->locks[i]);
 	}
 
 	ticket_lock_init(&lock_hashmap->locks[i].ticket_lock, mode);
@@ -116,15 +121,16 @@ int __lock_hashmap_trylock_read(struct lock_hashmap_lock_t * lock,
     history_lock_op_t history_op;
     int result = LOCK_ACQUIRE_FAILED;
 
-    if (lock->acquires_reads[thread_id] > 0) {
+    if (__lock_hashmap_get_acquire_read(lock, thread_id) > 0) {
 	//we already hold the lock as a reader
-	lock->acquires_reads[thread_id]++;
+	__lock_hashmap_inc_acquire_read(lock, thread_id);
+
 	result = LOCK_ACQUIRE_SUCC;
 	history_op = HISTORY_LOCK_OP_ACQ_NESTED;
     }
     else{
 	if (result = func(&lock->ticket_lock, &entry->ticket_entry)){
-	    lock->acquires_reads[thread_id]++;
+	    __lock_hashmap_inc_acquire_read(lock, thread_id);
 	    history_op = HISTORY_LOCK_OP_ACQ_SUCC;
 	}
 	else{
@@ -134,7 +140,7 @@ int __lock_hashmap_trylock_read(struct lock_hashmap_lock_t * lock,
     
     __insert_into_history(lock, history_op, lock->lock_holder, 
 			  entry->ticket_entry.our_ticket, TICKET_LOCK_OP_NORMAL,
-			  lock->acquires[thread_id], thread_id);
+			  __lock_hashmap_get_acquire(lock, thread_id), thread_id);
     
     return result;
 }
@@ -147,9 +153,9 @@ int __lock_hashmap_trylock_write(struct lock_hashmap_lock_t * lock,
     history_lock_op_t history_op;
     int result = LOCK_ACQUIRE_FAILED;
 
-    if (lock->acquires[thread_id] > 0) {
+    if (__lock_hashmap_get_acquire(lock, thread_id) > 0) {
 	//we already hold the lock as a writer
-	lock->acquires[thread_id]++;
+	__lock_hashmap_inc_acquire(lock, thread_id);
 	result = LOCK_ACQUIRE_SUCC;
 	history_op = HISTORY_LOCK_OP_ACQ_NESTED;
     }
@@ -158,7 +164,7 @@ int __lock_hashmap_trylock_write(struct lock_hashmap_lock_t * lock,
 	//In that case, we still attempt to acquire the lock in order to get a ticket
 	//to preserve the order of committers
 	if (result = func(&lock->ticket_lock, &entry->ticket_entry)){
-	    lock->acquires[thread_id]++;
+	    __lock_hashmap_inc_acquire(lock, thread_id);
 	    history_op = HISTORY_LOCK_OP_ACQ_SUCC;
 	}
 	else{
@@ -168,7 +174,7 @@ int __lock_hashmap_trylock_write(struct lock_hashmap_lock_t * lock,
 
     __insert_into_history(lock, history_op, lock->lock_holder, 
 			  entry->ticket_entry.our_ticket, TICKET_LOCK_OP_NORMAL,
-			  lock->acquires[thread_id], thread_id);
+			  __lock_hashmap_get_acquire(lock, thread_id), thread_id);
     
     return result;
 }
@@ -181,9 +187,9 @@ int __lock_hashmap_trylock_basic(struct lock_hashmap_lock_t * lock,
     history_lock_op_t history_op;
     int result = LOCK_ACQUIRE_FAILED;
 
-    if (lock->acquires[thread_id] > 0) {
+    if (__lock_hashmap_get_acquire(lock, thread_id) > 0) {
 	result = LOCK_ACQUIRE_SUCC;
-	lock->acquires[thread_id]++;
+	__lock_hashmap_inc_acquire(lock, thread_id);
 	history_op = HISTORY_LOCK_OP_ACQ_NESTED;
 
     }
@@ -195,13 +201,13 @@ int __lock_hashmap_trylock_basic(struct lock_hashmap_lock_t * lock,
 	}
 	//set lock holder for debugging
 	lock->lock_holder = entry->thread_id;
-	lock->acquires[thread_id]++;
+	__lock_hashmap_inc_acquire(lock, thread_id);
 	history_op = (result) ? HISTORY_LOCK_OP_ACQ_SUCC : HISTORY_LOCK_OP_ACQ_FAIL;
     }
 
     __insert_into_history(lock, history_op, lock->lock_holder, 
 			  entry->ticket_entry.our_ticket, TICKET_LOCK_OP_NORMAL,
-			  lock->acquires[thread_id], thread_id);
+			  __lock_hashmap_get_acquire(lock, thread_id), thread_id);
 
     return result;
 }
@@ -252,8 +258,9 @@ int __lock_hashmap_release_generic(struct lock_hashmap_t * lock_hashmap, uint64_
     BUG_ON(thread_id > LOCKHASH_MAX_THREADS-1 || thread_id < 0);
 
     if (mode == TICKET_LOCK_OP_NORMAL || mode == TICKET_LOCK_OP_WRITE){
-	BUG_ON(lock->acquires[thread_id] == 0);
-	if (--lock->acquires[thread_id] == 0) {
+	BUG_ON(__lock_hashmap_get_acquire(lock, thread_id) == 0);
+	__lock_hashmap_dec_acquire(lock,thread_id);
+	if (__lock_hashmap_get_acquire(lock,thread_id) == 0) {
 	    //only remove lock holder if number of acquires == 0
 	    lock->lock_holder = LOCK_HASHMAP_HOLDER_NONE;
 	    result = func(&lock->ticket_lock, &entry->ticket_entry);
@@ -264,8 +271,9 @@ int __lock_hashmap_release_generic(struct lock_hashmap_t * lock_hashmap, uint64_
 	}
     } 
     else if (mode == TICKET_LOCK_OP_READ) {
-	BUG_ON(lock->acquires_reads[thread_id] == 0);
-	if (--lock->acquires_reads[thread_id] == 0) {
+	BUG_ON(__lock_hashmap_get_acquire_read(lock, thread_id) == 0);
+	__lock_hashmap_dec_acquire_read(lock, thread_id);
+	if (__lock_hashmap_get_acquire_read(lock, thread_id) == 0) {
 	    //only remove lock holder if number of acquires_reads == 0
 	    result = func(&lock->ticket_lock, &entry->ticket_entry);
 	    history_op = HISTORY_LOCK_OP_REL;
@@ -278,7 +286,7 @@ int __lock_hashmap_release_generic(struct lock_hashmap_t * lock_hashmap, uint64_
     __insert_into_history(lock, history_op,
 			  lock->lock_holder, 
 			  entry->ticket_entry.our_ticket, 
-			  mode,lock->acquires[thread_id], thread_id);
+			  mode,__lock_hashmap_get_acquire(lock, thread_id), thread_id);
 
     return result;
 }

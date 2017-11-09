@@ -32,12 +32,19 @@ typedef enum {
     HISTORY_LOCK_OP_ACQ_SUCC = 0, HISTORY_LOCK_OP_ACQ_FAIL = 1, HISTORY_LOCK_OP_REL = 2, HISTORY_LOCK_OP_REL_NESTED = 3, HISTORY_LOCK_OP_ACQ_NESTED = 4
 } history_lock_op_t;
 
-struct lock_hashmap_lock_t{
-    struct ticket_lock_t ticket_lock;
-    s16 lock_holder;
-    u16 acquires_reads[LOCKHASH_MAX_THREADS];
-    u16 acquires[LOCKHASH_MAX_THREADS];
-#ifdef LOCKHASH_TRACK_HISTORY
+struct __attribute__ ((__packed__)) lock_hashmap_reentrace_counter_t{
+    u16 counter;
+    //u8 padding[64 - sizeof(u16)];
+};
+
+#define LOCK_HASHMAP_LOCK_SIZE 320
+
+struct __attribute__ ((__packed__)) lock_hashmap_lock_t{
+    struct ticket_lock_t ticket_lock; //TICKET_LOCK_SIZE
+    s16 lock_holder; //2
+    struct lock_hashmap_reentrace_counter_t num_acquires_reads[LOCKHASH_MAX_THREADS]; //2
+    struct lock_hashmap_reentrace_counter_t num_acquires[LOCKHASH_MAX_THREADS]; //2
+#ifdef LOCKHASH_TRACK_HISTORY 
     u64 history_lock_ticket[LOCK_HISTORY_SIZE];
     u64 history_lock_holders[LOCK_HISTORY_SIZE];
     int history_lock_acquires[LOCK_HISTORY_SIZE];
@@ -45,8 +52,12 @@ struct lock_hashmap_lock_t{
     int history_lock_mode[LOCK_HISTORY_SIZE];
     int history_lock_threadid[LOCK_HISTORY_SIZE];
     atomic64_t history_lock_count;
+#else
+    u8 padding[34];
 #endif
 };
+
+//BUILD_BUG_ON(sizeof(lock_hashmap_lock_t) != 64);
 
 struct lock_hashmap_t{
     u64 total_locks;
@@ -65,6 +76,43 @@ static inline u32 __lock_hashmap_hash(u64 key, u32 mix, u64 size){
     return jhash_2words((u32)key, (u32)(key >> 32), mix) % size;
 }
 
+static inline void __lock_hashmap_inc_acquire_read(struct lock_hashmap_lock_t * lock, int thread_id){
+    lock->num_acquires_reads[thread_id].counter++;
+}
+
+static inline void __lock_hashmap_dec_acquire_read(struct lock_hashmap_lock_t * lock, int thread_id){
+    lock->num_acquires_reads[thread_id].counter--;
+}
+
+static inline u16 __lock_hashmap_get_acquire_read(struct lock_hashmap_lock_t * lock, int thread_id){
+    return lock->num_acquires_reads[thread_id].counter;
+}
+
+static inline void __lock_hashmap_inc_acquire(struct lock_hashmap_lock_t * lock, int thread_id){
+    lock->num_acquires[thread_id].counter++;
+}
+
+static inline void __lock_hashmap_dec_acquire(struct lock_hashmap_lock_t * lock, int thread_id){
+    lock->num_acquires[thread_id].counter--;
+}
+
+static inline u16 __lock_hashmap_get_acquire(struct lock_hashmap_lock_t * lock, int thread_id){
+    return lock->num_acquires[thread_id].counter;
+}
+
+static inline void __lock_hashmap_init_acquire(struct lock_hashmap_lock_t * lock){
+    int j;
+    for (j = 0; j < LOCKHASH_MAX_THREADS; j++) {
+	lock->num_acquires[j].counter = 0;
+	lock->num_acquires_reads[j].counter = 0;
+    }
+}
+
+static inline void lock_hashmap_prefetch_lock(struct lock_hashmap_t * lock_hashmap, uint64_t key){
+    u32 index = __lock_hashmap_hash(key, lock_hashmap->mix, lock_hashmap->total_locks);
+    struct lock_hashmap_lock_t * lock = &lock_hashmap->locks[index];
+    prefetchw(lock);
+}
 
 u64 __get_lock_hashmap_size(u64 orecs);
 
