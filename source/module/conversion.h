@@ -219,7 +219,7 @@ struct ksnap{
     atomic_t logging_pages_count;
     struct kmem_cache * logging_data_entry_mem_cache;
     /***DONE WITH LOGGING***/
-    
+    struct ticket_lock_t acquire_entry_locks_lock;
 };
 
 struct ksnap_user_data{
@@ -266,6 +266,7 @@ struct ksnap_user_data{
     unsigned long long fault_start_tsc;
     uint32_t randomMix;
     void * disassemble_cache;
+    struct ticket_lock_entry_t acquire_entry_locks_lock_entry;
 };
 
 /*this structure keeps track of commit priorities, when should an owner commit?*/

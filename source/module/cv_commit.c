@@ -606,13 +606,24 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   barrier();
   //setup the new "next" version
   cv_seg->uncommitted_version_entry = next_version_entry;
-  cv_per_page_version_walk(cv_user->dirty_pages_list, wait_list,
-			   cv_seg->ppv, cv_user, cv_seg, our_version_number);
+  //get a ticket for second phase of commit where we acquire locks
+  cv_user->acquire_entry_locks_lock_entry.our_ticket =
+      ticket_lock_get_ticket(&cv_seg->acquire_entry_locks_lock);
   //we've linearized this version...we can mark it as such for interested parties in userspace
   cv_meta_set_linearized_version(vma, our_version_number);
   COUNTER_LATENCY(FIRST_CRITICAL_SECTION_COMMIT, native_read_tsc() - temp_tsc);
-  spin_unlock(&cv_seg->lock);
   //GLOBAL LOCK RELEASED
+  spin_unlock(&cv_seg->lock);
+  //acquire global lock to acquire the entry locks
+  ticket_lock_acquire(&cv_seg->acquire_entry_locks_lock,
+		      &cv_user->acquire_entry_locks_lock_entry);
+  {
+      cv_per_page_version_walk(cv_user->dirty_pages_list, wait_list,
+			       cv_seg->ppv, cv_user, cv_seg, our_version_number);
+  }
+  //release global lock to acquire the entry locks
+  ticket_lock_release(&cv_seg->acquire_entry_locks_lock,
+		      &cv_user->acquire_entry_locks_lock_entry);
 
   //beging profiling operation
   cv_profiling_op_begin(&cv_user->profiling_info, CV_PROFILING_OP_TYPE_COMMIT,our_version_number);

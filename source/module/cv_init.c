@@ -101,7 +101,7 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
     vma->vm_file->f_ra.ra_pages=0;
   }
   cv_event_init(&user_data->event_info, &ksnap_data->start_time);
-  
+  ticket_lock_init_entry(&user_data->acquire_entry_locks_lock_entry);
   //calling anon_vma_prepare in the case that we don't have an anon_vma, bug if it returns non-zero;
   BUG_ON(anon_vma_prepare(vma));
 
@@ -178,6 +178,8 @@ struct ksnap * ksnap_init_snapshot (struct address_space * mapping, struct vm_ar
   ksnap_data->logging_data_entry_mem_cache=KMEM_CACHE(cv_logging_data_entry,0);
   //***********************************
   
+  ticket_lock_init(&ksnap_data->acquire_entry_locks_lock, TICKET_LOCK_MODE_NORMAL);
+
 #ifdef CV_DETERMINISM
   //make sure to do this after the hooks are initialized
   cv_determinism_init(ksnap_data);

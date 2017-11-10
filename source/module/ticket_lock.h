@@ -20,11 +20,19 @@ struct __attribute__ ((__packed__)) ticket_lock_t{
 
 #define TICKET_LOCK_SIZE 28
 
-
 struct ticket_lock_entry_t{
     u64 our_ticket;
     __ticket_lock_op_mode_t mode;
 };
+
+static u64 inline ticket_lock_get_ticket(struct ticket_lock_t * lock){
+    u64 ticket = (u64)atomic64_inc_return(&lock->next_ticket);
+    /*in the case that we've incremented and return the NULL_TICKET value, we need to get another ticket*/
+    if (ticket == NULL_TICKET) {
+        ticket = (u64)atomic64_inc_return(&lock->next_ticket);
+    }
+    return ticket;
+}
 
 void ticket_lock_init(struct ticket_lock_t * lock, ticket_lock_mode_t mode);
 
@@ -42,5 +50,6 @@ int ticket_lock_read_release(struct ticket_lock_t * lock, struct ticket_lock_ent
 
 void ticket_lock_init_entry(struct ticket_lock_entry_t * entry);
 
+void ticket_lock_acquire(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry);
 
 #endif

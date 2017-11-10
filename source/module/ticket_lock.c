@@ -16,12 +16,7 @@ int __ticket_lock_tryacquire(struct ticket_lock_t * lock, struct ticket_lock_ent
     BUG_ON(op_mode != TICKET_LOCK_OP_NORMAL && lock->mode == TICKET_LOCK_MODE_NORMAL);
     //do we need a ticket or do we have one already?
     if (entry->our_ticket == NULL_TICKET) {
-	u64 ticket = (u64)atomic64_inc_return(&lock->next_ticket);
-	/*in the case that we've incremented and return the NULL_TICKET value, we need to get another ticket*/
-	if (ticket == NULL_TICKET) {
-	    ticket = (u64)atomic64_inc_return(&lock->next_ticket);
-	}
-	entry->our_ticket = ticket;
+	entry->our_ticket = ticket_lock_get_ticket(lock);
     }
 
     if (atomic64_read(&lock->now_serving) == entry->our_ticket && lock->mode == TICKET_LOCK_MODE_NORMAL) {
@@ -47,9 +42,24 @@ int __ticket_lock_tryacquire(struct ticket_lock_t * lock, struct ticket_lock_ent
     return result;
 }
 
-
 int ticket_lock_trylock(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry){
     return __ticket_lock_tryacquire(lock, entry, TICKET_LOCK_OP_NORMAL);
+}
+
+void ticket_lock_acquire(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry){
+    int i;
+    u64 counter = 0;
+    const u64 SPIN_BASE = 10000;
+
+    while (1) {
+	if (ticket_lock_trylock(lock, entry)) {
+	    return;
+	}
+	else{
+	    counter <<= 1;
+	    for (i = 0; i < (SPIN_BASE * (counter)); i++) {  }
+	}
+    }
 }
 
 int ticket_lock_trywritelock(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry){
