@@ -548,7 +548,7 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         CV_LOG_MESSAGE( "logging COW dirty page count %d\n", cv_meta_get_dirty_page_count(vma));
 #endif
 #ifdef CV_COUNTERS_ON
-        if (logging_status_entry->logging_writes < CV_LOGGING_WRITES_THRESHOLD){
+        if (logging_status_entry->logging_writes >= CV_LOGGING_WRITES_THRESHOLD){
             INC(COUNTER_LOGGING_FAULT_PAGE_COPY_THRESHOLD_EXCEEDED);
         }
         else if (force_cow_page){
