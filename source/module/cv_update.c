@@ -481,14 +481,16 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)(pfn_to_kaddr(logging_status_entry->pfn))
                                             + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
                                             tmp_pte_list->page_index,
-                                            LOGGING_DEBUG_LINE,
+                                            (cv_logging_is_full_page(logging_entry)) ? 
+                                            LOGGING_DEBUG_LINE : logging_entry->line_index,
                                             "cv_update.c: after update ");
 
 
                 CV_LOGGING_DEBUG_PRINT_LINE((uint8_t *)((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start)
                                             + (CV_LOGGING_LOG_SIZE * LOGGING_DEBUG_LINE),
                                             tmp_pte_list->page_index,
-                                            LOGGING_DEBUG_LINE,
+                                            (cv_logging_is_full_page(logging_entry)) ? 
+                                            LOGGING_DEBUG_LINE : logging_entry->line_index,
                                             "cv_update.c: after update local addr ");
 
                 uint8_t * loggingdata_tmp = (cv_logging_is_full_page(logging_entry)) ?
@@ -497,7 +499,8 @@ void __cv_update_parallel(struct vm_area_struct * vma, unsigned long flags, uint
                 
                 CV_LOGGING_DEBUG_PRINT_LINE( loggingdata_tmp,
                                              tmp_pte_list->page_index,
-                                             LOGGING_DEBUG_LINE,
+                                             (cv_logging_is_full_page(logging_entry)) ? 
+                                             LOGGING_DEBUG_LINE : logging_entry->line_index,
                                              "cv_update.c: logging_entry data ");
                 
                 pte_t * tmp_pte = pte_get_entry_from_address(vma->vm_mm,((tmp_pte_list->page_index << PAGE_SHIFT) + vma->vm_start));
