@@ -86,7 +86,7 @@ typedef enum fun_table_kind {
   FUN_XMM0 // 128b SSE
 } fun_table_kind_t;
 
-fun_table_kind_t getFunTable(const ud_operand_t* src) {
+fun_table_kind_t getFunTable(const ud_operand_t* src, const ud_operand_t* dst) {
   switch (src->type) {
 
   case UD_OP_CONST:
@@ -96,7 +96,8 @@ fun_table_kind_t getFunTable(const ud_operand_t* src) {
     
   // for immediates, pick the right size and use the regular src-register fun table
   case UD_OP_IMM: {
-    switch (src->size) {
+    int imm_size = (src->size > dst->size) ? src->size : dst->size;
+    switch (imm_size) {
     case  8: return FUN_SIL; 
     case 16: return FUN_SI; 
     case 32: return FUN_ESI; 
@@ -639,6 +640,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   writeFlagsInsnFun flagsFun = NULL;
 
   switch (getFunTable(srcOp)) {
+  switch (getFunTable(srcOp, dstOp)) {
   case FUN_SIL: {
     movFun = NoWriteFlagsOpcode2FunTable_SIL[opcode];
     flagsFun = WriteFlagsOpcode2FunTable_SIL[opcode];
@@ -689,7 +691,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     return storeWidthBytes;
   }
   default:
-    printf("Invalid fun table: %d\n", getFunTable(srcOp));
+     printf("Invalid fun table: %d\n", getFunTable(srcOp, dstOp));
     return 0;
   }
 
