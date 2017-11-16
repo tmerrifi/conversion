@@ -7,22 +7,27 @@ struct ksnap;
 struct ksnap_user_data;
 struct cv_logging_page_status_entry;
 
+//#define CV_LOGGING_MERGE_AND_DIFF
+
+#define CV_LOGGING_COMPUTE_DIFF_PAGES 256
+
 #ifdef CV_FORCE_LOGGING
 //every N committed pages, we check to see if this page should be turned into a logging page
 //#define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 64
 #define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 1
 //how many 64bit words can be different in order to trigger a switch to logging
 #define CV_LOGGING_DIFF_THRESHOLD_64 64
-
 #else
 //every N committed pages, we check to see if this page should be turned into a logging page
-#define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 32
+#define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 128
 //how many 64bit words can be different in order to trigger a switch to logging
 #define CV_LOGGING_DIFF_THRESHOLD_64 3
 
 #endif //CV_FORCE_LOGGING
 
-#define CV_LOGGING_SWITCH_BITMASK ((1UL << 5) - 1)
+#define CV_LOGGING_DIFF_N 8
+
+#define CV_LOGGING_MERGE_N 8
 
 //size we log in bytes
 #define CV_LOGGING_LOG_SIZE 64UL
@@ -37,7 +42,7 @@ struct cv_logging_page_status_entry;
 
 #define CV_LOGGING_LINES_PER_PAGE (PAGE_SIZE/CV_LOGGING_LOG_SIZE)
 
-#define cv_logging_should_switch(bits) ((bits & CV_LOGGING_SWITCH_BITMASK)==CV_LOGGING_SWITCH_BITMASK)
+#define cv_logging_last_n_bits_set(bits, n) ((bits & ((1UL << n)-1))==((1UL << n)-1))
 
 #define cv_logging_is_full_page(e) (e->data_len>=PAGE_SIZE)
 

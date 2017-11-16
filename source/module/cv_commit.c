@@ -304,7 +304,7 @@ void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_st
   struct ksnap_user_data * cv_user;
   uint8_t * local_addr;
   pte_t page_table_e;
-  int merged_cachelines;
+  int qw_diff;
 
   cv_seg = ksnap_vma_to_ksnap(vma);
   cv_user = ksnap_vma_to_userdata(vma);
@@ -341,11 +341,17 @@ void cv_commit_page(struct cv_page_entry * version_list_entry, struct vm_area_st
           local_addr=(uint8_t *)((page_index << PAGE_SHIFT) + vma->vm_start);
           }*/
       INC(COUNTER_COMMIT_MERGE);
-      merged_cachelines = ksnap_merge(pfn_to_page(committed_entry->pfn),
+      qw_diff = ksnap_merge(pfn_to_page(committed_entry->pfn),
 				      local_addr,
 				      version_list_entry->ref_page,
 				      pfn_to_page(version_list_entry->pfn));
-      COUNTER_COMMIT_MERGE_DIFF_CACHELINES(merged_cachelines);
+      COUNTER_COMMIT_MERGE_DIFF_CACHELINES(qw_diff);
+      if (qw_diff < CV_LOGGING_DIFF_THRESHOLD_64) {
+         cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, page_index, 1);
+      }
+      else{
+         cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, page_index, 0);
+      }
       cv_per_page_update_logging_merge_bitmap(cv_seg->ppv, page_index, 1);
       cv_stats_inc_merged_pages(&cv_seg->cv_stats);
       cv_profiling_add_value(&cv_user->profiling_info,page_index,CV_PROFILING_VALUE_TYPE_MERGE);
@@ -487,6 +493,22 @@ void cv_commit_migrate_page_to_logging(struct vm_area_struct * vma,
 #endif
 }
 
+static inline int cv_commit_logging_switch(struct cv_per_page_version * ppv, uint32_t page_index){
+    int result = 0;
+    
+    u8 diff = cv_per_page_get_logging_diff_bitmap(ppv, page_index);
+    u8 merged = cv_per_page_get_logging_merge_bitmap(ppv, page_index);
+
+#ifdef CV_LOGGING_MERGE_AND_DIFF
+    result = cv_logging_last_n_bits_set(diff, CV_LOGGING_DIFF_N) && 
+           cv_logging_last_n_bits_set(merged, CV_LOGGING_MERGE_N);
+#else
+    result = cv_logging_last_n_bits_set(diff, CV_LOGGING_DIFF_N);
+#endif
+
+    return result;
+}
+
 int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
                                           struct snapshot_pte_list * pte_list_entry){
     uint8_t * local_addr;
@@ -498,10 +520,6 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
     cv_user=ksnap_vma_to_userdata(vma);
     cv_seg=ksnap_vma_to_ksnap(vma);
 
-    /* CV_LOG_MESSAGE( "is logging page %d, should check %d, %d\n", */
-    /*        cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index), */
-    /*        ((cv_user->committed_non_logging_entries++) % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES), CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES); */
-
 #ifdef CV_LOGGING_DISABLED
     return 0;
 #else
@@ -511,27 +529,29 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
         page_entry = cv_list_entry_get_page_entry(pte_list_entry);
         //first get the address of our page
         local_addr=compute_local_addr_for_diff(vma, page_entry->pfn, pte_list_entry->page_index, pte_list_entry->checkpoint);
-        //CV_LOG_MESSAGE( "doing a logging migration check...pid: %d %d diff? %d\n", current->pid, pte_list_entry->page_index, cv_logging_diff_64(local_addr, page_entry->ref_page));
-        //now do a diff to see how many 64bit words changed
-        if ((diff=cv_logging_diff_64(local_addr, page_entry->ref_page))<=CV_LOGGING_DIFF_THRESHOLD_64){
-            //CV_LOG_MESSAGE( "doing a logging migration check...diff %d...pid: %d...bitmap %lu\n", diff,current->pid,
-            //   cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index) & 0xFUL);
-            COUNTER_MIGRATION_CHECK(diff);
-            cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 1);
-            //should we switch over to logging, check the diff and merge bitmaps?
-            if (cv_logging_should_switch(cv_per_page_get_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index)) &&
-		cv_logging_should_switch(cv_per_page_get_logging_merge_bitmap(cv_seg->ppv, pte_list_entry->page_index))) {
-                /* CV_LOG_MESSAGE( "migration check...time to switch pid: %d, page index: %d\n", */
-                /*      current->pid, pte_list_entry->page_index); */
-                INC(COUNTER_LOGGING_MIGRATIONS);
-                result=1;
-            }
+
+        //now do a diff to see how many 64bit words changed, if we have CV_LOGGING_MERGE_AND_DIFF turned on
+
+        if (cv_user->committed_non_logging_entries % CV_LOGGING_COMPUTE_DIFF_PAGES == 0) {
+           if ((diff = cv_logging_diff_64(local_addr, page_entry->ref_page)) <= CV_LOGGING_DIFF_THRESHOLD_64) {
+               COUNTER_MIGRATION_CHECK(diff);
+               cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 1);
+               //should we switch over to logging, check the diff and merge bitmaps?
+           }
+           else{
+              cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 0);
+           }
+           COUNTER_MIGRATION_CHECK(diff);
+        }
+
+        if (cv_commit_logging_switch(cv_seg->ppv, pte_list_entry->page_index)) {
+            INC(COUNTER_LOGGING_MIGRATIONS);
+            result=1;
         }
         else{
-            cv_per_page_update_logging_diff_bitmap(cv_seg->ppv, pte_list_entry->page_index, 0);
             INC(COUNTER_LOGGING_MIGRATION_CHECK_FAILED);
-            COUNTER_MIGRATION_CHECK(diff);
         }
+
     }
     return result;
 #endif //CV_LOGGING_DISABLED
