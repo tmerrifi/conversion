@@ -639,7 +639,6 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   movInsnFun movFun = NULL;
   writeFlagsInsnFun flagsFun = NULL;
 
-  switch (getFunTable(srcOp)) {
   switch (getFunTable(srcOp, dstOp)) {
   case FUN_SIL: {
     movFun = NoWriteFlagsOpcode2FunTable_SIL[opcode];
