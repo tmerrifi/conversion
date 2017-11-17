@@ -523,9 +523,10 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
 #ifdef CV_LOGGING_DISABLED
     return 0;
 #else
+    cv_user->committed_non_logging_entries++;
     //don't want to do this too often - its kinda expensive!
     if (!cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index) &&
-        cv_user->committed_non_logging_entries++ % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES == 0){
+        cv_user->committed_non_logging_entries % CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES == 0){
         page_entry = cv_list_entry_get_page_entry(pte_list_entry);
         //first get the address of our page
         local_addr=compute_local_addr_for_diff(vma, page_entry->pfn, pte_list_entry->page_index, pte_list_entry->checkpoint);
