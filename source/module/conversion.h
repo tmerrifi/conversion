@@ -104,6 +104,8 @@ struct cv_logging_entry{
     uint8_t * local_checkpoint_data;
     uint8_t dirty; //used by checkpoint to make sure we don't checkpoint the same data twice
     struct lock_hashmap_entry_t logging_hashmap_entry;
+    uint64_t page_lock_index;
+    uint64_t logging_lock_index;
 };
 
 struct cv_page_entry{
@@ -112,6 +114,7 @@ struct cv_page_entry{
     unsigned long pfn;
     struct page * ref_page;
     struct page * local_checkpoint_page;
+    uint64_t page_lock_index;
 };
 
 typedef enum{ CV_DIRTY_LIST_ENTRY_TYPE_PAGING=0, CV_DIRTY_LIST_ENTRY_TYPE_LOGGING=1} dirty_list_entry_type;

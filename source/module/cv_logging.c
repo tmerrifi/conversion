@@ -437,13 +437,14 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
         dirty_list_entry->checkpoint = 0;
         dirty_list_entry->wait_revision = 0;
 	lock_hashmap_init_entry(&dirty_list_entry->page_hashmap_entry, cv_user->id);
-
         logging_entry = cv_list_entry_get_logging_entry(dirty_list_entry);
         logging_entry->addr = (faulting_addr & CV_LOGGING_LOG_MASK);
         logging_entry->data_len = CV_LOGGING_LOG_SIZE;
         logging_entry->line_index = cv_logging_line_index(faulting_addr);
         logging_entry->data = NULL;
         logging_entry->local_checkpoint_data = NULL;
+        logging_entry->page_lock_index = cv_logging_get_index(page_index, logging_entry->line_index, 1 /*is page level*/);
+        logging_entry->logging_lock_index = cv_logging_get_index(page_index, logging_entry->line_index, 0 /*is logging level*/);
 	lock_hashmap_init_entry(&logging_entry->logging_hashmap_entry, cv_user->id);
 
 #ifdef LOGGING_LATENCY_TRACING    

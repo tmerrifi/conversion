@@ -159,6 +159,7 @@ void ksnap_add_dirty_page_to_list (struct vm_area_struct * vma, struct page * ol
       cv_page->addr = address;
       cv_page->pfn = pte_pfn(*new_pte);
       cv_page->ref_page = old_page;
+      cv_page->page_lock_index = cv_logging_get_index(pte_list_entry->page_index, 0 , 1 /*is page level*/);
       conv_set_checkpoint_page(cv_page,0);
       /*now we need to add the pte to the list */
       list_add_tail(&pte_list_entry->list, &dirty_pages_list->list);
