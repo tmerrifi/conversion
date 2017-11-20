@@ -37,13 +37,11 @@ struct __attribute__ ((__packed__)) lock_hashmap_reentrace_counter_t{
     //u8 padding[64 - sizeof(u16)];
 };
 
-#define LOCK_HASHMAP_LOCK_SIZE 320
-
 struct __attribute__ ((__packed__)) lock_hashmap_lock_t{
     struct ticket_lock_t ticket_lock; //TICKET_LOCK_SIZE
     s16 lock_holder; //2
-    struct lock_hashmap_reentrace_counter_t num_acquires_reads[LOCKHASH_MAX_THREADS]; //2
-    struct lock_hashmap_reentrace_counter_t num_acquires[LOCKHASH_MAX_THREADS]; //2
+    struct lock_hashmap_reentrace_counter_t num_acquires_reads[LOCKHASH_MAX_THREADS]; //2*128=
+    struct lock_hashmap_reentrace_counter_t num_acquires[LOCKHASH_MAX_THREADS]; //2*128=
 #ifdef LOCKHASH_TRACK_HISTORY 
     u64 history_lock_ticket[LOCK_HISTORY_SIZE];
     u64 history_lock_holders[LOCK_HISTORY_SIZE];
@@ -52,8 +50,6 @@ struct __attribute__ ((__packed__)) lock_hashmap_lock_t{
     int history_lock_mode[LOCK_HISTORY_SIZE];
     int history_lock_threadid[LOCK_HISTORY_SIZE];
     atomic64_t history_lock_count;
-#else
-    u8 padding[34];
 #endif
 };
 

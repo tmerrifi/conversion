@@ -30,16 +30,10 @@ int __lock_hashmap_init_ticket(struct lock_hashmap_t * lock_hashmap, lock_hashma
 
     ticket_lock_mode_t mode;
     
-    BUILD_BUG_ON(sizeof(struct lock_hashmap_lock_t) != LOCK_HASHMAP_LOCK_SIZE);
-
     if ((lock_hashmap->locks = kmalloc(lock_hashmap->total_locks * 
 				       sizeof(struct lock_hashmap_lock_t) + 64, GFP_KERNEL)) == NULL ){
 	return 0;
     }
-
-    //align to cacheline
-    lock_hashmap->locks = (struct lock_hashmap_lock_t *)(((unsigned long)lock_hashmap->locks) & (~((1UL << 6) - 1)));
-    BUG_ON(!IS_ALIGNED((unsigned long)lock_hashmap->locks, 64));
 
     for ( i = 0; i < lock_hashmap->total_locks; i++ ) {
 	switch (lock_type) {
