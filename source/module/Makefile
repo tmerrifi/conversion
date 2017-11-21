@@ -11,7 +11,7 @@ ksnapmod-y = cv_main.o ksnap_writer.o ksnap_version_list.o cv_commit.o cv_update
 #-DCV_PROFILING_ON - Keeps track of information about each commit and then can be printed to the log from userspace
 #-DCV_DETERMINISM - Used with consequence to support deterministic execution
 
-KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement #-DCV_DETERMINISM -DCV_HOOKS
+KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement -DCV_COUNTERS_ON #-DCV_DETERMINISM -DCV_HOOKS
 
 all: cv_main.c ksnap_writer.c ksnap_version_list.c cv_commit.c cv_update.c cv_garbage.c cv_per_page_version.c cv_stats.c cv_init.c cv_meta_data.c cv_merge.c cv_pte.c cv_fork.c cv_close.c cv_revert.c cv_checkpoint.c cv_determinism.c
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

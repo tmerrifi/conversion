@@ -16,6 +16,7 @@
 #include "cv_profiling.h"
 #include "cv_defer_work.h"
 
+
 #define SNAPSHOT_PREFIX "snapshot"
 #define SNAPSHOT_DEBUG Y
 
@@ -183,6 +184,8 @@ struct ksnap_user_data{
     struct cv_profiling_ops profiling_info;
     struct cv_defer_work defer_work;
     struct kmem_cache * deferred_work_mem_cache;
+    uint64_t * counters;
+
 #ifdef CV_DETERMINISM
     uint32_t clock_tick_buffer; //keeps clock ticks buffered for some time
 #endif //CV_DETERMINISM

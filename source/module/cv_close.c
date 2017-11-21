@@ -15,6 +15,8 @@
 #include "cv_event.h"
 #include "cv_memory_accounting.h"
 
+#include "cv_counters.h"
+
 void cv_close(struct vm_area_struct * vma){
 
   struct address_space * mapping = vma->vm_file->f_mapping;
@@ -36,6 +38,8 @@ void cv_close(struct vm_area_struct * vma){
     cv_memory_accounting_print(cv);
   }
   cv_event_print(&cv_user->event_info, cv_user->id);
+  counters_print_all(cv_user);
+
   //deregister this vma
   list_del(&cv_user->segment_list);
   if (list_empty(&cv->segment_list)){

@@ -33,6 +33,7 @@
 #include "cv_debugging.h"
 #include "cv_dirty.h"
 #include "cv_event.h"
+#include "cv_counters.h"
 
 //remove the old page from the page cache, handle its LRU stuff, etc...
 int __remove_old_page(struct address_space * mapping, struct vm_area_struct * vma, 
@@ -150,6 +151,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   if (vma==NULL || vma->vm_file==NULL || vma->vm_file->f_mapping==NULL){
     return;
   }
+
+#ifdef CV_COUNTERS_ON    
+  unsigned long long temp_tsc=native_read_tsc();
+#endif
 
 #ifdef CONV_LOGGING_ON
       printk(KSNAP_LOG_LEVEL "CONVERSION: IN COMMIT %d vma %p\n", current->pid, vma);
@@ -299,6 +304,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   }
   cv_meta_set_dirty_page_count(vma, 0);
   cv_stats_end(cv_seg, cv_user, 0, commit_latency);
+
+  COUNTER_LATENCY(ENTIRE_COMMIT, native_read_tsc() - temp_tsc);
+
+
 #ifdef CONV_LOGGING_ON
     printk(KSNAP_LOG_LEVEL "IN COMMIT COMPLETE %d for segment %p, committed pages %d....our version num %lu committed %lu next %lu\n", 
 	   current->pid, cv_seg, committed_pages, our_version_number, cv_seg->committed_version_num, cv_seg->next_avail_version_num);

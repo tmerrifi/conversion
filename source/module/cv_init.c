@@ -20,6 +20,8 @@
 #include "cv_profiling.h"
 #include "cv_determinism.h"
 
+#include "cv_counters.h"
+
 MODULE_LICENSE("GPL");
 
 int ksnap_tracking_on(struct vm_area_struct * vma){
@@ -74,6 +76,11 @@ int ksnap_open (struct vm_area_struct * vma, unsigned long flags){
   user_data->last_commit_time.tv_sec=0;
   user_data->dirty_pages_list = _snapshot_create_pte_list();
   user_data->cv_seg=ksnap_data;
+
+  #ifdef CV_COUNTERS_ON
+  user_data->counters=init_counters();
+#endif
+
   user_data->status=CV_USER_STATUS_AWAKE;
   cv_defer_work_init(&user_data->defer_work);
   //deferred work entry allocation should be fast
