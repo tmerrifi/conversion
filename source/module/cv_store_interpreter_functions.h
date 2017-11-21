@@ -1,6 +1,8 @@
 #ifndef CV_STORE_INTERP_FUNCS
 #define CV_STORE_INTERP_FUNCS
 
+//#define CV_STORE_INTERP_DEBUG
+
 #if defined(__KERNEL__)
 #if defined(CV_STORE_INTERP_DEBUG)
 #define printf(...) printk(KERN_INFO __VA_ARGS__)

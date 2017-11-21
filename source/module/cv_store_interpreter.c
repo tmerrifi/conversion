@@ -546,6 +546,9 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   ud_set_input_buffer(dis_obj, bytes, bytesLength);
   ud_set_mode(dis_obj, 64);
   ud_set_vendor(dis_obj, UD_VENDOR_INTEL);
+#ifdef CV_STORE_INTERP_DEBUG
+  ud_set_syntax(dis_obj, UD_SYN_INTEL);
+#endif
 
 #ifdef LOGGING_LATENCY_TRACING    
     tscs[1]=native_read_tsc();
@@ -561,7 +564,7 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
 #endif
   
  hit:
-  
+  printf("decoded: rip: %lx, ins: %s, current: %d\n", context->ip, dis_obj->asm_buf, current->pid);
   if (0 == lengthInBytes) {
     printf("Decoded 0 bytes\n");
     return 0;
@@ -571,7 +574,6 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   tscs[2]=native_read_tsc();
 #endif
 
-  
   unsigned numOperands = getNumOperands(dis_obj);
   if (0 == numOperands || numOperands > 2) {
     printf("can't handle %u operands\n", numOperands);
@@ -734,6 +736,9 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
 
   movInsnFun movFun = NULL;
   writeFlagsInsnFun flagsFun = NULL;
+
+//printk(KERN_INFO "decoded: rip: %lx, ins: %s, src_width: %d, dst_width: %d\n",
+//       context->ip, dis_obj->asm_buf, srcOp->size, dstOp->size);
 
   switch (getFunTable(srcOp, dstOp)) {
   case FUN_SIL: {
