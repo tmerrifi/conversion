@@ -196,6 +196,10 @@ int init_module(void)
   mmap_snapshot_instance.conversion_thread_status=conversion_thread_status;
   //mmap_snapshot_instance.conv_cow_user_page=conv_cow_user_page;
   
+  mmap_snapshot_instance.logging_on_fault = NULL;
+  mmap_snapshot_instance.fault_start = NULL;
+  mmap_snapshot_instance.fault_end = NULL;
+
   register_die_notifier(&nmi_snap_nb);
   ksnap_merge_init();
   printk(KSNAP_LOG_LEVEL "vfork!! %d\n", __NR_vfork);
@@ -218,6 +222,10 @@ void cleanup_module(void)
     mmap_snapshot_instance.ksnap_userdata_copy = NULL;
     mmap_snapshot_instance.ksnap_tracking_on = NULL;
     mmap_snapshot_instance.conversion_thread_status=NULL;
+    mmap_snapshot_instance.logging_on_fault = NULL;
+    mmap_snapshot_instance.fault_start = NULL;
+    mmap_snapshot_instance.fault_end = NULL;
+
     //mmap_snapshot_instance.conv_cow_user_page=NULL;
     cv_merge_free();
     unregister_die_notifier(&nmi_snap_nb);
