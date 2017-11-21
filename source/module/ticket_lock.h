@@ -13,7 +13,7 @@ typedef enum { TICKET_LOCK_OP_NORMAL, TICKET_LOCK_OP_READ, TICKET_LOCK_OP_WRITE,
 
 struct __attribute__ ((__packed__)) ticket_lock_t{
     atomic64_t now_serving;
-    atomic64_t next_ticket;
+    u64 next_ticket;
     atomic64_t readers;
     ticket_lock_mode_t mode;
 }; //(8+8+8+4)=28 bytes
@@ -26,10 +26,10 @@ struct ticket_lock_entry_t{
 };
 
 static u64 inline ticket_lock_get_ticket(struct ticket_lock_t * lock){
-    u64 ticket = (u64)atomic64_inc_return(&lock->next_ticket);
+    u64 ticket = ++(lock->next_ticket);
     /*in the case that we've incremented and return the NULL_TICKET value, we need to get another ticket*/
     if (ticket == NULL_TICKET) {
-        ticket = (u64)atomic64_inc_return(&lock->next_ticket);
+        ticket = ++(lock->next_ticket);
     }
     return ticket;
 }
