@@ -222,7 +222,6 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
         
         //are we a full page or just a cache line?
         if (cv_logging_is_full_page(logging_entry)){
-
             //there are two possibilities here. Firstly, the latest version committed
             //could be full page. In which case we are in luck and only have to merge
             //with that page
@@ -270,6 +269,8 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
     memcpy(logging_entry->data, (uint8_t *)logging_entry->addr, logging_entry->data_len);
     
     if (cv_logging_is_full_page(logging_entry)){
+       INC(COUNTER_COMMIT_LOGGING_FULLPAGE_ENTRY);
+       //printk(KERN_INFO "logging: full %d\n", entry->page_index);
         //need to write protect again
         pte_temp = pte_wrprotect(*logging_page_status->pte);	
         //set it back
@@ -283,6 +284,8 @@ void cv_commit_logging_entry(struct cv_logging_entry * logging_entry, struct sna
         BUG_ON(logging_page_status->logging_writes > 0);
     }
     else{
+       INC(COUNTER_COMMIT_LOGGING_SMALL_ENTRY);
+       //printk(KERN_INFO "logging: log %d\n", entry->page_index);
         logging_page_status->lines[logging_entry->line_index]=NULL;
         __remove_old_logging_line(cv_seg, entry, entry->page_index, logging_entry->line_index, our_version_number);
         logging_page_status->logging_writes=0;
@@ -521,7 +524,11 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
     cv_seg=ksnap_vma_to_ksnap(vma);
 
 #ifdef CV_LOGGING_DISABLED
-    return 0;
+    result = 0;
+#elif CV_FORCE_LOGGING
+    if (!cv_per_page_is_logging_page(cv_seg->ppv, pte_list_entry->page_index)){
+       result = 1;
+    }
 #else
     cv_user->committed_non_logging_entries++;
     //don't want to do this too often - its kinda expensive!
@@ -554,8 +561,8 @@ int cv_commit_do_logging_migration_check(struct vm_area_struct * vma,
         }
 
     }
-    return result;
 #endif //CV_LOGGING_DISABLED
+    return result;
 }
 
 /*This is the main commit function. */
@@ -635,6 +642,10 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
   COUNTER_LATENCY(FIRST_CRITICAL_SECTION_COMMIT, native_read_tsc() - temp_tsc);
   //GLOBAL LOCK RELEASED
   spin_unlock(&cv_seg->lock);
+
+#ifdef CV_COUNTERS_ON    
+  temp_tsc=native_read_tsc();
+#endif
   //acquire global lock to acquire the entry locks
   ticket_lock_acquire(&cv_seg->acquire_entry_locks_lock,
 		      &cv_user->acquire_entry_locks_lock_entry);
@@ -642,6 +653,8 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
       cv_per_page_version_walk(cv_user->dirty_pages_list, wait_list,
 			       cv_seg->ppv, cv_user, cv_seg, our_version_number);
   }
+  COUNTER_LATENCY(ACQ_PERENTRY_LOCKS_COMMIT, native_read_tsc() - temp_tsc);
+
   //release global lock to acquire the entry locks
   ticket_lock_release(&cv_seg->acquire_entry_locks_lock,
 		      &cv_user->acquire_entry_locks_lock_entry);

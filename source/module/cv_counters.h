@@ -7,7 +7,8 @@ COUNTER_ ##name## _CYCLES_0_499,COUNTER_ ##name## _CYCLES_500_999, COUNTER_ ##na
 COUNTER_ ##name## _CYCLES_3000_4999, COUNTER_ ##name## _CYCLES_5000_6999, COUNTER_ ##name## _CYCLES_7000_9999, COUNTER_ ##name## _CYCLES_10000_12999,\
 COUNTER_ ##name## _CYCLES_13000_17999, COUNTER_ ##name## _CYCLES_18000_24999, COUNTER_ ##name## _CYCLES_25000_35999, COUNTER_ ##name## _CYCLES_36000_39999,\
 COUNTER_ ##name## _CYCLES_40000_49999, COUNTER_ ##name## _CYCLES_50000_59999, COUNTER_ ##name## _CYCLES_60000_69999, COUNTER_ ##name## _CYCLES_70000_79999,\
-COUNTER_ ##name## _CYCLES_80000_89999, COUNTER_ ##name## _CYCLES_90000_99999, COUNTER_ ##name## _CYCLES_INF, COUNTER_ ##name## _CYCLES_TOTAL
+COUNTER_ ##name## _CYCLES_80000_89999, COUNTER_ ##name## _CYCLES_90000_99999, COUNTER_ ##name## _CYCLES_100000_199999, COUNTER_ ##name## _CYCLES_200000_299999, \ 
+COUNTER_ ##name## _CYCLES_300000_399999, COUNTER_ ##name## _CYCLES_INF, COUNTER_ ##name## _CYCLES_TOTAL
 
 
 
@@ -46,6 +47,7 @@ typedef enum{COUNTER_FIRST=0,
     /*commit logging counters*/
     COUNTER_COMMIT_LOGGING_NO_MERGE, COUNTER_COMMIT_LOGGING_FAST_PAGE_MERGE, 
     COUNTER_COMMIT_LOGGING_SLOW_PAGE_MERGE, COUNTER_COMMIT_LOGGING_FAST_LINE_MERGE,
+    COUNTER_COMMIT_LOGGING_FULLPAGE_ENTRY, COUNTER_COMMIT_LOGGING_SMALL_ENTRY,
     /*update latency counters*/
     COUNTER_UPDATE_CYCLES_LT_10000,COUNTER_UPDATE_CYCLES_LT_50000,COUNTER_UPDATE_CYCLES_LT_100000,COUNTER_UPDATE_CYCLES_LT_200000,
     COUNTER_UPDATE_CYCLES_LT_500000,COUNTER_UPDATE_CYCLES_INF,COUNTER_UPDATE_CYCLES_TOTAL,
@@ -60,6 +62,7 @@ typedef enum{COUNTER_FIRST=0,
     LATENCY_COUNTER_DEFINE(WAIT_LIST_COMMIT),
     /*How much time is spent waiting on others during commit*/
     LATENCY_COUNTER_DEFINE(WAIT_ON_OTHERS_COMMIT),
+    LATENCY_COUNTER_DEFINE(ACQ_PERENTRY_LOCKS_COMMIT),
     /*merge-related counters*/
     COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_4, COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_8, 
     COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_16, COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_32,
@@ -321,6 +324,15 @@ typedef enum{COUNTER_FIRST=0,
     else if (cycles < 100000) {                                                  \
     INC(COUNTER_ ##name## _CYCLES_90000_99999);                            \
     }                                                                    \
+    else if (cycles < 200000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_100000_199999);                            \
+    }                                                                    \
+    else if (cycles < 300000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_200000_299999);                            \
+    }                                                                    \
+    else if (cycles < 400000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_300000_399999);                            \
+    }                                                                    \
     else {                                                  \
     INC(COUNTER_ ##name## _CYCLES_INF);                                    \
     }                                                                    
@@ -344,6 +356,9 @@ PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_60000_69999, 60000, 69999); \
 PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_70000_79999, 70000, 79999); \
 PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_80000_89999, 80000, 89999); \
 PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_90000_99999, 90000, 99999); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_100000_199999, 100000, 199999); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_200000_299999, 200000, 299999); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_300000_399999, 300000, 399999); \
 PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_INF, 100000, 1000000); \
 PRINT_COUNTER(COUNTER_ ##name## _CYCLES_TOTAL);
 
@@ -391,6 +406,8 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     printk(CV_LOG_LEVEL "***COMMIT page counters***\n");
     PRINT_COUNTER(COUNTER_COMMIT_MERGE);
     PRINT_COUNTER(COUNTER_COMMIT_NO_MERGE);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_FULLPAGE_ENTRY);
+    PRINT_COUNTER(COUNTER_COMMIT_LOGGING_SMALL_ENTRY);
     printk(CV_LOG_LEVEL "***UPDATE page counters***\n");
     PRINT_COUNTER(COUNTER_UPDATE_PAGE);
     PRINT_COUNTER(COUNTER_UPDATE_PAGE_MERGE);
@@ -454,6 +471,7 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     LATENCY_COUNTER_PRINT(FIRST_CS_ACQ_TIME_COMMIT);
     LATENCY_COUNTER_PRINT(UNCONTENDED_LIST_COMMIT);
     LATENCY_COUNTER_PRINT(ACQUIRE_ENTRY_LOCK_CVP);
+    LATENCY_COUNTER_PRINT(ACQ_PERENTRY_LOCKS_COMMIT);
     printk(CV_LOG_LEVEL "***merge diffs in cachelines***\n");
     PRINT_COUNTER(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_4);
     PRINT_COUNTER(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_8);
