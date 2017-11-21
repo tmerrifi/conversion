@@ -540,8 +540,6 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
                                   logging_status_entry, faulting_addr,
                                   logging_status_entry->pte, force_cow_page);
 
-        logging_status_entry->logging_writes=0;
-        logging_status_entry->entries_allocated=0;
 #ifdef CONV_LOGGING_ON
         CV_LOG_MESSAGE( "cow page index: %d, pid: %d, data: %d\n",
                dirty_list_entry->page_index, current->pid,
@@ -559,6 +557,8 @@ int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct 
             INC(COUNTER_LOGGING_FAULT_PAGE_COPY_OTHER);
         }
 #endif
+        logging_status_entry->logging_writes=0;
+        logging_status_entry->entries_allocated=0;
     }
     else if (allocated_new_entry){
         INC(COUNTER_LOGGING_FAULT_INTERPRET_ALLOC);
