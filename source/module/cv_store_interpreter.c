@@ -75,6 +75,94 @@ struct pt_regs {
 #include "cv_store_interpreter_functions.h"
 #include "createStoreInterpreterFunctions/cv_store_interpreter_functions.c"
 
+/*0x0000000000001c0f <+1759>*/
+
+static inline void MOVSD_XMM0(void* dstAddress) {
+ __asm__("movsd  %%xmm0, (%%rdi)\n\t"
+         : /*no output registers*/
+         : "D"(dstAddress) /*input registers*/
+         : /*no clobbered registers*/
+         );
+}
+
+static inline void MOVSD_XMM1(void* dstAddress) {
+ __asm__("movsd  %%xmm1, (%%rdi)\n\t"
+         : /*no output registers*/
+         : "D"(dstAddress) /*input registers*/
+         : /*no clobbered registers*/
+         );
+}
+
+static inline void MOVSD_XMM2(void* dstAddress) {
+ __asm__("movsd  %%xmm2, (%%rdi)\n\t"
+         : /*no output registers*/
+         : "D"(dstAddress) /*input registers*/
+         : /*no clobbered registers*/
+         );
+}
+
+static inline void MOVSD_XMM3(void* dstAddress) {
+ __asm__("movsd  %%xmm3, (%%rdi)\n\t"
+         : /*no output registers*/
+         : "D"(dstAddress) /*input registers*/
+         : /*no clobbered registers*/
+         );
+}
+
+static inline void MOVSD_XMM5(void* dstAddress) {
+ __asm__("movsd  %%xmm5, (%%rdi)\n\t"
+         : /*no output registers*/
+         : "D"(dstAddress) /*input registers*/
+         : /*no clobbered registers*/
+         );
+}
+
+static inline void MOVSD_XMM6(void* dstAddress) {
+ __asm__("movsd  %%xmm6, (%%rdi)\n\t"
+         : /*no output registers*/
+         : "D"(dstAddress) /*input registers*/
+         : /*no clobbered registers*/
+         );
+}
+
+static inline  void MOVSD_XMM7(void* dstAddress) {
+ __asm__("movsd  %%xmm7, (%%rdi)\n\t"
+         : /*no output registers*/
+         : "D"(dstAddress) /*input registers*/
+         : /*no clobbered registers*/
+         );
+}
+
+static inline int movsd_xmm(void* dstAddress, const ud_operand_t* src){
+  switch (src->base) {
+  case UD_R_XMM0:
+    MOVSD_XMM0(dstAddress);
+    break;
+  case UD_R_XMM1:
+    MOVSD_XMM1(dstAddress);
+    break;
+  case UD_R_XMM2:
+    MOVSD_XMM2(dstAddress);
+    break;
+  case UD_R_XMM3:
+    MOVSD_XMM3(dstAddress);
+    break;
+  case UD_R_XMM5:
+    MOVSD_XMM5(dstAddress);
+    break;
+  case UD_R_XMM6:
+    MOVSD_XMM6(dstAddress);
+    break;
+  case UD_R_XMM7:
+    MOVSD_XMM7(dstAddress);
+    break;
+  default:
+    return 0;
+  }
+
+  return 1;
+}
+
 typedef enum fun_table_kind {
   FUN_NONE,
   FUN_SIL, // low 8b
@@ -623,9 +711,17 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
     return 0;
   }
 
-  if (opcode < 0 || opcode > CV_LAST_VALID_OPCODE) {
+  if (opcode < 0 || (opcode > CV_LAST_VALID_OPCODE && opcode != UD_Imovsd)) {
     printf("opcode out-of-bounds: %u\n", opcode);
     return 0;
+  }
+
+  //verify our hack to support movsd
+  if (opcode == UD_Imovsd) {
+    if (srcOp->type != UD_OP_REG) {
+      printf("movsd is invalid\n");
+      return 0;
+    }
   }
 
 #ifdef LOGGING_LATENCY_TRACING    
@@ -667,6 +763,16 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   }
   case FUN_MMX0: 
   case FUN_XMM0: {
+    if (opcode == UD_Imovsd) {
+      if (movsd_xmm(dstAddress, srcOp) == 0){
+        return 0;
+      }
+      context->ip += lengthInBytes;
+      cache_entry->valid=1;
+      put_cpu_var(disassemble_cache);
+      return storeWidthBytes;
+    }
+    
     simdMovInsnFun* regTable = SIMDOpcode2RegTable[opcode];
     if (NULL == regTable) {
       printf("Invalid SIMD opcode %u", opcode);
