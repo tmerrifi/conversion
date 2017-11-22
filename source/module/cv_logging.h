@@ -11,6 +11,8 @@ struct cv_logging_page_status_entry;
 
 #define CV_LOGGING_COMPUTE_DIFF_PAGES 256
 
+#define CV_FORCE_LOGGING 1
+
 #ifdef CV_FORCE_LOGGING
 //every N committed pages, we check to see if this page should be turned into a logging page
 //#define CV_LOGGING_DIFF_CHECK_COMMITTED_PAGES 64

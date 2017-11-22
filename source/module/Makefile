@@ -19,8 +19,6 @@ ksnapmod-y += libudis86/decode.o libudis86/itab.o libudis86/syn-att.o libudis86/
 
 ifeq ($(LOGGING),false)
 	LOGGING_MODE = -DCV_LOGGING_DISABLED
-else
-	LOGGING_MODE = -DCV_FORCE_LOGGING
 endif
 
 ifeq ($(COUNTERS),false)
