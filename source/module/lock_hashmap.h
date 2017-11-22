@@ -25,6 +25,10 @@
 #define LOCK_HASHMAP_MAX_ATTEMPTS (1<<15)
 
 typedef enum {
+   LOCK_HASHMAP_ACQ_ONLY_GET_TICKET, LOCK_HASHMAP_ACQ_NORMAL
+} lock_hashmap_acq_mode_t;
+
+typedef enum {
     LOCK_HASHMAP_TICKET, LOCK_HASHMAP_RW_LOCK
 } lock_hashmap_type_t;
 
@@ -66,6 +70,7 @@ struct lock_hashmap_entry_t{
     struct ticket_lock_entry_t ticket_entry;
     int thread_id;
     int attempts;
+    int succeeded;
 };
 
 static inline u32 __lock_hashmap_hash(u64 key, u32 mix, u64 size){
@@ -110,19 +115,32 @@ static inline void lock_hashmap_prefetch_lock(struct lock_hashmap_t * lock_hashm
     prefetchw(lock);
 }
 
+static inline int lock_hashmap_is_lock_entry_held(struct lock_hashmap_entry_t * entry){
+   return entry->succeeded;
+}
+
+static inline int lock_hashmap_set_lock_entry_held(struct lock_hashmap_entry_t * entry){
+   entry->succeeded = 1;
+}
+
+static inline int lock_hashmap_set_lock_entry_free(struct lock_hashmap_entry_t * entry){
+   entry->succeeded = 0;
+}
+
+
 u64 __get_lock_hashmap_size(u64 orecs);
 
 int lock_hashmap_init(struct lock_hashmap_t * lock_hashmap, u64 orecs, u32 mix, lock_hashmap_type_t lock_type);
 
-int lock_hashmap_trylock(struct lock_hashmap_t * lock_hashmap, u64 key, struct lock_hashmap_entry_t * entry);
+int lock_hashmap_trylock(struct lock_hashmap_t * lock_hashmap, u64 key, struct lock_hashmap_entry_t * entry, lock_hashmap_acq_mode_t acq_mode);
 
 int lock_hashmap_release(struct lock_hashmap_t * lock_hashmap, uint64_t key, struct lock_hashmap_entry_t * entry);
 
 void lock_hashmap_init_entry(struct lock_hashmap_entry_t * entry, int thread_id);
 
-int lock_hashmap_trywritelock(struct lock_hashmap_t * lock_hashmap, u64 key, struct lock_hashmap_entry_t * entry);
+int lock_hashmap_trywritelock(struct lock_hashmap_t * lock_hashmap, u64 key, struct lock_hashmap_entry_t * entry, lock_hashmap_acq_mode_t acq_mode);
 
-int lock_hashmap_tryreadlock(struct lock_hashmap_t * lock_hashmap, u64 key, struct lock_hashmap_entry_t * entry);
+int lock_hashmap_tryreadlock(struct lock_hashmap_t * lock_hashmap, u64 key, struct lock_hashmap_entry_t * entry, lock_hashmap_acq_mode_t acq_mode);
 
 int lock_hashmap_write_release(struct lock_hashmap_t * lock_hashmap, u64 key, struct lock_hashmap_entry_t * entry);
 

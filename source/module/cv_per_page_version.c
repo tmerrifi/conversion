@@ -28,6 +28,8 @@
 #include "cv_per_page_version.h"
 #include "lock_hashmap.h"
 
+typedef enum { TICKET_ACQ, NO_TICKET_ACQ } acquire_entry_lock_mode_t;
+
 
 struct cv_per_page_version * cv_per_page_version_init(uint32_t page_count){
   struct cv_per_page_version * ppv = kmalloc(sizeof(struct cv_per_page_version), GFP_KERNEL);
@@ -58,41 +60,53 @@ uint32_t __commit_page_wait_status(struct cv_per_page_version * ppv, uint32_t pa
   }
 }
 
-uint32_t __acquire_entry_lock(struct ksnap *cv_seg, struct snapshot_pte_list *pte_entry) {
+uint32_t __acquire_entry_lock(struct ksnap *cv_seg, struct snapshot_pte_list *pte_entry, lock_hashmap_acq_mode_t acq_mode) {
     u64 logging_index;
     u64 entry_index;
+    int page_lock_result = 0;
+    int logging_lock_result = 0;
 
     if (pte_entry->type == CV_DIRTY_LIST_ENTRY_TYPE_LOGGING) {
 	struct cv_logging_entry * logging_entry = cv_list_entry_get_logging_entry(pte_entry);
 	if (cv_logging_is_full_page(logging_entry)) {
 	    //need to do a write lock on the page
 	    entry_index = cv_logging_get_index(pte_entry->page_index, 0 , 1 /*is page level*/);
-	    return (lock_hashmap_trywritelock(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry));
+	    return (lock_hashmap_trywritelock(&cv_seg->lock_hashmap, entry_index, 
+                                              &pte_entry->page_hashmap_entry, acq_mode));
 	}
 	else{
-	    //start with page level
 	    entry_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 1 /*is page level*/);
-	    if (lock_hashmap_tryreadlock(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry)) {
-		//now write lock the log level
-		logging_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 0 /*is page level*/);
-		if (!lock_hashmap_trylock(&cv_seg->logging_lock_hashmap, logging_index, &logging_entry->logging_hashmap_entry)){
-		    //need to release the lock for the page level lock
-		    lock_hashmap_read_release(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry);
-		    return 0;
-		}
-		else{
-		    return 1;
-		}
-	    }
-	    else{
-		return 0;
-	    }
+            logging_index = cv_logging_get_index(pte_entry->page_index, logging_entry->line_index, 0 /*is page level*/);
+            if (!lock_hashmap_is_lock_entry_held(&pte_entry->page_hashmap_entry)) {
+               page_lock_result = lock_hashmap_tryreadlock(&cv_seg->lock_hashmap, entry_index, 
+                                                           &pte_entry->page_hashmap_entry, acq_mode);
+               if (page_lock_result){
+                  lock_hashmap_set_lock_entry_held(&pte_entry->page_hashmap_entry);
+               }
+            }
+            else{
+               page_lock_result = 1;
+            }
+
+            if (!lock_hashmap_is_lock_entry_held(&logging_entry->logging_hashmap_entry)) {
+               logging_lock_result = lock_hashmap_trylock(&cv_seg->logging_lock_hashmap, logging_index, 
+                                                          &logging_entry->logging_hashmap_entry, acq_mode);
+               if (logging_lock_result) {
+                  lock_hashmap_set_lock_entry_held(&logging_entry->logging_hashmap_entry);
+               }
+            }
+            else{
+               logging_lock_result = 1;
+            }
+
+            return page_lock_result && logging_lock_result;
 	}
     }
     else if (pte_entry->type == CV_DIRTY_LIST_ENTRY_TYPE_PAGING) {
 	entry_index = cv_logging_get_index(pte_entry->page_index, 0 , 1 /*is page level*/);
 	//printk(KERN_EMERG "pid %d trylock on page entry %lu\n", current->pid, pte_entry->page_index);
-	return (lock_hashmap_trywritelock(&cv_seg->lock_hashmap, entry_index, &pte_entry->page_hashmap_entry));
+	return (lock_hashmap_trywritelock(&cv_seg->lock_hashmap, entry_index, 
+                                          &pte_entry->page_hashmap_entry, acq_mode));
     }
 
     BUG();
@@ -149,7 +163,7 @@ void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struc
   unsigned long long temp_tsc=native_read_tsc();
 #endif
       //try and acquire the lock
-      if (!__acquire_entry_lock(cv_seg,pte_entry)) {
+      if (!__acquire_entry_lock(cv_seg,pte_entry, LOCK_HASHMAP_ACQ_NORMAL)) {
 	  //we failed, move this into a list to try and acquire later
           list_del(&pte_entry->list);
 	  INIT_LIST_HEAD(&pte_entry->list);
@@ -166,7 +180,7 @@ struct snapshot_pte_list * cv_per_page_version_walk_unsafe(struct snapshot_pte_l
 
   list_for_each(pos, &wait_list->list){
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
-    if (__acquire_entry_lock(cv_seg,pte_entry)) {
+    if (__acquire_entry_lock(cv_seg, pte_entry, LOCK_HASHMAP_ACQ_NORMAL)) {
 	return pte_entry;
     }
   }

@@ -11,6 +11,8 @@ typedef enum { TICKET_LOCK_MODE_NORMAL, TICKET_LOCK_MODE_RWLOCK } ticket_lock_mo
 
 typedef enum { TICKET_LOCK_OP_NORMAL, TICKET_LOCK_OP_READ, TICKET_LOCK_OP_WRITE, TICKET_LOCK_OP_NULL } __ticket_lock_op_mode_t;
 
+typedef enum { TICKET_LOCK_ACQ_ONLY_GET_TICKET, TICKET_LOCK_ACQ_NORMAL } ticket_lock_acq_mode_t;
+
 struct __attribute__ ((__packed__)) ticket_lock_t{
     atomic64_t now_serving;
     u64 next_ticket;
@@ -36,11 +38,11 @@ static u64 inline ticket_lock_get_ticket(struct ticket_lock_t * lock){
 
 void ticket_lock_init(struct ticket_lock_t * lock, ticket_lock_mode_t mode);
 
-int ticket_lock_trylock(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry);
+int ticket_lock_trylock(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry, ticket_lock_acq_mode_t acq_mode);
 
-int ticket_lock_trywritelock(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry);
+int ticket_lock_trywritelock(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry, ticket_lock_acq_mode_t acq_mode);
 
-int ticket_lock_tryreadlock(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry);
+int ticket_lock_tryreadlock(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry, ticket_lock_acq_mode_t acq_mode);
 
 int ticket_lock_release(struct ticket_lock_t * lock, struct ticket_lock_entry_t * entry);
 

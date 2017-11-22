@@ -107,11 +107,13 @@ void __insert_into_history(struct lock_hashmap_lock_t * lock, history_lock_op_t 
     #endif
 }
 
-int __lock_hashmap_trylock_read(struct lock_hashmap_lock_t * lock, 
-				struct lock_hashmap_entry_t *entry, 
-				int thread_id,
-				int (*func) (struct ticket_lock_t *, 
-					     struct ticket_lock_entry_t *)){
+static inline int __lock_hashmap_trylock_read(struct lock_hashmap_lock_t * lock, 
+                                              struct lock_hashmap_entry_t *entry, 
+                                              int thread_id,
+                                              int (*func)(struct ticket_lock_t *, 
+                                                             struct ticket_lock_entry_t *, 
+                                                             ticket_lock_acq_mode_t mode),
+                                              lock_hashmap_acq_mode_t acq_mode){
     history_lock_op_t history_op;
     int result = LOCK_ACQUIRE_FAILED;
 
@@ -123,7 +125,9 @@ int __lock_hashmap_trylock_read(struct lock_hashmap_lock_t * lock,
 	history_op = HISTORY_LOCK_OP_ACQ_NESTED;
     }
     else{
-	if (result = func(&lock->ticket_lock, &entry->ticket_entry)){
+	if (result = func(&lock->ticket_lock, &entry->ticket_entry,
+                          (acq_mode == LOCK_HASHMAP_ACQ_ONLY_GET_TICKET) ? 
+                           TICKET_LOCK_ACQ_ONLY_GET_TICKET : TICKET_LOCK_ACQ_NORMAL)){
 	    __lock_hashmap_inc_acquire_read(lock, thread_id);
 	    history_op = HISTORY_LOCK_OP_ACQ_SUCC;
 	}
@@ -139,11 +143,13 @@ int __lock_hashmap_trylock_read(struct lock_hashmap_lock_t * lock,
     return result;
 }
 
-int __lock_hashmap_trylock_write(struct lock_hashmap_lock_t * lock, 
-				 struct lock_hashmap_entry_t *entry, 
-				 int thread_id,
-				 int (*func) (struct ticket_lock_t *, 
-					      struct ticket_lock_entry_t *)){
+static inline int __lock_hashmap_trylock_write(struct lock_hashmap_lock_t * lock, 
+                                               struct lock_hashmap_entry_t *entry, 
+                                               int thread_id,
+                                               int (*func)(struct ticket_lock_t *, 
+                                                             struct ticket_lock_entry_t *, 
+                                                             ticket_lock_acq_mode_t mode),
+                                               lock_hashmap_acq_mode_t acq_mode){
     history_lock_op_t history_op;
     int result = LOCK_ACQUIRE_FAILED;
 
@@ -157,7 +163,9 @@ int __lock_hashmap_trylock_write(struct lock_hashmap_lock_t * lock,
 	//we allow it to enter here even if we currently hold the lock for read.
 	//In that case, we still attempt to acquire the lock in order to get a ticket
 	//to preserve the order of committers
-	if (result = func(&lock->ticket_lock, &entry->ticket_entry)){
+	if (result = func(&lock->ticket_lock, &entry->ticket_entry, 
+                          (acq_mode == LOCK_HASHMAP_ACQ_ONLY_GET_TICKET) ? 
+                           TICKET_LOCK_ACQ_ONLY_GET_TICKET : TICKET_LOCK_ACQ_NORMAL)){
 	    __lock_hashmap_inc_acquire(lock, thread_id);
 	    history_op = HISTORY_LOCK_OP_ACQ_SUCC;
 	}
@@ -173,11 +181,13 @@ int __lock_hashmap_trylock_write(struct lock_hashmap_lock_t * lock,
     return result;
 }
 
-int __lock_hashmap_trylock_basic(struct lock_hashmap_lock_t * lock, 
-				 struct lock_hashmap_entry_t *entry, 
-				 int thread_id,
-				 int (*func) (struct ticket_lock_t *, 
-					      struct ticket_lock_entry_t *)){
+static inline int __lock_hashmap_trylock_basic(struct lock_hashmap_lock_t * lock, 
+                                               struct lock_hashmap_entry_t *entry, 
+                                               int thread_id,
+                                               int (*func)(struct ticket_lock_t *, 
+                                                             struct ticket_lock_entry_t *, 
+                                                             ticket_lock_acq_mode_t mode),
+                                               lock_hashmap_acq_mode_t acq_mode){
     history_lock_op_t history_op;
     int result = LOCK_ACQUIRE_FAILED;
 
@@ -187,7 +197,10 @@ int __lock_hashmap_trylock_basic(struct lock_hashmap_lock_t * lock,
 	history_op = HISTORY_LOCK_OP_ACQ_NESTED;
 
     }
-    else if (result = func(&lock->ticket_lock, &entry->ticket_entry)) {
+    else if (result = func(&lock->ticket_lock, 
+                           &entry->ticket_entry, 
+                           (acq_mode == LOCK_HASHMAP_ACQ_ONLY_GET_TICKET) ? 
+                           TICKET_LOCK_ACQ_ONLY_GET_TICKET : TICKET_LOCK_ACQ_NORMAL)) {
 	//on successful acquisition, make sure there is no current lock holder
 	if (lock->lock_holder != LOCK_HASHMAP_HOLDER_NONE){
 	    __print_history(lock);
@@ -206,10 +219,13 @@ int __lock_hashmap_trylock_basic(struct lock_hashmap_lock_t * lock,
     return result;
 }
 
-int __lock_hashmap_trylock_generic(struct lock_hashmap_t * lock_hashmap, uint64_t key, 
+static inline int __lock_hashmap_trylock_generic(struct lock_hashmap_t * lock_hashmap, uint64_t key, 
 				   struct lock_hashmap_entry_t *entry, 
-				   int (*func) (struct ticket_lock_t *, struct ticket_lock_entry_t *),
-				    int mode){
+                                                 int (*func)(struct ticket_lock_t *, 
+                                                             struct ticket_lock_entry_t *, 
+                                                             ticket_lock_acq_mode_t mode),
+                                   int mode,
+                                   lock_hashmap_acq_mode_t acq_mode){
 
     int thread_id = entry->thread_id;
     //lets make sure the thread_id isn't too large
@@ -221,13 +237,13 @@ int __lock_hashmap_trylock_generic(struct lock_hashmap_t * lock_hashmap, uint64_
 
     switch (mode) {
     case TICKET_LOCK_OP_NORMAL:
-	result = __lock_hashmap_trylock_basic(lock, entry, thread_id, func);
+	result = __lock_hashmap_trylock_basic(lock, entry, thread_id, func, acq_mode);
 	break;
     case TICKET_LOCK_OP_WRITE:
-	result = __lock_hashmap_trylock_write(lock, entry, thread_id, func);
+	result = __lock_hashmap_trylock_write(lock, entry, thread_id, func, acq_mode);
 	break;
     case TICKET_LOCK_OP_READ: 
-	result = __lock_hashmap_trylock_read(lock, entry, thread_id, func);
+	result = __lock_hashmap_trylock_read(lock, entry, thread_id, func, acq_mode);
 	break;
     default:
 	BUG();
@@ -285,16 +301,33 @@ int __lock_hashmap_release_generic(struct lock_hashmap_t * lock_hashmap, uint64_
     return result;
 }
 
-int lock_hashmap_trylock(struct lock_hashmap_t * lock_hashmap, uint64_t key, struct lock_hashmap_entry_t * entry){
-    return __lock_hashmap_trylock_generic(lock_hashmap, key, entry, ticket_lock_trylock, TICKET_LOCK_OP_NORMAL);
+int lock_hashmap_trylock(struct lock_hashmap_t * lock_hashmap, 
+                         uint64_t key, 
+                         struct lock_hashmap_entry_t * entry,
+                         lock_hashmap_acq_mode_t acq_mode){
+    return __lock_hashmap_trylock_generic(lock_hashmap, key, entry, 
+                                          ticket_lock_trylock, 
+                                          TICKET_LOCK_OP_NORMAL,
+                                          acq_mode);
 }
 
-int lock_hashmap_trywritelock(struct lock_hashmap_t * lock_hashmap, uint64_t key, struct lock_hashmap_entry_t * entry){
-    return __lock_hashmap_trylock_generic(lock_hashmap, key, entry, ticket_lock_trywritelock, TICKET_LOCK_OP_WRITE);
+int lock_hashmap_trywritelock(struct lock_hashmap_t * lock_hashmap, uint64_t key, 
+                              struct lock_hashmap_entry_t * entry,
+                              lock_hashmap_acq_mode_t acq_mode){
+    return __lock_hashmap_trylock_generic(lock_hashmap, key, entry, 
+                                          ticket_lock_trywritelock, 
+                                          TICKET_LOCK_OP_WRITE,
+                                          acq_mode);
 }
 
-int lock_hashmap_tryreadlock(struct lock_hashmap_t * lock_hashmap, uint64_t key, struct lock_hashmap_entry_t * entry){
-    return __lock_hashmap_trylock_generic(lock_hashmap, key, entry, ticket_lock_tryreadlock, TICKET_LOCK_OP_READ);
+int lock_hashmap_tryreadlock(struct lock_hashmap_t * lock_hashmap, 
+                             uint64_t key, 
+                             struct lock_hashmap_entry_t * entry,
+                             lock_hashmap_acq_mode_t acq_mode){
+    return __lock_hashmap_trylock_generic(lock_hashmap, key, entry, 
+                                          ticket_lock_tryreadlock, 
+                                          TICKET_LOCK_OP_READ,
+                                          acq_mode);
 }
 
 int lock_hashmap_release(struct lock_hashmap_t * lock_hashmap, uint64_t key, struct lock_hashmap_entry_t * entry){
@@ -312,5 +345,7 @@ int lock_hashmap_read_release(struct lock_hashmap_t * lock_hashmap, uint64_t key
 void lock_hashmap_init_entry(struct lock_hashmap_entry_t * entry, int thread_id){
     entry->thread_id = thread_id;
     entry->attempts = 0;
+    entry->succeeded = 0;
     ticket_lock_init_entry(&entry->ticket_entry);
 }
+
