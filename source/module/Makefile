@@ -18,7 +18,13 @@ ksnapmod-y += libudis86/decode.o libudis86/itab.o libudis86/syn-att.o libudis86/
 #-DLOGGING_LATENCY_TRACING
 
 ifeq ($(LOGGING),false)
+ifeq ($(LOGALLPAGES),false)
 	LOGGING_MODE = -DCV_LOGGING_DISABLED
+endif
+endif
+
+ifeq ($(LOGALLPAGES),true)
+	LOGGING_MODE = -DCV_FORCE_LOGGING
 endif
 
 ifeq ($(COUNTERS),false)
@@ -27,12 +33,12 @@ else
 	COUNTERS_MODE = -DCV_COUNTERS_ON
 endif
 
-
 KBUILD_CFLAGS += -g -O3 --param max-unroll-times=16 -funroll-loops -Wno-declaration-after-statement -IcreateStoreInterpreterFunctions $(LOGGING_MODE) $(COUNTERS_MODE)
 
 #-DCV_LOGGING_DISABLED #-DCV_COUNTERS_ON #-DLOGGING_LATENCY_TRACING #-DCV_LOGGING_DISABLED #-DCV_DEBUG_MEMORY_ALLOC #-DCONV_LOGGING_ON
 
 all: cv_main.c ksnap_writer.c ksnap_version_list.c cv_commit.c cv_update.c cv_garbage.c cv_per_page_version.c cv_stats.c cv_init.c cv_meta_data.c cv_merge.c cv_pte.c cv_fork.c cv_close.c cv_revert.c cv_checkpoint.c cv_determinism.c
+	@echo $(KBUILD_CFLAGS)
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)
 
 clean:

@@ -5,6 +5,10 @@ ifndef CONVLOGGING
 	CONVLOGGING = false
 endif
 
+ifndef CONVLOGGINGALLPAGES
+	CONVLOGGINGALLPAGES = false
+endif
+
 ifndef CONVCOUNTERS
 	CONVCOUNTERS = false
 endif
@@ -37,7 +41,7 @@ conversionlib32 : libmm
 
 conversionmodule :
 	pushd source/module; \
-	sudo ./install.sh y LOGGING=$(CONVLOGGING) COUNTERS=$(CONVCOUNTERS); \
+	sudo ./install.sh y LOGGING=$(CONVLOGGING) COUNTERS=$(CONVCOUNTERS) LOGALLPAGES=$(CONVLOGGINGALLPAGES); \
 	popd;
 
 tests : conversionlib conversionmodule
