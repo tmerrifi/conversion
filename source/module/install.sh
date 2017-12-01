@@ -3,4 +3,8 @@ if [ $1 = 'y' ]
 then
     make $2 $3 $4 $5 $6;
 fi
-sudo insmod ./ksnapmod.ko;
+#sudo insmod ./ksnapmod.ko;
+sudo mkdir -p /lib/modules/`uname -r`/kernel/conversion;
+sudo cp ksnapmod.ko /lib/modules/`uname -r`/kernel/conversion;
+sudo depmod -a;
+sudo insmod /lib/modules/`uname -r`/kernel/conversion/ksnapmod.ko;
