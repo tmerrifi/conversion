@@ -17,6 +17,8 @@ struct array_cache{
     int set_associativity;
 };
 
+#if CONV_ARRAY_CACHE_DIRTY_LOOKUP
+
 static inline void array_cache_init(struct array_cache * cache, size_t size, int set_associativity){
     int i;
     cache->array = kmalloc(size * sizeof(struct array_entry), GFP_KERNEL);
@@ -93,5 +95,23 @@ static inline int array_cache_insert(struct array_cache * cache, unsigned long i
     
     return return_val;
 }
+
+#else
+
+static inline void array_cache_init(struct array_cache * cache, size_t size, int set_associativity){ }
+
+static inline void * __attribute__((always_inline)) array_cache_lookup(struct array_cache *cache, unsigned long index) {
+    return NULL;
+}
+
+static inline void * __attribute__((always_inline)) array_cache_delete(struct array_cache * cache, unsigned long index){
+    return NULL;
+}
+
+static inline int __attribute__((always_inline)) array_cache_insert(struct array_cache * cache, unsigned long index, void * ptr){
+   return 0;
+}
+
+#endif
 
 #endif

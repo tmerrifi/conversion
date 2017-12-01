@@ -70,9 +70,9 @@ int lock_hashmap_init(struct lock_hashmap_t * lock_hashmap, uint64_t orecs, u32 
     lock_hashmap->mix = mix;
     lock_hashmap->total_locks = __get_lock_hashmap_size(orecs);
     lock_hashmap->lock_type = lock_type;
-    printk(KERN_EMERG "lock_hashmap init: size %llu %llu %u total: %lu\n", 
-	   lock_hashmap->total_locks, orecs, sizeof(struct lock_hashmap_lock_t),
-	   lock_hashmap->total_locks * sizeof(struct lock_hashmap_lock_t) );
+//  printk(KERN_EMERG "lock_hashmap init: size %llu %llu %u total: %lu\n",
+//         lock_hashmap->total_locks, orecs, sizeof(struct lock_hashmap_lock_t),
+//         lock_hashmap->total_locks * sizeof(struct lock_hashmap_lock_t) );
     return __lock_hashmap_init_ticket(lock_hashmap, lock_type);
 }
 

@@ -101,7 +101,7 @@ static inline u16 __lock_hashmap_get_acquire(struct lock_hashmap_lock_t * lock, 
     return lock->num_acquires[thread_id].counter;
 }
 
-static inline void __lock_hashmap_init_acquire(struct lock_hashmap_lock_t * lock){
+static inline void __attribute__((always_inline)) __lock_hashmap_init_acquire(struct lock_hashmap_lock_t * lock){
     int j;
     for (j = 0; j < LOCKHASH_MAX_THREADS; j++) {
 	lock->num_acquires[j].counter = 0;
