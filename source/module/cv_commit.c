@@ -760,7 +760,7 @@ void cv_commit_version_parallel(struct vm_area_struct * vma, int defer_work){
           cv_per_page_version_walk_unsafe_debug(wait_list, cv_seg->ppv);
       }
 #endif
-      if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv, cv_seg))){
+      if ((pte_entry=cv_per_page_version_walk_unsafe(wait_list, cv_seg->ppv, cv_seg, cv_user))){
           if (pte_entry->type==CV_DIRTY_LIST_ENTRY_TYPE_PAGING){
               
               //check and see if we want to make this a logging page.

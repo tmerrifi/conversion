@@ -5,7 +5,7 @@
 #include "linux/jhash.h"
 
 #define LOCK_HASHMAP_MIN_SIZE (128)
-#define LOCK_HASHMAP_MAX_SIZE (8192) //512K locks
+#define LOCK_HASHMAP_MAX_SIZE ((1<<13)) //512K locks
 
 #define LOCK_ACQUIRE_SUCC (1)
 #define LOCK_ACQUIRE_FAILED (0)
@@ -113,6 +113,11 @@ static inline void lock_hashmap_prefetch_lock(struct lock_hashmap_t * lock_hashm
     u32 index = __lock_hashmap_hash(key, lock_hashmap->mix, lock_hashmap->total_locks);
     struct lock_hashmap_lock_t * lock = &lock_hashmap->locks[index];
     prefetchw(lock);
+}
+
+static inline struct lock_hashmap_lock_t * lock_hashmap_get_ticket_lock(struct lock_hashmap_t * lock_hashmap, uint64_t key){
+   u32 index = __lock_hashmap_hash(key, lock_hashmap->mix, lock_hashmap->total_locks);
+   return &lock_hashmap->locks[index];
 }
 
 static inline int lock_hashmap_is_lock_entry_held(struct lock_hashmap_entry_t * entry){

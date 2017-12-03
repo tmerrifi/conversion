@@ -174,16 +174,45 @@ void cv_per_page_version_walk(struct snapshot_pte_list * dirty_pages_list, struc
 }
 
 struct snapshot_pte_list * cv_per_page_version_walk_unsafe(struct snapshot_pte_list* wait_list, 
-							   struct cv_per_page_version* ppv,struct ksnap * cv_seg){
+							   struct cv_per_page_version* ppv, 
+                                                           struct ksnap * cv_seg,
+                                                           struct ksnap_user_data * cv_user){
   struct list_head * pos;
   struct snapshot_pte_list * pte_entry;
 
+#ifdef CV_COUNTERS_ON    
+  int entries=0;
+  unsigned long long temp_tsc=native_read_tsc();
+#endif
+
   list_for_each(pos, &wait_list->list){
+#ifdef CV_COUNTERS_ON
+     entries++;
+#endif
     pte_entry = list_entry(pos, struct snapshot_pte_list, list);
     if (__acquire_entry_lock(cv_seg, pte_entry, LOCK_HASHMAP_ACQ_NORMAL)) {
+#ifdef CV_COUNTERS_ON
+       if (temp_tsc % 1000 == 0) {
+          printk(KERN_INFO " ");
+          if (pte_entry->type == CV_DIRTY_LIST_ENTRY_TYPE_PAGING) {
+             u64 entry_index = cv_logging_get_index(pte_entry->page_index, 0 , 1 /*is page level*/);
+             printk(KERN_INFO "unsafe, found entries: %d %llu %p\n", entries, (native_read_tsc() - temp_tsc)/entries, 
+                    lock_hashmap_get_ticket_lock(&cv_seg->lock_hashmap, entry_index));
+             //lock_hashmap_get_ticket_lock
+          }
+
+       }
+#endif
+        COUNTER_LATENCY(WAIT_LIST_WALK_ONE, native_read_tsc() - temp_tsc);
 	return pte_entry;
     }
   }
+  COUNTER_LATENCY(WAIT_LIST_WALK_ONE, native_read_tsc() - temp_tsc);
+#ifdef CV_COUNTERS_ON
+       if (temp_tsc % 1000 == 0) {
+          printk(KERN_INFO "unsafe, failed entries: %d %llu\n", entries, (native_read_tsc() - temp_tsc)/entries);
+       }
+#endif
   return NULL;
 }
 

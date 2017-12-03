@@ -32,6 +32,7 @@ int __lock_hashmap_init_ticket(struct lock_hashmap_t * lock_hashmap, lock_hashma
     
     if ((lock_hashmap->locks = kmalloc(lock_hashmap->total_locks * 
 				       sizeof(struct lock_hashmap_lock_t) + 64, GFP_KERNEL)) == NULL ){
+	printk(KERN_EMERG "__lock_hashmap_init_ticket: initialization kmalloc failed\n" );
 	return 0;
     }
 
