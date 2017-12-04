@@ -5,7 +5,7 @@
 #include "linux/jhash.h"
 
 #define LOCK_HASHMAP_MIN_SIZE (128)
-#define LOCK_HASHMAP_MAX_SIZE ((1<<13)) //512K locks
+#define LOCK_HASHMAP_MAX_SIZE ((1<<16)) //512K locks
 
 #define LOCK_ACQUIRE_SUCC (1)
 #define LOCK_ACQUIRE_FAILED (0)

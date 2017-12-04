@@ -4,6 +4,7 @@
 #include <linux/semaphore.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/vmalloc.h>
 
 #include "ticket_lock.h"
 #include "lock_hashmap.h"
@@ -28,40 +29,25 @@ int __lock_hashmap_init_ticket(struct lock_hashmap_t * lock_hashmap, lock_hashma
     int i;
     int j;
 
+    struct lock_hashmap_lock_t prototype_lock;
     ticket_lock_mode_t mode;
-    
-    if ((lock_hashmap->locks = kmalloc(lock_hashmap->total_locks * 
-				       sizeof(struct lock_hashmap_lock_t) + 64, GFP_KERNEL)) == NULL ){
-	printk(KERN_EMERG "__lock_hashmap_init_ticket: initialization kmalloc failed\n" );
-	return 0;
+
+    if ((lock_hashmap->locks = vmalloc(lock_hashmap->total_locks * 
+				       sizeof(struct lock_hashmap_lock_t) + 64)) == NULL ){
+	printk(KERN_EMERG "__lock_hashmap_init_ticket: initialization kmalloc failed, size was %d\n", 
+               lock_hashmap->total_locks * sizeof(struct lock_hashmap_lock_t) + 64 );
+	BUG();
     }
 
+    /*setup our prototype lock, so we can just copy to the others*/
+    prototype_lock.lock_holder = LOCK_HASHMAP_HOLDER_NONE;
+    __lock_hashmap_init_acquire(&prototype_lock);
+    ticket_lock_init(&prototype_lock.ticket_lock,
+                     (lock_type == LOCK_HASHMAP_TICKET) ? TICKET_LOCK_MODE_NORMAL : TICKET_LOCK_MODE_RWLOCK);
     for ( i = 0; i < lock_hashmap->total_locks; i++ ) {
-	switch (lock_type) {
-	case LOCK_HASHMAP_TICKET: 
-	    mode = TICKET_LOCK_MODE_NORMAL;
-	    break;
-	case LOCK_HASHMAP_RW_LOCK:
-	    mode = TICKET_LOCK_MODE_RWLOCK;
-	    break;
-	default:
-	    BUG();
-	}
-	lock_hashmap->locks[i].lock_holder = LOCK_HASHMAP_HOLDER_NONE;
-
-	for (j = 0; j < LOCKHASH_MAX_THREADS; j++) {
-	    __lock_hashmap_init_acquire(&lock_hashmap->locks[i]);
-	}
-
-	ticket_lock_init(&lock_hashmap->locks[i].ticket_lock, mode);
-	#ifdef LOCKHASH_TRACK_HISTORY
-	atomic64_set(&lock_hashmap->locks[i].history_lock_count, 0);
-	for (j = 0; j < LOCK_HISTORY_SIZE; j++) {
-	    lock_hashmap->locks[i].history_lock_op[j] = -1;
-	}
-	#endif
+       memcpy(&lock_hashmap->locks[i], &prototype_lock, sizeof(struct lock_hashmap_lock_t));
     }
-    
+
     return 1;
 }
 
