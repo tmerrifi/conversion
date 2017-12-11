@@ -732,13 +732,13 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   
   assert(NULL != dstOp);
   assert(UD_OP_MEM == dstOp->type); 
-  const unsigned storeWidthBytes = dstOp->size / 8; // convert bits => bytes
+  unsigned storeWidthBytes = dstOp->size / 8; // convert bits => bytes
 
   movInsnFun movFun = NULL;
   writeFlagsInsnFun flagsFun = NULL;
 
-//printk(KERN_INFO "decoded: rip: %lx, ins: %s, src_width: %d, dst_width: %d\n",
-//       context->ip, dis_obj->asm_buf, srcOp->size, dstOp->size);
+//printk(KERN_INFO "decoded: rip: %lx, ins: %s, src_width: %d, dst_width: %d type: %d\n",
+//       context->ip, dis_obj->asm_buf, srcOp->size, dstOp->size, dstOp->type);
 
   switch (getFunTable(srcOp, dstOp)) {
   case FUN_SIL: {
@@ -770,11 +770,13 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
   case FUN_XMM0: {
     if (opcode == UD_Imovsd) {
       if (movsd_xmm(dstAddress, srcOp) == 0){
+        printf("Returning UD_Imovsd with 0\n");
         return 0;
       }
       context->ip += lengthInBytes;
       cache_entry->valid=1;
       put_cpu_var(disassemble_cache);
+      printf("Returning UD_Imovsd %d", storeWidthBytes);
       return storeWidthBytes;
     }
     
@@ -794,10 +796,19 @@ int interpret(const uint8_t* bytes, const uint32_t bytesLength, void* dstAddress
       printf("No function to interpret SIMD src register %u", index);
       return 0;
     }
+
     fun(dstAddress);
-    
+
     // NB: update RIP to skip over the store we just executed
     context->ip += lengthInBytes;
+
+    // Another dirty hack
+    if (srcOp->size == 128 && dstOp->size == 0) {
+       storeWidthBytes = 128 / 8;       
+    }
+    
+    printf("Returning storeWidthBytes %d %d %d %d %d", 
+           storeWidthBytes, lengthInBytes, opcode, srcOp->size, dstOp->size);
     return storeWidthBytes;
   }
   default:
