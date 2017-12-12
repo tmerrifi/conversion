@@ -123,14 +123,10 @@ static inline int __lock_hashmap_trylock_read(struct lock_hashmap_lock_t * lock,
 	}
     }
     
-    __insert_into_history(lock, history_op, lock->lock_holder, 
-			  entry->ticket_entry.our_ticket, TICKET_LOCK_OP_NORMAL,
-			  __lock_hashmap_get_acquire(lock, thread_id), thread_id);
-    
     return result;
 }
 
-static inline int __lock_hashmap_trylock_write(struct lock_hashmap_lock_t * lock, 
+static inline int __attribute__((always_inline)) __lock_hashmap_trylock_write(struct lock_hashmap_lock_t * lock, 
                                                struct lock_hashmap_entry_t *entry, 
                                                int thread_id,
                                                int (*func)(struct ticket_lock_t *, 
@@ -161,10 +157,6 @@ static inline int __lock_hashmap_trylock_write(struct lock_hashmap_lock_t * lock
 	}
     }
 
-    __insert_into_history(lock, history_op, lock->lock_holder, 
-			  entry->ticket_entry.our_ticket, TICKET_LOCK_OP_NORMAL,
-			  __lock_hashmap_get_acquire(lock, thread_id), thread_id);
-    
     return result;
 }
 
@@ -198,10 +190,6 @@ static inline int __lock_hashmap_trylock_basic(struct lock_hashmap_lock_t * lock
 	__lock_hashmap_inc_acquire(lock, thread_id);
 	history_op = (result) ? HISTORY_LOCK_OP_ACQ_SUCC : HISTORY_LOCK_OP_ACQ_FAIL;
     }
-
-    __insert_into_history(lock, history_op, lock->lock_holder, 
-			  entry->ticket_entry.our_ticket, TICKET_LOCK_OP_NORMAL,
-			  __lock_hashmap_get_acquire(lock, thread_id), thread_id);
 
     return result;
 }
@@ -245,7 +233,6 @@ int __lock_hashmap_release_generic(struct lock_hashmap_t * lock_hashmap, uint64_
 				   int (*func) (struct ticket_lock_t *, struct ticket_lock_entry_t *), 
 				   int mode){
 
-    history_lock_op_t history_op;
     int thread_id = entry->thread_id;
     int result = LOCK_RELEASE_FAILED;
     u32 index = __lock_hashmap_hash(key, lock_hashmap->mix, lock_hashmap->total_locks);
@@ -261,10 +248,6 @@ int __lock_hashmap_release_generic(struct lock_hashmap_t * lock_hashmap, uint64_
 	    //only remove lock holder if number of acquires == 0
 	    lock->lock_holder = LOCK_HASHMAP_HOLDER_NONE;
 	    result = func(&lock->ticket_lock, &entry->ticket_entry);
-	    history_op = HISTORY_LOCK_OP_REL;
-	}
-	else{
-	    history_op = HISTORY_LOCK_OP_REL_NESTED;
 	}
     } 
     else if (mode == TICKET_LOCK_OP_READ) {
@@ -273,17 +256,8 @@ int __lock_hashmap_release_generic(struct lock_hashmap_t * lock_hashmap, uint64_
 	if (__lock_hashmap_get_acquire_read(lock, thread_id) == 0) {
 	    //only remove lock holder if number of acquires_reads == 0
 	    result = func(&lock->ticket_lock, &entry->ticket_entry);
-	    history_op = HISTORY_LOCK_OP_REL;
-	}
-	else{
-	    history_op = HISTORY_LOCK_OP_REL_NESTED;
 	}
     }
-
-    __insert_into_history(lock, history_op,
-			  lock->lock_holder, 
-			  entry->ticket_entry.our_ticket, 
-			  mode,__lock_hashmap_get_acquire(lock, thread_id), thread_id);
 
     return result;
 }
@@ -295,15 +269,6 @@ int lock_hashmap_trylock(struct lock_hashmap_t * lock_hashmap,
     return __lock_hashmap_trylock_generic(lock_hashmap, key, entry, 
                                           ticket_lock_trylock, 
                                           TICKET_LOCK_OP_NORMAL,
-                                          acq_mode);
-}
-
-int lock_hashmap_trywritelock(struct lock_hashmap_t * lock_hashmap, uint64_t key, 
-                              struct lock_hashmap_entry_t * entry,
-                              lock_hashmap_acq_mode_t acq_mode){
-    return __lock_hashmap_trylock_generic(lock_hashmap, key, entry, 
-                                          ticket_lock_trywritelock, 
-                                          TICKET_LOCK_OP_WRITE,
                                           acq_mode);
 }
 

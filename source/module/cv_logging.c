@@ -127,20 +127,6 @@ struct cv_logging_page_status_entry * cv_logging_page_status_entry_init(pte_t * 
     return entry;
 }
 
-unsigned long cv_logging_get_index(unsigned long page_index, unsigned long line_index, int is_page_level){
-    //lower 7 bits reserved for cache line index
-    //LSB reserved for marking it as page level
-
-    unsigned long result = page_index << 7UL;
-    if (is_page_level){
-        result|=1UL;
-    }
-    else{
-        result|=((line_index)<<1UL);
-    }
-    return result;
-}
-
 void cv_merge_line(uint8_t * local, uint8_t * ref, uint8_t * latest){
     cv_three_way_merge(local, ref, latest, CV_LOGGING_LOG_SIZE/sizeof(uint64_t) );
 }

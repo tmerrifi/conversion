@@ -70,7 +70,20 @@ void cv_logging_instruction_stats(struct ksnap * cv_seg, struct ksnap_user_data 
 int cv_logging_fault(struct vm_area_struct * vma, struct ksnap * cv_seg, struct ksnap_user_data * cv_user,
                      struct pt_regs * regs, unsigned long faulting_addr);
 
-unsigned long cv_logging_get_index(unsigned long addr, unsigned long page_index, int is_page_level);
+static inline unsigned long __attribute__((always_inline)) cv_logging_get_index(unsigned long page_index, unsigned long line_index, int is_page_level){
+    //lower 7 bits reserved for cache line index
+    //LSB reserved for marking it as page level
+
+    unsigned long result = page_index << 7UL;
+    if (is_page_level){
+        result|=1UL;
+    }
+    else{
+        result|=((line_index)<<1UL);
+    }
+    return result;
+}
+
 
 /*functions that work with the page_status_entry data structure. That keeps track of each thread's local logging pages*/
 

@@ -81,35 +81,6 @@ int cv_three_way_merge(uint8_t * local, uint8_t * ref, uint8_t * latest, int wor
     return qw_diff;
 }
 
-int ksnap_merge(struct page * latest_page, uint8_t * local, struct page * ref_page, struct page * local_page){
-  uint8_t * latest, * ref;
-  int qw_diff;
-
-  if (ref_page!=NULL){
-    ref = kmap_atomic(ref_page, KM_USER1);
-  }
-  else{
-    ref = cv_merge_empty_page;
-  }
-
-  latest = kmap_atomic(latest_page, KM_USER0);
-
-  if (!ref || !latest){
-      printk(KERN_INFO "failed to map ref %p or latest %p\n", ref, latest);
-      BUG();
-  }
-
-  qw_diff = cv_three_way_merge(local, ref, latest, (PAGE_SIZE/sizeof(uint64_t)));
-  
-  kunmap_atomic(latest, KM_USER0);
-  if (ref_page){
-    kunmap_atomic(ref, KM_USER1);
-  }
-
-  return qw_diff;
-}
-
-
 uint8_t * compute_local_addr_for_diff(struct vm_area_struct * vma, unsigned long pfn, unsigned long page_index, int checkpointed){
     uint8_t * local_addr;
     if (checkpointed){

@@ -89,7 +89,7 @@ static inline u16 __lock_hashmap_get_acquire_read(struct lock_hashmap_lock_t * l
     return lock->num_acquires_reads[thread_id].counter;
 }
 
-static inline void __lock_hashmap_inc_acquire(struct lock_hashmap_lock_t * lock, int thread_id){
+static inline void __attribute__((always_inline)) __lock_hashmap_inc_acquire(struct lock_hashmap_lock_t * lock, int thread_id){
     lock->num_acquires[thread_id].counter++;
 }
 
@@ -133,6 +133,33 @@ static inline int lock_hashmap_set_lock_entry_free(struct lock_hashmap_entry_t *
 }
 
 
+static inline int __attribute__((always_inline)) lock_hashmap_trywritelock(struct lock_hashmap_t * lock_hashmap, u64 key, 
+                                            struct lock_hashmap_entry_t * entry, lock_hashmap_acq_mode_t acq_mode){
+
+   u32 index = __lock_hashmap_hash(key, lock_hashmap->mix, lock_hashmap->total_locks);
+   struct lock_hashmap_lock_t * lock = &lock_hashmap->locks[index];
+   int result = LOCK_ACQUIRE_FAILED;
+
+    if (__lock_hashmap_get_acquire(lock, entry->thread_id) > 0) {
+	//we already hold the lock as a writer
+	__lock_hashmap_inc_acquire(lock, entry->thread_id);
+	result = LOCK_ACQUIRE_SUCC;
+    }
+    else{
+	//we allow it to enter here even if we currently hold the lock for read.
+	//In that case, we still attempt to acquire the lock in order to get a ticket
+	//to preserve the order of committers
+	if (result = ticket_lock_trywritelock(&lock->ticket_lock, &entry->ticket_entry, 
+                          (acq_mode == LOCK_HASHMAP_ACQ_ONLY_GET_TICKET) ? 
+                           TICKET_LOCK_ACQ_ONLY_GET_TICKET : TICKET_LOCK_ACQ_NORMAL)){
+	    __lock_hashmap_inc_acquire(lock, entry->thread_id);
+	}
+    }
+
+    return result;
+
+}
+
 u64 __get_lock_hashmap_size(u64 orecs);
 
 int lock_hashmap_init(struct lock_hashmap_t * lock_hashmap, u64 orecs, u32 mix, lock_hashmap_type_t lock_type);
@@ -142,8 +169,6 @@ int lock_hashmap_trylock(struct lock_hashmap_t * lock_hashmap, u64 key, struct l
 int lock_hashmap_release(struct lock_hashmap_t * lock_hashmap, uint64_t key, struct lock_hashmap_entry_t * entry);
 
 void lock_hashmap_init_entry(struct lock_hashmap_entry_t * entry, int thread_id);
-
-int lock_hashmap_trywritelock(struct lock_hashmap_t * lock_hashmap, u64 key, struct lock_hashmap_entry_t * entry, lock_hashmap_acq_mode_t acq_mode);
 
 int lock_hashmap_tryreadlock(struct lock_hashmap_t * lock_hashmap, u64 key, struct lock_hashmap_entry_t * entry, lock_hashmap_acq_mode_t acq_mode);
 

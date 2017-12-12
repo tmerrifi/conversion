@@ -60,7 +60,7 @@ uint32_t __commit_page_wait_status(struct cv_per_page_version * ppv, uint32_t pa
   }
 }
 
-uint32_t __acquire_entry_lock(struct ksnap *cv_seg, struct snapshot_pte_list *pte_entry, lock_hashmap_acq_mode_t acq_mode) {
+static inline uint32_t __attribute__((always_inline)) __acquire_entry_lock(struct ksnap *cv_seg, struct snapshot_pte_list *pte_entry, lock_hashmap_acq_mode_t acq_mode) {
     u64 logging_index;
     u64 entry_index;
     int page_lock_result = 0;
