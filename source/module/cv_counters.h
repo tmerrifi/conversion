@@ -8,7 +8,10 @@ COUNTER_ ##name## _CYCLES_3000_4999, COUNTER_ ##name## _CYCLES_5000_6999, COUNTE
 COUNTER_ ##name## _CYCLES_13000_17999, COUNTER_ ##name## _CYCLES_18000_24999, COUNTER_ ##name## _CYCLES_25000_35999, COUNTER_ ##name## _CYCLES_36000_39999,\
 COUNTER_ ##name## _CYCLES_40000_49999, COUNTER_ ##name## _CYCLES_50000_59999, COUNTER_ ##name## _CYCLES_60000_69999, COUNTER_ ##name## _CYCLES_70000_79999,\
 COUNTER_ ##name## _CYCLES_80000_89999, COUNTER_ ##name## _CYCLES_90000_99999, COUNTER_ ##name## _CYCLES_100000_199999, COUNTER_ ##name## _CYCLES_200000_299999, \ 
-COUNTER_ ##name## _CYCLES_300000_399999, COUNTER_ ##name## _CYCLES_INF, COUNTER_ ##name## _CYCLES_TOTAL
+COUNTER_ ##name## _CYCLES_300000_399999, COUNTER_ ##name## _CYCLES_400000_799999, COUNTER_ ##name## _CYCLES_800000_999999, \
+COUNTER_ ##name## _CYCLES_1000000_1500000, COUNTER_ ##name## _CYCLES_1500000_2500000, COUNTER_ ##name## _CYCLES_2500000_3500000, \
+COUNTER_ ##name## _CYCLES_3500000_4500000, COUNTER_ ##name## _CYCLES_4500000_5500000, COUNTER_ ##name## _CYCLES_5500000_6500000, \
+COUNTER_ ##name## _CYCLES_INF, COUNTER_ ##name## _CYCLES_TOTAL
 
 
 
@@ -44,6 +47,7 @@ typedef enum{COUNTER_FIRST=0,
     COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_35000_INF,COUNTER_COMMIT_LOGGING_ENTRY_CYCLES_TOTAL,
     /*commit page counters*/
     COUNTER_COMMIT_MERGE, COUNTER_COMMIT_NO_MERGE,
+    LATENCY_COUNTER_DEFINE(PAGE_ENTRY_COMMIT),
     /*commit logging counters*/
     COUNTER_COMMIT_LOGGING_NO_MERGE, COUNTER_COMMIT_LOGGING_FAST_PAGE_MERGE, 
     COUNTER_COMMIT_LOGGING_SLOW_PAGE_MERGE, COUNTER_COMMIT_LOGGING_FAST_LINE_MERGE,
@@ -334,7 +338,31 @@ typedef enum{COUNTER_FIRST=0,
     else if (cycles < 400000) {                                                  \
     INC(COUNTER_ ##name## _CYCLES_300000_399999);                            \
     }                                                                    \
-    else {                                                  \
+    else if (cycles < 800000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_400000_799999);                            \
+    }                                                                    \
+    else if (cycles < 1000000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_800000_999999);                            \
+    }                                                                    \
+    else if (cycles <= 1500000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_1000000_1500000);                            \
+    }                                                                    \
+    else if (cycles <= 2500000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_1500000_2500000);                            \
+    }                                                                           \
+    else if (cycles <= 3500000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_2500000_3500000);                            \
+    }                                                                           \
+    else if (cycles <= 4500000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_3500000_4500000);                            \
+    }                                                                           \
+    else if (cycles <= 5500000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_4500000_5500000);                            \
+    }                                                                           \
+    else if (cycles <= 6500000) {                                                  \
+    INC(COUNTER_ ##name## _CYCLES_5500000_6500000);                            \
+    }                                                                           \
+    else {                                                                      \
     INC(COUNTER_ ##name## _CYCLES_INF);                                    \
     }                                                                    
 
@@ -360,7 +388,15 @@ PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_90000_99999, 90000, 99999); \
 PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_100000_199999, 100000, 199999); \
 PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_200000_299999, 200000, 299999); \
 PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_300000_399999, 300000, 399999); \
-PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_INF, 100000, 1000000); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_400000_799999, 400000, 799999); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_800000_999999, 800000, 999999); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_1000000_1500000, 1000000, 1500000); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_1500000_2500000, 1500000, 2500000); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_2500000_3500000, 2500000, 3500000); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_3500000_4500000, 3500000, 4500000); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_4500000_5500000, 4500000, 5500000); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_5500000_6500000, 5500000, 6500000); \
+PRINT_LATENCY_COUNTER(COUNTER_ ##name## _CYCLES_INF, 100000, 3500000); \
 PRINT_COUNTER(COUNTER_ ##name## _CYCLES_TOTAL);
 
 
@@ -480,6 +516,8 @@ static void counters_print_all(struct ksnap_user_data * cv_user){
     PRINT_COUNTER(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_16);
     PRINT_COUNTER(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LT_32);
     PRINT_COUNTER(COUNTER_COMMIT_MERGE_DIFF_CACHELINES_LTE_64);
+
+    LATENCY_COUNTER_PRINT(PAGE_ENTRY_COMMIT);
 }
 
 #else
